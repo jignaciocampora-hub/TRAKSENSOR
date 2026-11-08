@@ -46,6 +46,7 @@ th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);white-
 th{color:var(--tx2);font-weight:600}
 td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 #jumps tr.sel td{background:var(--card2)} #jumps tr[data-k]{cursor:pointer}
+#hist tr[data-id]{cursor:pointer} #hist tr[data-id]:hover td{background:var(--card2)} #hist tr.open td{background:var(--card2)} #hist td.go{color:var(--acc,#18c29c);text-align:right;white-space:nowrap}
 .best{color:var(--acc);font-weight:600}
 .scroll{overflow-x:auto}
 .hide{display:none!important}
@@ -204,7 +205,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v0.6 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v0.7 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -1253,6 +1254,21 @@ const store = {
 };
 let athletes = store.get('trs_athletes', []);
 let results = store.get('trs_results', []);
+// Registros crudos en IndexedDB (permite reabrir cualquier test del historial con gráficos)
+const rawDB = {
+  _db: null,
+  open() { if (this._db) return Promise.resolve(this._db); return new Promise((ok, ko) => { try { const q = indexedDB.open('traksensor', 1); q.onupgradeneeded = () => q.result.createObjectStore('raw'); q.onsuccess = () => ok(this._db = q.result); q.onerror = () => ko(q.error); } catch (e) { ko(e); } }); },
+  async put(k, v) { try { const db = await this.open(); await new Promise((ok, ko) => { const t = db.transaction('raw', 'readwrite'); t.objectStore('raw').put(v, k); t.oncomplete = ok; t.onerror = () => ko(t.error); }); return true; } catch (e) { console.warn(e); return false; } },
+  async get(k) { try { const db = await this.open(); return await new Promise((ok, ko) => { const q = db.transaction('raw').objectStore('raw').get(k); q.onsuccess = () => ok(q.result || null); q.onerror = () => ko(q.error); }); } catch (e) { return null; } },
+  async del(k) { try { const db = await this.open(); db.transaction('raw', 'readwrite').objectStore('raw').delete(k); } catch (e) {} },
+};
+const UI_KEYS = ['boxH', 'romMove', 'balStance', 'balEyes', 'balSurf', 'balDur', 'tmSpeed', 'dist', 'invLR', 'scBeep'];
+function uiSnap() { const o = {}; UI_KEYS.forEach(k => { const el = $(k); if (el) o[k] = el.type === 'checkbox' ? el.checked : el.value; }); return { ui: o, testId, side, orient }; }
+function uiApply(sn) { UI_KEYS.forEach(k => { const el = $(k); if (el && sn.ui[k] !== undefined) { if (el.type === 'checkbox') el.checked = sn.ui[k]; else el.value = sn.ui[k]; } }); testId = sn.testId; side = sn.side; orient = sn.orient; }
+function packS(S) { const a = new Int16Array(S.length * 6); for (let i = 0; i < S.length; i++) for (let j = 0; j < 6; j++) a[i * 6 + j] = Math.round(S[i][j] * (j < 3 ? ACC_LSB : GYR_LSB)); return a; }
+function unpackS(a) { const S = new Array(a.length / 6); for (let i = 0; i < S.length; i++) { const s = new Array(6); for (let j = 0; j < 6; j++) s[j] = a[i * 6 + j] / (j < 3 ? ACC_LSB : GYR_LSB); S[i] = s; } return S; }
+function saveRaw(key, r0) { rawDB.put(key, { S: packS(r0.S), test: r0.test, calStart: r0.calStart, calEnd: r0.calEnd, cueAt: r0.cueAt || [], lost: r0.lost || 0, snap: uiSnap() }); }
+function cleanRaw(sid) { if (!results.some(x => x.serie === sid)) rawDB.del(sid); }
 let orient = store.get('trs_orient', null);
 
 const SVC = '7a5e0001-6b2c-4c1e-9a10-7a5e5e0501aa';
@@ -1545,6 +1561,7 @@ function finishRec(msg) {
   if (r0.lost > 0) res.warn.push(`Se perdieron ${r0.lost} paquetes de Bluetooth: acercá el dispositivo al sensor.`);
   const cond = condLabel(r0.test);
   const entry = { id: Date.now(), serie: Date.now(), n: 1, ath: a.id, test: r0.test, side: t.side || r0.test === 'BAL' ? (t.side ? side : balSide()) : null, cond, date: new Date().toISOString(), main: res.main, m: res.m, extra: res.extra || null };
+  entry.raw = true; saveRaw(entry.serie, r0);
   results.push(entry); store.set('trs_results', results);
   current = { res, entry, t };
   status(msg || '¡Listo! Resultado guardado');
@@ -1642,6 +1659,7 @@ function finishJumps(r0, a, t, msg) {
       main: isDJ ? ['RSI', r(j.key.rsi, 2), 'm/s'] : ['Altura (t. vuelo)', r(j.key.h, 1), 'cm'] };
     results.push(j.entry);
   });
+  out.jumps.forEach(j => j.entry.raw = true); saveRaw(sid, r0);
   store.set('trs_results', results);
   serie = { test: r0.test, jt: t.jump, jumps: out.jumps, sid }; selJump = 0; current = null;
   status(msg || `¡Listo! ${out.jumps.length} salto${out.jumps.length > 1 ? 's' : ''} analizado${out.jumps.length > 1 ? 's' : ''}`);
@@ -1748,18 +1766,18 @@ function renderLSI(entry, val, res) {
 $('btnDiscard').onclick = () => {
   if (serie && !current) {
     const j = serie.jumps[selJump];
-    results = results.filter(x => x.id !== j.entry.id); store.set('trs_results', results);
+    results = results.filter(x => x.id !== j.entry.id); store.set('trs_results', results); cleanRaw(serie.sid);
     serie.jumps.splice(selJump, 1); selJump = 0;
     if (!serie.jumps.length) { $('resCard').classList.add('hide'); serie = null; } else showSerie();
   } else if (current) {
-    results = results.filter(x => x.id !== current.entry.id); store.set('trs_results', results);
+    results = results.filter(x => x.id !== current.entry.id); store.set('trs_results', results); cleanRaw(current.entry.serie);
     current = null; $('resCard').classList.add('hide');
   }
   renderHist();
 };
 $('btnDiscardAll').onclick = () => {
   if (!serie || !confirm('¿Descartar toda la serie?')) return;
-  results = results.filter(x => x.serie !== serie.sid); store.set('trs_results', results);
+  results = results.filter(x => x.serie !== serie.sid); store.set('trs_results', results); rawDB.del(serie.sid);
   serie = null; $('resCard').classList.add('hide'); renderHist();
 };
 $('btnPrint').onclick = () => window.print();
@@ -1926,8 +1944,57 @@ function renderHist() {
   const rows = results.filter(x => x.ath === a.id).slice().reverse();
   if (!rows.length) { t.innerHTML = '<tr><td class="note">Todavía no hay registros</td></tr>'; return; }
   const legacy = (x) => x.m['Altura (t. vuelo) (cm)'] != null ? ['Altura (t. vuelo)', x.m['Altura (t. vuelo) (cm)'], 'cm'] : x.m['RSI (m/s)'] != null ? ['RSI', x.m['RSI (m/s)'], 'm/s'] : ['', '', ''];
-  t.innerHTML = '<tr><th>Fecha</th><th>Test</th><th>Condición</th><th>#</th><th>Resultado principal</th></tr>' +
-    rows.slice(0, 200).map(x => { const mn = x.main || legacy(x), tt = TESTS[x.test]; return `<tr><td>${new Date(x.date).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td><td>${tt ? tt.name : x.test}</td><td>${esc(x.cond || (x.box ? x.box + ' cm' : ''))}</td><td>${x.n ?? 1}</td><td>${mn[0]}: <b>${mn[1]}</b> ${mn[2]}</td></tr>`; }).join('');
+  t.innerHTML = '<tr><th>Fecha</th><th>Test</th><th>Condición</th><th>#</th><th>Resultado principal</th><th></th></tr>' +
+    rows.slice(0, 200).map(x => { const mn = x.main || legacy(x), tt = TESTS[x.test]; return `<tr data-id="${x.id}" class="${openId === x.id ? 'open' : ''}"><td>${new Date(x.date).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td><td>${tt ? tt.name : x.test}</td><td>${esc(x.cond || (x.box ? x.box + ' cm' : ''))}</td><td>${x.n ?? 1}</td><td>${mn[0]}: <b>${mn[1]}</b> ${mn[2]}</td><td class="go">Ver ›</td></tr>`; }).join('');
+  t.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => openHist(+tr.dataset.id));
+}
+let openId = null;
+async function openHist(id) {
+  const e = results.find(x => x.id === id); if (!e) return;
+  const t = TESTS[e.test]; openId = id; renderHist();
+  const raw = e.raw ? await rawDB.get(e.serie) : null;
+  if (raw) {
+    const S = unpackS(raw.S), r0 = { S, test: raw.test, calStart: raw.calStart, calEnd: raw.calEnd, cueAt: raw.cueAt, lost: raw.lost };
+    const keep = uiSnap(); uiApply(raw.snap);
+    try {
+      const a = currentAthlete();
+      if (t.kind === 'jump') {
+        const out = analyzeSession(S, r0.calEnd, t.jump, a.mass, +raw.snap.ui.boxH || 0);
+        if (out.error) throw new Error(out.error);
+        const ents = results.filter(x => x.serie === e.serie);
+        const J = [];
+        out.jumps.forEach((j, k) => { const en = ents.find(x => x.n === k + 1); if (en) { j.entry = en; J.push(j); } });
+        if (!J.length) throw new Error('sin saltos');
+        serie = { test: e.test, jt: t.jump, jumps: J, sid: e.serie }; current = null;
+        selJump = Math.max(0, J.findIndex(j => j.entry.id === id));
+        showSerie();
+      } else {
+        const res = analyzeTest(r0, a, t);
+        if (res.error) throw new Error(res.error);
+        if (r0.lost > 0) res.warn.push(`Se perdieron ${r0.lost} paquetes de Bluetooth.`);
+        serie = null; current = { res, entry: e, t };
+        showGeneric(res, e, t);
+      }
+      lastRaw = { S, test: e.test, athlete: currentAthlete().name }; $('btnRaw').disabled = false;
+    } catch (err) { console.error(err); showSaved(e, t); }
+    finally { uiApply(keep); }
+  } else showSaved(e, t);
+  $('resTitle').textContent += ' · ' + new Date(e.date).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
+  $('resCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+// Registros viejos (sin datos crudos): mostrar todas las métricas guardadas
+function showSaved(e, t) {
+  serie = null; current = { res: null, entry: e, t };
+  $('resCard').classList.remove('hide'); setButtons(false);
+  $('resTitle').textContent = (t ? t.name : e.test) + (e.cond ? ' · ' + e.cond : '') + (e.n > 1 || e.test === 'CMJ' || e.test === 'SJ' ? ' · #' + (e.n || 1) : '');
+  printHead(t ? t.name : e.test, e);
+  $('sumGrid').innerHTML = e.main ? tile([e.main[0], e.main[1], e.main[2], true]) : '';
+  renderLSI(e, e.main ? e.main[1] : null, null);
+  $('jumps').innerHTML = ''; $('tblNote').textContent = '';
+  $('detTitle').classList.remove('hide'); $('detTitle').textContent = 'Métricas guardadas';
+  $('resGrid').innerHTML = Object.entries(e.m).map(([k, v]) => { const m = k.match(/^(.*) \(([^)]*)\)$/); return tile(m ? [m[1], v, m[2]] : [k, v, '']); }).join('');
+  $('resWarn').textContent = 'Este registro es de una versión anterior y no tiene guardados los datos crudos: se muestran solo las métricas (sin gráfico). Los tests nuevos se guardan completos.';
+  $('resPlot').classList.add('hide'); $('phaseLegend').innerHTML = '';
 }
 function download(name, text) {
   const b = new Blob([text], { type: 'text/csv;charset=utf-8' }), u = URL.createObjectURL(b), a = document.createElement('a');
