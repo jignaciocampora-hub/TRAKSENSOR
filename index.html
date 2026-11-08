@@ -4,8 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TrakSensor</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0e1116">
+<meta name="apple-mobile-web-app-title" content="TrakSensor">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20120%20120%22%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20rx%3D%2228%22%20fill%3D%22%230e1116%22/%3E%3Cg%20transform%3D%22translate%2860%2061%29%20scale%280.95%29%20translate%28-60%20-62.5%29%22%3E%3Crect%20x%3D%2253.5%22%20y%3D%2211.2%22%20width%3D%227.0%22%20height%3D%223.6%22%20rx%3D%221.5%22%20transform%3D%22rotate%2816.9%2057%2013%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.38%22/%3E%0A%3Crect%20x%3D%2251.8%22%20y%3D%2215.8%22%20width%3D%227.6%22%20height%3D%223.7%22%20rx%3D%221.5%22%20transform%3D%22rotate%2812.1%2055.6%2017.6%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.42%22/%3E%0A%3Crect%20x%3D%2250.9%22%20y%3D%2220.4%22%20width%3D%228.2%22%20height%3D%223.8%22%20rx%3D%221.6%22%20transform%3D%22rotate%281.2%2055%2022.3%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.47%22/%3E%0A%3Crect%20x%3D%2251.0%22%20y%3D%2225.1%22%20width%3D%228.8%22%20height%3D%223.9%22%20rx%3D%221.6%22%20transform%3D%22rotate%28-10.5%2055.4%2027%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.51%22/%3E%0A%3Crect%20x%3D%2252.0%22%20y%3D%2229.9%22%20width%3D%229.6%22%20height%3D%224.2%22%20rx%3D%221.8%22%20transform%3D%22rotate%28-17.4%2056.8%2032%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.56%22/%3E%0A%3Crect%20x%3D%2253.5%22%20y%3D%2235.0%22%20width%3D%2210.2%22%20height%3D%224.4%22%20rx%3D%221.8%22%20transform%3D%22rotate%28-16.8%2058.6%2037.2%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.6%22/%3E%0A%3Crect%20x%3D%2254.6%22%20y%3D%2240.3%22%20width%3D%2210.8%22%20height%3D%224.6%22%20rx%3D%221.9%22%20transform%3D%22rotate%28-10.3%2060%2042.6%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.65%22/%3E%0A%3Crect%20x%3D%2254.9%22%20y%3D%2245.8%22%20width%3D%2211.4%22%20height%3D%224.8%22%20rx%3D%222.0%22%20transform%3D%22rotate%28-1.0%2060.6%2048.2%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.69%22/%3E%0A%3Crect%20x%3D%2254.2%22%20y%3D%2251.4%22%20width%3D%2212.0%22%20height%3D%225.0%22%20rx%3D%222.1%22%20transform%3D%22rotate%288.9%2060.2%2053.9%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.73%22/%3E%0A%3Crect%20x%3D%2252.5%22%20y%3D%2257.1%22%20width%3D%2212.6%22%20height%3D%225.2%22%20rx%3D%222.2%22%20transform%3D%22rotate%2816.8%2058.8%2059.7%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.78%22/%3E%0A%3Crect%20x%3D%2249.9%22%20y%3D%2263.0%22%20width%3D%2213.4%22%20height%3D%225.6%22%20rx%3D%222.3%22%20transform%3D%22rotate%2822.0%2056.6%2065.8%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.82%22/%3E%0A%3Crect%20x%3D%2246.7%22%20y%3D%2269.1%22%20width%3D%2214.2%22%20height%3D%225.9%22%20rx%3D%222.5%22%20transform%3D%22rotate%2822.0%2053.8%2072.1%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.87%22/%3E%0A%3Crect%20x%3D%2243.9%22%20y%3D%2275.6%22%20width%3D%2215.0%22%20height%3D%226.2%22%20rx%3D%222.6%22%20transform%3D%22rotate%2815.0%2051.4%2078.7%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.91%22/%3E%0A%3Crect%20x%3D%2242.4%22%20y%3D%2282.3%22%20width%3D%2215.6%22%20height%3D%226.4%22%20rx%3D%222.7%22%20transform%3D%22rotate%283.3%2050.2%2085.5%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.96%22/%3E%0A%3Crect%20x%3D%2242.6%22%20y%3D%2289.2%22%20width%3D%2216.0%22%20height%3D%226.4%22%20rx%3D%222.7%22%20transform%3D%22rotate%28-3.3%2050.6%2092.4%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%221.0%22/%3E%0A%3Cpath%20d%3D%22M43.2%2097.6%20C47%2096.6%2054%2097%2058.6%2098.4%20C60.6%20102.6%2061.4%20106.4%2060.6%20109.6%20C58.8%20109.8%2055.8%20107.6%2053.4%20105.8%20C49.6%20103.2%2045.8%20100.6%2043.2%2097.6%20Z%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.85%22/%3E%0A%3Cpath%20d%3D%22M60.6%20111.4%20L62.2%20114%22%20stroke%3D%22%23e8ecf1%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20opacity%3D%220.7%22/%3E%3Crect%20x%3D%2261%22%20y%3D%2280%22%20width%3D%2217%22%20height%3D%2220%22%20rx%3D%225%22%20fill%3D%22%2318c29c%22/%3E%3C/g%3E%3C/svg%3E">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20120%20120%22%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20rx%3D%2228%22%20fill%3D%22%230e1116%22/%3E%3Cg%20transform%3D%22translate%2860%2061%29%20scale%280.92%29%20translate%28-65%20-62.5%29%22%3E%3Crect%20x%3D%2253.5%22%20y%3D%2211.2%22%20width%3D%227.0%22%20height%3D%223.6%22%20rx%3D%221.5%22%20transform%3D%22rotate%2816.9%2057%2013%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.38%22/%3E%0A%3Crect%20x%3D%2251.8%22%20y%3D%2215.8%22%20width%3D%227.6%22%20height%3D%223.7%22%20rx%3D%221.5%22%20transform%3D%22rotate%2812.1%2055.6%2017.6%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.42%22/%3E%0A%3Crect%20x%3D%2250.9%22%20y%3D%2220.4%22%20width%3D%228.2%22%20height%3D%223.8%22%20rx%3D%221.6%22%20transform%3D%22rotate%281.2%2055%2022.3%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.47%22/%3E%0A%3Crect%20x%3D%2251.0%22%20y%3D%2225.1%22%20width%3D%228.8%22%20height%3D%223.9%22%20rx%3D%221.6%22%20transform%3D%22rotate%28-10.5%2055.4%2027%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.51%22/%3E%0A%3Crect%20x%3D%2252.0%22%20y%3D%2229.9%22%20width%3D%229.6%22%20height%3D%224.2%22%20rx%3D%221.8%22%20transform%3D%22rotate%28-17.4%2056.8%2032%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.56%22/%3E%0A%3Crect%20x%3D%2253.5%22%20y%3D%2235.0%22%20width%3D%2210.2%22%20height%3D%224.4%22%20rx%3D%221.8%22%20transform%3D%22rotate%28-16.8%2058.6%2037.2%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.6%22/%3E%0A%3Crect%20x%3D%2254.6%22%20y%3D%2240.3%22%20width%3D%2210.8%22%20height%3D%224.6%22%20rx%3D%221.9%22%20transform%3D%22rotate%28-10.3%2060%2042.6%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.65%22/%3E%0A%3Crect%20x%3D%2254.9%22%20y%3D%2245.8%22%20width%3D%2211.4%22%20height%3D%224.8%22%20rx%3D%222.0%22%20transform%3D%22rotate%28-1.0%2060.6%2048.2%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.69%22/%3E%0A%3Crect%20x%3D%2254.2%22%20y%3D%2251.4%22%20width%3D%2212.0%22%20height%3D%225.0%22%20rx%3D%222.1%22%20transform%3D%22rotate%288.9%2060.2%2053.9%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.73%22/%3E%0A%3Crect%20x%3D%2252.5%22%20y%3D%2257.1%22%20width%3D%2212.6%22%20height%3D%225.2%22%20rx%3D%222.2%22%20transform%3D%22rotate%2816.8%2058.8%2059.7%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.78%22/%3E%0A%3Crect%20x%3D%2249.9%22%20y%3D%2263.0%22%20width%3D%2213.4%22%20height%3D%225.6%22%20rx%3D%222.3%22%20transform%3D%22rotate%2822.0%2056.6%2065.8%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.82%22/%3E%0A%3Crect%20x%3D%2246.7%22%20y%3D%2269.1%22%20width%3D%2214.2%22%20height%3D%225.9%22%20rx%3D%222.5%22%20transform%3D%22rotate%2822.0%2053.8%2072.1%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.87%22/%3E%0A%3Crect%20x%3D%2243.9%22%20y%3D%2275.6%22%20width%3D%2215.0%22%20height%3D%226.2%22%20rx%3D%222.6%22%20transform%3D%22rotate%2815.0%2051.4%2078.7%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.91%22/%3E%0A%3Crect%20x%3D%2242.4%22%20y%3D%2282.3%22%20width%3D%2215.6%22%20height%3D%226.4%22%20rx%3D%222.7%22%20transform%3D%22rotate%283.3%2050.2%2085.5%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.96%22/%3E%0A%3Crect%20x%3D%2242.6%22%20y%3D%2289.2%22%20width%3D%2216.0%22%20height%3D%226.4%22%20rx%3D%222.7%22%20transform%3D%22rotate%28-3.3%2050.6%2092.4%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%221.0%22/%3E%0A%3Cpath%20d%3D%22M43.2%2097.6%20C47%2096.6%2054%2097%2058.6%2098.4%20C60.6%20102.6%2061.4%20106.4%2060.6%20109.6%20C58.8%20109.8%2055.8%20107.6%2053.4%20105.8%20C49.6%20103.2%2045.8%20100.6%2043.2%2097.6%20Z%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.85%22/%3E%0A%3Cpath%20d%3D%22M60.6%20111.4%20L62.2%20114%22%20stroke%3D%22%23e8ecf1%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20opacity%3D%220.7%22/%3E%3Crect%20x%3D%2261.5%22%20y%3D%2282%22%20width%3D%2214%22%20height%3D%2216%22%20rx%3D%224%22%20fill%3D%22%2318c29c%22/%3E%3Ccircle%20cx%3D%2268.5%22%20cy%3D%2290%22%20r%3D%222.4%22%20fill%3D%22%230e1116%22/%3E%3Cpath%20d%3D%22M80%2084.5%20A7%207%200%200%201%2080%2095.5%22%20stroke%3D%22%2318c29c%22%20stroke-width%3D%222.8%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22/%3E%3Cpath%20d%3D%22M85%2081%20A12%2012%200%200%201%2085%2099%22%20stroke%3D%22%2318c29c%22%20stroke-width%3D%222.8%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20opacity%3D%220.5%22/%3E%3C/g%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="alternate icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%20120%20120%22%3E%3Crect%20width%3D%22120%22%20height%3D%22120%22%20rx%3D%2228%22%20fill%3D%22%230e1116%22/%3E%3Cg%20transform%3D%22translate%2860%2061%29%20scale%280.92%29%20translate%28-65%20-62.5%29%22%3E%3Crect%20x%3D%2253.5%22%20y%3D%2211.2%22%20width%3D%227.0%22%20height%3D%223.6%22%20rx%3D%221.5%22%20transform%3D%22rotate%2816.9%2057%2013%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.38%22/%3E%0A%3Crect%20x%3D%2251.8%22%20y%3D%2215.8%22%20width%3D%227.6%22%20height%3D%223.7%22%20rx%3D%221.5%22%20transform%3D%22rotate%2812.1%2055.6%2017.6%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.42%22/%3E%0A%3Crect%20x%3D%2250.9%22%20y%3D%2220.4%22%20width%3D%228.2%22%20height%3D%223.8%22%20rx%3D%221.6%22%20transform%3D%22rotate%281.2%2055%2022.3%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.47%22/%3E%0A%3Crect%20x%3D%2251.0%22%20y%3D%2225.1%22%20width%3D%228.8%22%20height%3D%223.9%22%20rx%3D%221.6%22%20transform%3D%22rotate%28-10.5%2055.4%2027%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.51%22/%3E%0A%3Crect%20x%3D%2252.0%22%20y%3D%2229.9%22%20width%3D%229.6%22%20height%3D%224.2%22%20rx%3D%221.8%22%20transform%3D%22rotate%28-17.4%2056.8%2032%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.56%22/%3E%0A%3Crect%20x%3D%2253.5%22%20y%3D%2235.0%22%20width%3D%2210.2%22%20height%3D%224.4%22%20rx%3D%221.8%22%20transform%3D%22rotate%28-16.8%2058.6%2037.2%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.6%22/%3E%0A%3Crect%20x%3D%2254.6%22%20y%3D%2240.3%22%20width%3D%2210.8%22%20height%3D%224.6%22%20rx%3D%221.9%22%20transform%3D%22rotate%28-10.3%2060%2042.6%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.65%22/%3E%0A%3Crect%20x%3D%2254.9%22%20y%3D%2245.8%22%20width%3D%2211.4%22%20height%3D%224.8%22%20rx%3D%222.0%22%20transform%3D%22rotate%28-1.0%2060.6%2048.2%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.69%22/%3E%0A%3Crect%20x%3D%2254.2%22%20y%3D%2251.4%22%20width%3D%2212.0%22%20height%3D%225.0%22%20rx%3D%222.1%22%20transform%3D%22rotate%288.9%2060.2%2053.9%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.73%22/%3E%0A%3Crect%20x%3D%2252.5%22%20y%3D%2257.1%22%20width%3D%2212.6%22%20height%3D%225.2%22%20rx%3D%222.2%22%20transform%3D%22rotate%2816.8%2058.8%2059.7%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.78%22/%3E%0A%3Crect%20x%3D%2249.9%22%20y%3D%2263.0%22%20width%3D%2213.4%22%20height%3D%225.6%22%20rx%3D%222.3%22%20transform%3D%22rotate%2822.0%2056.6%2065.8%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.82%22/%3E%0A%3Crect%20x%3D%2246.7%22%20y%3D%2269.1%22%20width%3D%2214.2%22%20height%3D%225.9%22%20rx%3D%222.5%22%20transform%3D%22rotate%2822.0%2053.8%2072.1%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.87%22/%3E%0A%3Crect%20x%3D%2243.9%22%20y%3D%2275.6%22%20width%3D%2215.0%22%20height%3D%226.2%22%20rx%3D%222.6%22%20transform%3D%22rotate%2815.0%2051.4%2078.7%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.91%22/%3E%0A%3Crect%20x%3D%2242.4%22%20y%3D%2282.3%22%20width%3D%2215.6%22%20height%3D%226.4%22%20rx%3D%222.7%22%20transform%3D%22rotate%283.3%2050.2%2085.5%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.96%22/%3E%0A%3Crect%20x%3D%2242.6%22%20y%3D%2289.2%22%20width%3D%2216.0%22%20height%3D%226.4%22%20rx%3D%222.7%22%20transform%3D%22rotate%28-3.3%2050.6%2092.4%29%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%221.0%22/%3E%0A%3Cpath%20d%3D%22M43.2%2097.6%20C47%2096.6%2054%2097%2058.6%2098.4%20C60.6%20102.6%2061.4%20106.4%2060.6%20109.6%20C58.8%20109.8%2055.8%20107.6%2053.4%20105.8%20C49.6%20103.2%2045.8%20100.6%2043.2%2097.6%20Z%22%20fill%3D%22%23e8ecf1%22%20opacity%3D%220.85%22/%3E%0A%3Cpath%20d%3D%22M60.6%20111.4%20L62.2%20114%22%20stroke%3D%22%23e8ecf1%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20opacity%3D%220.7%22/%3E%3Crect%20x%3D%2261.5%22%20y%3D%2282%22%20width%3D%2214%22%20height%3D%2216%22%20rx%3D%224%22%20fill%3D%22%2318c29c%22/%3E%3Ccircle%20cx%3D%2268.5%22%20cy%3D%2290%22%20r%3D%222.4%22%20fill%3D%22%230e1116%22/%3E%3Cpath%20d%3D%22M80%2084.5%20A7%207%200%200%201%2080%2095.5%22%20stroke%3D%22%2318c29c%22%20stroke-width%3D%222.8%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22/%3E%3Cpath%20d%3D%22M85%2081%20A12%2012%200%200%201%2085%2099%22%20stroke%3D%22%2318c29c%22%20stroke-width%3D%222.8%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20opacity%3D%220.5%22/%3E%3C/g%3E%3C/svg%3E">
 <style>
 :root{--bg:#0e1116;--card:#171b22;--card2:#1f252e;--line:#2a313c;--tx:#e8ecf1;--tx2:#9aa4b2;--acc:#18c29c;--acc2:#0f8f73;--warn:#f0a63a;--bad:#e5534b;--blue:#4c9ef5}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -154,6 +159,9 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   <div id="optRom" class="row" style="margin-top:10px">
     <label class="f" style="flex:1">Movimiento<select id="romMove"></select></label>
   </div>
+  <div id="optScrum" class="row" style="margin-top:10px">
+    <label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="scBeep" checked> Pitido de salida en cada empuje (mide tiempo de reacción)</label>
+  </div>
   <div id="optOrient" class="row" style="margin-top:12px">
     <span class="note">Orientación del cinturón:</span> <span id="orientPill" class="pill no">sin calibrar</span>
     <button class="sm" id="btnOrient">Calibrar</button>
@@ -196,7 +204,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v0.5 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v0.6 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -884,6 +892,117 @@ function analyzeROM(S, calStart, calEnd, opts) {
   return res;
 }
 
+// ---------- Scrum contra máquina: isométrico → carga → empuje ----------
+function trackUp(S, from, u0, gb, g0) {
+  const n = S.length, U = new Array(n); let gv = u0.slice();
+  for (let i = 0; i < n; i++) {
+    if (i < from) { U[i] = u0; continue; }
+    const w = [(S[i][3] - gb[0]) * D2R, (S[i][4] - gb[1]) * D2R, (S[i][5] - gb[2]) * D2R];
+    const wg = cross(w, gv); gv = nrm([gv[0] - wg[0] * DT, gv[1] - wg[1] * DT, gv[2] - wg[2] * DT]);
+    // corregir con el acelerómetro solo cuando el cuerpo está quieto (si no, la aceleración del empuje contamina la gravedad)
+    const m = Math.hypot(S[i][0], S[i][1], S[i][2]) / g0, wm = Math.hypot(w[0], w[1], w[2]) * R2D;
+    const p = S[Math.max(0, i - 20)], dj = Math.hypot(S[i][0] - p[0], S[i][1] - p[1], S[i][2] - p[2]) / g0;
+    if (Math.abs(m - 1) < 0.03 && wm < 10 && dj < 0.03) { const an = nrm(S[i]); gv = nrm([gv[0] * 0.99 + an[0] * 0.01, gv[1] * 0.99 + an[1] * 0.01, gv[2] * 0.99 + an[2] * 0.01]); }
+    U[i] = gv;
+  }
+  return U;
+}
+
+function analyzeScrum(S, fr, sig, calB, cues, opts) {
+  const n = S.length, u0 = fr.u, g0 = fr.G, gb = fr.gb, U = trackUp(S, calB, u0, gb, g0);
+  const flex = new Float64Array(n), lat = new Float64Array(n), fwd = new Float64Array(n), vert = new Float64Array(n), yawR = new Float64Array(n), dev = new Float64Array(n);
+  const cl = (x) => Math.max(-1, Math.min(1, x));
+  for (let i = 0; i < n; i++) {
+    const g = U[i], s = S[i];
+    flex[i] = fr.f ? Math.atan2(-dot(g, fr.f), dot(g, u0)) * R2D : Math.acos(cl(dot(g, u0))) * R2D;
+    lat[i] = fr.f ? Math.asin(cl(dot(g, fr.l))) * R2D : 0;
+    const p = dot(u0, g), t = [u0[0] - p * g[0], u0[1] - p * g[1], u0[2] - p * g[2]], tl = Math.hypot(t[0], t[1], t[2]);
+    fwd[i] = tl > 0.3 ? dot(s, t) / tl / g0 * G : 0;
+    vert[i] = (dot(s, g) / g0 - 1) * G;
+    yawR[i] = dot([s[3] - gb[0], s[4] - gb[1], s[5] - gb[2]], g);
+    dev[i] = Math.hypot(s[0], s[1], s[2]) / g0 - 1;
+  }
+  const fS = gaussSmooth(flex, 0.1), latS = gaussSmooth(lat, 0.1), gmS = gaussSmooth(sig.GM, 0.05);
+  const adS = gaussSmooth(dev.map(Math.abs), 0.05), fwS = gaussSmooth(fwd, 0.05).map(Math.abs), vtS = gaussSmooth(vert, 0.05).map(Math.abs);
+  const still = (i) => gmS[i] < 20 && adS[i] < 0.05 && fwS[i] < 0.35 && vtS[i] < 0.35;
+  // Episodios: quieto en posición (≥0,5 s) → movimiento → quieto (≥0,3 s)
+  const eps = [];
+  let i = calB;
+  const runStill = (k, need) => { let c = 0; while (k < n && still(k)) { c++; k++; } return c >= need ? k : -1; };
+  while (i < n - FS) {
+    if (!(still(i) && fS[i] > 40)) { i++; continue; }
+    let a = i, b = i; while (b < n && still(b) && fS[b] > 40) b++;
+    if (b - a < 0.5 * FS || b >= n - 10) { i = b + 1; continue; }
+    const on = b; let k = on + Math.round(0.15 * FS), end = -1;
+    while (k < Math.min(n, on + 6 * FS)) { if (still(k)) { const e = runStill(k, Math.round(0.3 * FS)); if (e > 0) { end = k; break; } } k++; }
+    const endOK = end > 0;
+    if (!endOK) end = Math.min(n - 1, on + 6 * FS);
+    if (end - on >= 0.3 * FS) eps.push({ a, b, on, end, endOK });
+    i = end + 1;
+  }
+  if (!eps.length) return { error: 'No se detectó ningún empuje. Antes de empujar, quedate quieto en posición al menos 1 s.' };
+
+  const reps = eps.map((ep) => {
+    const { on, end } = ep, L = end - on + 1;
+    let v = 0, vz = 0; const V = [], VZ = [];
+    for (let k = on; k <= end; k++) { V.push(v); VZ.push(vz); v += fwd[k] * DT; vz += vert[k] * DT; }
+    if (ep.endOK) { const cv = V[L - 1] / (L - 1 || 1), cz = VZ[L - 1] / (L - 1 || 1); for (let k = 0; k < L; k++) { V[k] -= cv * k; VZ[k] -= cz * k; } }
+    let x = 0, z = 0, xMin = 0, zMin = 0; const X = [];
+    for (let k = 0; k < L; k++) { X.push(x); x += V[k] * DT; z += VZ[k] * DT; if (x < xMin) xMin = x; if (z < zMin) zMin = z; }
+    let kPk = 0; for (let k = 0; k < L; k++) if (V[k] > V[kPk]) kPk = k;
+    let kD = kPk; while (kD > 0 && V[kD] > 0.03) kD--;
+    let vm = 0, c = 0; for (let k = kD; k < L; k++) if (V[k] > 0) { vm += V[k]; c++; }
+    let aPk = 0; for (let k = on + kD; k <= on + kPk; k++) aPk = Math.max(aPk, fwd[k]);
+    const yaw = cumint(yawR, on, end + 1); let ylo = Infinity, yhi = -Infinity;
+    for (let k = on; k <= end; k++) { const yv = yaw[k] - yaw[end] * (k - on) / (L - 1 || 1); ylo = Math.min(ylo, yv); yhi = Math.max(yhi, yv); }
+    const isoFlex = mean(Array.from(flex.slice(ep.a, ep.b))), isoLat = mean(Array.from(lat.slice(ep.a, ep.b)));
+    const beep = (cues || []).filter(q => q >= ep.a - 0.2 * FS && q <= on).pop();
+    return {
+      ep, V, X, kD, kPk, vPk: V[kPk], vMean: c ? vm / c : 0, disp: X[L - 1], back: -xMin, drop: -zMin,
+      tLoad: kD / FS, tDrive: (L - 1 - kD) / FS, tPk: (kPk - kD) / FS, aPk: aPk / G,
+      rot: yhi - ylo, latR: rangeOf(latS, on, end), flexR: rangeOf(fS, on, end), isoFlex, isoLat,
+      rt: beep != null ? (on - beep) / FS : null,
+    };
+  });
+
+  const res = { tiles: [], tiles2: [], warn: [], m: {}, table: { head: ['#', 'Vel. pico', 'Vel. media', 'Desplaz.', 'Retroceso', 'Desc. cadera', 'Carga', 'Empuje', 'T. al pico'], rows: [] } };
+  const T = (l, v, u, d, main, sec) => { if (fin(v)) { (sec ? res.tiles2 : res.tiles).push([l, r(v, d), u, main]); res.m[l + ' (' + u + ')'] = r(v, d); } };
+  const best = reps.reduce((b, x) => x.vPk > b.vPk ? x : b, reps[0]);
+  reps.forEach((x, k) => res.table.rows.push([(k + 1) + (x === best && reps.length > 1 ? ' ★' : ''), r(x.vPk, 2) + ' m/s', r(x.vMean, 2) + ' m/s', r(x.disp * 100, 0) + ' cm', r(x.back * 100, 1) + ' cm', r(x.drop * 100, 1) + ' cm', Math.round(x.tLoad * 1000) + ' ms', Math.round(x.tDrive * 1000) + ' ms', Math.round(x.tPk * 1000) + ' ms']));
+  const M = (k) => mean(reps.map(x => x[k]).filter(fin));
+  T('Velocidad pico', best.vPk, 'm/s', 2, true);
+  T('Velocidad media de empuje', M('vMean'), 'm/s', 2, true);
+  T('Desplazamiento', reps.length > 1 ? M('disp') * 100 : best.disp * 100, 'cm', 0, true);
+  if (reps.length > 1) { T('Empujes', reps.length, '', 0); T('CV velocidad pico', sdv(reps.map(x => x.vPk)) / M('vPk') * 100, '%', 1); }
+  T('Tiempo al pico de velocidad', M('tPk') * 1000, 'ms', 0);
+  T('Ángulo del tronco (isométrico)', M('isoFlex'), '°', 0);
+  if (fr.known) { const il = M('isoLat'); T('Inclinación lateral (isométrico)' + (Math.abs(il) >= 1 ? (il > 0 ? ' · der. más baja' : ' · izq. más baja') : ''), Math.abs(il), '°', 1); }
+  T('Retroceso en la carga', M('back') * 100, 'cm', 1, false, true);
+  T('Descenso de cadera en la carga', M('drop') * 100, 'cm', 1, false, true);
+  T('Duración de la carga', M('tLoad') * 1000, 'ms', 0, false, true);
+  T('Duración del empuje', M('tDrive') * 1000, 'ms', 0, false, true);
+  T('Aceleración pico hacia adelante', M('aPk'), 'g', 2, false, true);
+  T('Rotación de pelvis en el empuje', M('rot'), '°', 1, false, true);
+  if (fr.known) T('Variación lateral en el empuje', M('latR'), '°', 1, false, true);
+  T('Variación del ángulo de tronco', M('flexR'), '°', 1, false, true);
+  const rts = reps.map(x => x.rt).filter(fin);
+  if (rts.length) T('Tiempo de reacción al pitido', mean(rts) * 1000, 'ms', 0, false, true);
+  if (reps.some(x => !x.ep.endOK)) res.warn.push('En algún empuje el jugador no quedó quieto al final: la velocidad y los metros de ese empuje son menos precisos.');
+  if (!fr.known) res.warn.push('Orientación del cinturón sin calibrar: no se calcula la inclinación lateral.');
+  if (rts.length) res.warn.push('El tiempo de reacción es aproximado (±0,1 s) por la demora del Bluetooth.');
+  // gráfico: velocidad hacia adelante y fases
+  const Vfull = new Float64Array(n), spans = [], marks = [];
+  reps.forEach((x, k) => {
+    for (let j = 0; j < x.V.length; j++) Vfull[x.ep.on + j] = x.V[j];
+    spans.push(['Isométrico', x.ep.a, x.ep.b, 'unw'], ['Carga', x.ep.on, x.ep.on + x.kD, 'brk'], ['Empuje', x.ep.on + x.kD, x.ep.end, 'con']);
+    marks.push([k + 1, x.ep.on + x.kPk, 'Vel. pico ' + (k + 1), 0]);
+  });
+  const from = Math.max(calB, reps[0].ep.a - Math.round(0.5 * FS)), to = Math.min(n - 1, reps[reps.length - 1].ep.end + FS);
+  res.chart = { type: 'lines', from, to, lines: [{ arr: Vfull, color: '#4c9ef5', lo: -0.5, hi: Math.max(1, best.vPk * 1.2), label: 'Velocidad hacia adelante (m/s)' }, { arr: fS, color: '#18c29c', lo: 0, hi: 110, label: 'Ángulo del tronco (°)' }], spans: reps.length > 3 ? spans.filter(s => s[3] !== 'unw') : spans, marks };
+  res.main = ['Velocidad pico', r(best.vPk, 2), 'm/s'];
+  return res;
+}
+
 // ===================== ANALYSIS-END =====================
 
 // ===================== INSTRUCCIONES ANIMADAS =====================
@@ -1044,6 +1163,34 @@ const AN = (() => {
     BAL: { draw: (t) => groundLine(GROUND) + drawFigure(Object.assign({}, balUni, { tr: 2 + 2.5 * Math.sin(t * 1.7), px: 160 + 2 * Math.sin(t * 1.3) }), { eyesClosed: Math.floor(t / 4) % 2 === 1 }) + label(Math.floor(t / 4) % 2 ? 'Ojos cerrados' : 'Ojos abiertos') },
     ROM: { draw: (t) => groundLine(GROUND) + drawFigure(tween([[0, P({ hands: 'free', sL: 6, eL: 4, sR: 6, eR: 4 })], [0.8, P({ hands: 'free', sL: 6, eL: 4, sR: 6, eR: 4 })], [2.2, P({ hands: 'free', sL: 170, eL: 2, sR: 6, eR: 4 })], [2.8, P({ hands: 'free', sL: 170, eL: 2, sR: 6, eR: 4 })], [4, P({ hands: 'free', sL: 6, eL: 4, sR: 6, eR: 4 })], [4.6, P({ hands: 'free', sL: 6, eL: 4, sR: 6, eR: 4 })]], t), { sensor: 'arm' }) + label('Ejemplo: flexión de hombro') },
     FREE: { draw: (t) => groundLine(GROUND) + drawFigure(walkPose(t * 1.05, false, {}), {}) },
+    SCRUM: { draw: (t) => {
+      const T = t % 7.4;
+      // posición de scrum: espalda plana (cadera apenas más alta que los hombros), hombro en la almohadilla, brazos a la barra, piernas atrás en puntas de pie
+      const ISO = P({ px: 112, tr: 97, hL: -36, kL: 26, aL: -6, hR: -50, kR: 16, aR: -6, hands: 'free', sL: -26, eL: 82, sR: -20, eR: 76 });
+      const LOAD = Object.assign({}, ISO, { px: 106, tr: 102, hL: -18, kL: 52, hR: -32, kR: 42 });
+      const EXT = Object.assign({}, ISO, { tr: 93, hL: -56, kL: 8, hR: -66, kR: 4 });
+      let pose, dx = 0, lbl = '';
+      if (T < 1.6) { pose = Object.assign({}, ISO, { tr: ISO.tr + 0.5 * Math.sin(T * 6) }); lbl = 'Isométrico: quieto'; }
+      else if (T < 2.2) { pose = lerpPose(ISO, LOAD, ease((T - 1.6) / 0.6)); lbl = 'Carga: flexiona rodillas y cadera'; }
+      else if (T < 3.8) {
+        const u = (T - 2.2) / 1.6, e = ease(u), sw = Math.sin(u * 4 * Math.PI);
+        dx = 64 * e;
+        const base = u < 0.3 ? lerpPose(LOAD, EXT, ease(u / 0.3)) : EXT;
+        pose = Object.assign({}, base, { px: (u < 0.3 ? 106 + 6 * ease(u / 0.3) : 112) + dx });
+        if (u >= 0.3) { pose.hL = EXT.hL + 16 * sw; pose.kL = EXT.kL + 22 * Math.max(0, sw); pose.hR = EXT.hR - 12 * sw; pose.kR = EXT.kR + 22 * Math.max(0, -sw); }
+        lbl = '¡Empuje!';
+      }
+      else if (T < 5.8) { dx = 64; pose = Object.assign({}, ISO, { px: 112 + dx }); lbl = 'Quieto al terminar'; }
+      else { dx = 64 * (1 - ease((T - 5.8) / 1.6)); pose = Object.assign({}, ISO, { px: 112 + dx }); lbl = ''; }
+      const sp = solveGround(pose, GROUND);
+      const tr = rad(sp.tr), shX = sp.px + Math.sin(tr) * LTR, shY = sp.py - Math.cos(tr) * LTR;
+      const mx = 112 + 54 + 64 * (dx / 64) * 1, padX = shX + 4, padY = shY;
+      const sled = `<g stroke="#5b6574" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <path d="M${padX + 6} ${padY + 4} H${padX + 46} M${padX + 10} ${padY + 4} L${padX + 16} ${GROUND} M${padX + 44} ${padY - 6} V${GROUND} M${padX + 44} ${padY - 6} L${padX + 30} ${padY + 4}"/>
+        <path d="M${padX + 8} ${GROUND - 2} H${padX + 50}" stroke-width="6"/></g>
+        <rect x="${padX - 3}" y="${padY - 24}" width="13" height="40" rx="4" fill="#e5534b"/>`;
+      return groundLine(GROUND) + sled + drawFigure(pose, {}) + label(lbl) + (dx > 1 ? `<path d="M${168} 96 H${168 + dx}" stroke="#4c9ef5" stroke-width="3" stroke-linecap="round"/>` + tag(168 + Math.max(dx, 60) / 2, 88, 'desplazamiento') : '');
+    } },
   };
 
   let raf = 0, t0 = 0, cur = null, el = null;
@@ -1094,6 +1241,8 @@ const GUIDE = {
          errors: ['Mover los brazos para equilibrarse.', 'Hablar durante la prueba.'] },
   ROM: { steps: ['Elegí el movimiento: la app indica dónde va el sensor.', 'Sujetá el sensor con una banda elástica firme en ese segmento.', 'Posición inicial, quieto 2 s.', 'Hacé el movimiento hasta el máximo, lento y controlado, y volvé. Repetí 3 veces.', 'Tocá Stop y repetí del otro lado para comparar.'],
          errors: ['Sensor flojo (sobreestima el rango).', 'Compensar con el tronco.'] },
+  SCRUM: { steps: ['Calibrá la orientación del cinturón (una vez por colocación) y ajustalo bien firme: con el cuerpo horizontal, un cinturón flojo se mueve.', 'Parado quieto 2 s (referencia de postura).', 'Enganchate en la máquina y quedate quieto en isometría al menos 1 s.', 'Al pitido (o cuando quieras, si lo desactivás): carga (flexioná rodillas y cadera) y empujá desplazando la máquina.', 'Al terminar el empuje quedate quieto en posición: así la app cierra el cálculo de velocidad y metros.', 'Para hacer otro empuje, volvé a la posición inicial y quieto 1 s. Al pararte, el test termina solo.'],
+           errors: ['Arrancar sin estar quieto antes (no hay punto de partida para medir la velocidad).', 'Pararse enseguida al terminar el empuje (quedate quieto en posición 1 s).', 'Cinturón flojo.', 'Con máquina fija no hay desplazamiento: el sensor mide postura y estabilidad, no la fuerza.'] },
   FREE: { steps: ['Tocá Play.', 'Hacé la actividad que quieras registrar.', 'Tocá Stop y exportá los datos crudos en CSV.'], errors: [] },
 };
 
@@ -1152,6 +1301,8 @@ const TESTS = {
            help: 'Adoptá la postura elegida, brazos cruzados. Quieto: cuando aparezca "¡Ya!", mantenela el tiempo indicado.' },
   ROM:   { cat: 'Movilidad', name: 'Rango de movimiento (ROM)', kind: 'rom', calib: 'stand', stop: 'manual', side: true, rom: true,
            help: 'Sujetá el sensor firme en el segmento que se mueve. Quieto 2 s en la posición inicial, hacé el movimiento (podés repetirlo) y tocá Stop.' },
+  SCRUM: { cat: 'Scrum', name: 'Scrum contra máquina (empuje)', kind: 'scrum', calib: 'stand', stop: 'scrum', mode: true, orient: true, scrum: true,
+           help: 'Parado quieto 2 s. Engancharse en la máquina y quedarse quieto en isometría; al pitido (o cuando quiera): carga y empuje. Al terminar cada empuje, quieto en posición.' },
   FREE:  { cat: 'Otros', name: 'Registro libre (datos crudos)', kind: 'free', calib: 'stand', stop: 'manual',
            help: 'Graba todo lo que hagas entre Play y Stop y lo exporta en CSV. Ideal para mandar datos y ajustar los cálculos.' },
 };
@@ -1210,6 +1361,39 @@ function onData(e) {
   }
 }
 
+// ---------- Audio (pitido de salida) ----------
+let actx = null;
+function initAudio() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {} }
+function beep(f = 1200, d = 0.25) { if (!actx) return; try { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = f; g.gain.value = 0.3; o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + d); } catch (e) {} }
+
+// ---------- Scrum: seguimiento en vivo ----------
+function scrumSetup(i) {
+  rec.sc = { ex: rec.cal.u.slice(), state: 'wait', still: 0, mov: 0, n: 0, upN: 0, last: i };
+  rec.cueAt = [];
+  status('Enganchate en la máquina y quedate quieto…');
+  counter(rec.target === Infinity ? '0 empujes' : `0 de ${rec.target}`);
+}
+function scrumTick(i, s, m, gm) {
+  const c = rec.sc, g0 = rec.cal.G, a = nrm(s);
+  for (let k = 0; k < 3; k++) c.ex[k] = c.ex[k] * 0.95 + a[k] * 0.05;
+  const ang = Math.acos(Math.max(-1, Math.min(1, dot(nrm(c.ex), rec.cal.u)))) * R2D;
+  const motion = gm > 20 || Math.abs(m / g0 - 1) > 0.04;
+  c.still = motion ? 0 : c.still + 1; c.mov = motion ? c.mov + 1 : 0;
+  if (c.state === 'wait' && ang > 40 && c.still > FS) {
+    c.state = 'ready'; c.last = i;
+    if ($('scBeep').checked) { beep(1400, 0.3); rec.cueAt.push(i); status('¡Empujá!'); } else status('En posición: empujá cuando quieras');
+  } else if (c.state === 'ready' && c.mov > 0.08 * FS) { c.state = 'push'; status('Empujando…'); }
+  else if (c.state === 'push' && c.still > 0.7 * FS) {
+    c.n++; c.state = 'wait'; c.last = i;
+    counter(rec.target === Infinity ? `${c.n} empuje${c.n > 1 ? 's' : ''}` : `${c.n} de ${rec.target}`);
+    if (c.n >= rec.target) { finishRec(); return true; }
+    status('✓ Quieto en posición para el siguiente empuje…');
+  }
+  if (c.n > 0 && ang < 25) { if (++c.upN > FS) { finishRec(); return true; } } else c.upN = 0;
+  if (i - c.last > 40 * FS) { if (c.n) finishRec('40 s sin empujes: registro terminado'); else { send('P'); rec = null; setRecBtn(); status('No se detectó ningún empuje. Probá de nuevo.'); counter(''); } return true; }
+  return false;
+}
+
 // ---------- Registro ----------
 const CAL_N = 2 * FS;
 const T_ = () => TESTS[testId];
@@ -1226,8 +1410,8 @@ function setRecBtn() {
   const b = $('btnRec'), t = T_();
   if (rec) { b.className = 'stop big'; b.textContent = (rec.kind === 'orient') ? 'Cancelar' : (t.stop === 'manual' || mode === 'C' ? '■ Stop' : 'Detener'); b.disabled = false; return; }
   b.className = 'pri big'; b.disabled = !connected();
-  if (t.kind === 'jump' || t.kind === 'squat') {
-    const n = target(), w = t.kind === 'jump' ? 'salto' : 'repetición', ws = t.kind === 'jump' ? 'saltos' : 'repeticiones';
+  if (t.kind === 'jump' || t.kind === 'squat' || t.kind === 'scrum') {
+    const n = target(), w = t.kind === 'jump' ? 'salto' : t.kind === 'scrum' ? 'empuje' : 'repetición', ws = t.kind === 'jump' ? 'saltos' : t.kind === 'scrum' ? 'empujes' : 'repeticiones';
     b.textContent = mode === 'C' ? '▶ Play' : `Registrar ${n} ${n > 1 ? ws : w}`;
   } else b.textContent = t.stop === 'manual' ? '▶ Play' : 'Iniciar test';
 }
@@ -1236,6 +1420,7 @@ function startRec(kind) {
   const a = currentAthlete();
   if (kind !== 'orient' && !a) { alert('Primero creá o elegí un atleta.'); return; }
   const t = T_();
+  if (kind !== 'orient') initAudio();
   rec = { kind: kind || 'test', test: testId, S: [], phase: 'calib', calStart: 0, calEnd: 0, lost: 0, target: target(),
           ff: -1, lastEnd: -1, jumps: 0, stopAt: 0, lastEvt: 0, v: 0, inUp: false, inDn: false, ups: 0, downs: 0,
           turnAng: 0, inTurn: false, quiet: 0, turns: 0, lastMove: 0, moveN: 0 };
@@ -1278,6 +1463,7 @@ function onSample(s) {
       const gb = [0, 0, 0]; for (let k = rec.calStart; k <= i; k++) for (let q = 0; q < 3; q++) gb[q] += S[k][3 + q] / (i + 1 - rec.calStart);
       rec.gb = gb;
       status(goMsg());
+      if (TESTS[rec.test].stop === 'scrum') scrumSetup(i);
     }
     return;
   }
@@ -1320,6 +1506,7 @@ function onSample(s) {
       rec.inTurn = false; rec.turnAng = 0; rec.quiet = 0;
     }
   }
+  if (t.stop === 'scrum') { if (scrumTick(i, s, m, gm)) return; }
   // criterios de fin
   const secs = testSecs();
   if (t.stop === 'time') { counter(`${fmtT(Math.min(el, secs))} / ${fmtT(secs)}`); if (el >= secs) return finishRec(); }
@@ -1372,6 +1559,7 @@ function condLabel(id) {
   if (t.box) p.push($('boxH').value + ' cm');
   if (t.bal) p.push($('balStance').selectedOptions[0].text, $('balEyes').value, $('balSurf').value === 'E' ? 'espuma' : '', $('balDur').value + ' s');
   if (t.rom) p.push($('romMove').value);
+  if (t.scrum && $('scBeep').checked) p.push('con pitido');
   if (t.speed && $('tmSpeed').value) p.push($('tmSpeed').value + ' km/h');
   return p.filter(Boolean).join(' · ');
 }
@@ -1425,6 +1613,7 @@ function analyzeTest(r0, a, t) {
     }
     return withTitle(res, t);
   }
+  if (t.kind === 'scrum') return withTitle(analyzeScrum(S, fr, sig, calB, r0.cueAt || [], {}), t);
   if (t.kind === 'tug') return withTitle(analyzeTUG(S, fr, sig, calB, opts), t);
   if (t.kind === 'turn') return withTitle(analyzeTurnTest(S, fr, sig, calB), t);
   if (t.kind === 'sts') return withTitle(analyzeSTS(S, fr, sig, calB, { mode: r0.test, mass: a.mass }), t);
@@ -1639,7 +1828,7 @@ function drawChart(ch) {
       if (lo == null) { lo = Infinity; hi = -Infinity; for (let i = ch.from; i <= ch.to; i++) { lo = Math.min(lo, ln.arr[i]); hi = Math.max(hi, ln.arr[i]); } const pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad; }
       ln._lo = lo; ln._hi = hi;
       const Y = (v) => bot - (Math.min(Math.max(v, lo), hi) - lo) / (hi - lo) * (bot - top);
-      if (k === 0) { x.fillStyle = '#9aa4b2'; x.textAlign = 'right'; x.fillText(r(hi, 0), lft - 4, top + 8); x.fillText(r(lo, 0), lft - 4, bot); if (lo < 0 && hi > 0) { x.strokeStyle = '#3a4250'; x.beginPath(); x.moveTo(lft, Y(0)); x.lineTo(rgt, Y(0)); x.stroke(); } }
+      if (k === 0) { x.fillStyle = '#9aa4b2'; x.textAlign = 'right'; const fmt = (v) => Math.abs(hi - lo) < 10 ? r(v, 1) : r(v, 0); x.fillText(fmt(hi), lft - 4, top + 8); x.fillText(fmt(lo), lft - 4, bot); if (lo < 0 && hi > 0) { x.strokeStyle = '#3a4250'; x.beginPath(); x.moveTo(lft, Y(0)); x.lineTo(rgt, Y(0)); x.stroke(); } }
       x.strokeStyle = ln.color; x.lineWidth = k === 0 ? 2 : 1.2; x.globalAlpha = k === 0 ? 1 : 0.6; x.beginPath();
       const stp = Math.max(1, Math.floor(span / (w * 2)));
       for (let i = ch.from; i <= ch.to; i += stp) { const px = X(i), py = Y(ln.arr[i]); i === ch.from ? x.moveTo(px, py) : x.lineTo(px, py); }
@@ -1786,6 +1975,7 @@ function renderTestOpts() {
   $('optSpeed').classList.toggle('hide', !t.speed);
   $('optTurn').classList.toggle('hide', !t.turn);
   $('optRom').classList.toggle('hide', !t.rom);
+  $('optScrum').classList.toggle('hide', !t.scrum);
   $('optOrient').classList.toggle('hide', !t.orient);
   if (t.rom) { const mv = ROM_MOVES.find(x => x[0] === $('romMove').value); $('testHelp').textContent = t.help + (mv ? ' (' + mv[1] + ').' : ''); }
   renderGuide();
@@ -1820,6 +2010,7 @@ $('btnCsv').onclick = exportCsv;
 $('btnRaw').onclick = exportRaw;
 buildTestSelect(); renderTestOpts(); renderOrient(); renderAth(); setRecBtn(); $('btnOrient').disabled = true;
 drawLive();
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>
