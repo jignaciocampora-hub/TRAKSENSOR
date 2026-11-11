@@ -48,6 +48,37 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 #jumps tr.sel td{background:var(--card2)} #jumps tr[data-k]{cursor:pointer}
 #hist tr[data-id]{cursor:pointer} #hist tr[data-id]:hover td{background:var(--card2)} #hist tr.open td{background:var(--card2)} #hist td.go{color:var(--acc,#18c29c);text-align:right;white-space:nowrap}
 .best{color:var(--acc);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:10px 12px 12px;border-radius:14px;background:linear-gradient(165deg,#173a32 0%,#141c24 70%);border:1px solid #24493f;text-align:left;color:var(--tx)}
+.tile:hover{border-color:var(--acc)}
+.tile .ti{aspect-ratio:320/170;border-radius:10px;background:rgba(14,17,22,.55);overflow:hidden}
+.tile b{font-size:15px;margin-top:4px}.tile small{color:var(--tx2);font-size:12px}
+.navrow{display:flex;align-items:center;gap:10px;margin-bottom:12px}.navrow h2{margin:0;flex:1}
+#testTitle,#gTitle{font-size:17px;text-transform:none;letter-spacing:0;color:var(--tx)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border-radius:999px;padding:8px 16px;font-size:15px;font-weight:600;background:#20262f;border:1px solid #303846;color:var(--tx2);white-space:nowrap}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#04241c}
+.chip.mv{font-weight:500;background:transparent}.chip.mv.on{background:#123a31;color:var(--tx);border-color:var(--acc)}
+.romcard{border-top:1px solid var(--line);margin-top:4px;padding-top:14px}
+.rhead{display:flex;align-items:center;gap:12px;margin-bottom:12px}.rhead h3{font-size:21px;font-weight:650;margin:0;line-height:1.2}
+.jbadge{flex:none;background:#123a31;color:var(--acc);border-radius:8px;padding:5px 11px;font-size:14px;font-weight:600}
+.rgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+@media (min-width:720px){.rgrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}}
+.ranim{width:100%;aspect-ratio:320/232;background:#141920;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.rsec{margin-bottom:14px}.rsec:last-child{margin-bottom:0}
+.rt{display:flex;align-items:center;gap:8px;color:var(--acc);font-weight:650;font-size:16px;margin-bottom:4px}
+.rt svg{width:18px;height:18px;flex:none}
+.rsec p{margin:0;color:#c9d0da;font-size:15px;line-height:1.45}
+.srow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;color:#c9d0da;font-size:14px}
+.schip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--acc);background:#123a31;color:var(--tx);border-radius:999px;padding:6px 14px;font-weight:600}
+.schip svg{width:15px;height:15px;color:var(--acc)}
+.rng{font-size:22px!important;font-weight:650;color:var(--tx)!important}
+.tlist{display:flex;flex-direction:column;gap:8px}
+.titem{display:flex;gap:12px;align-items:center;padding:8px 10px;border-radius:12px;background:var(--card2);border:1px solid var(--line);text-align:left;width:100%}
+.titem:hover{border-color:var(--acc)}
+.titem .th{width:104px;flex:none;aspect-ratio:320/180;border-radius:8px;background:#0e1116;overflow:hidden}
+.titem .tx{flex:1;min-width:0}.titem b{display:block;font-size:15px;font-weight:600}.titem small{display:block;color:var(--tx2);font-size:12px;margin-top:2px}
+.titem .go{color:var(--acc);font-size:22px;padding:0 4px}
 .scroll{overflow-x:auto}
 .hide{display:none!important}
 .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:var(--card2);border:1px solid var(--line)}
@@ -55,7 +86,8 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 #printHead{display:none}
 @media print{
   body{background:#fff;color:#111;max-width:none;padding:0}
-  header,.card:not(#resCard),#resCard .row,body>p{display:none!important}
+  header,.card:not(#resCard),#resCard .row,body>p,#vHome,#vGroup{display:none!important}
+  #vTest{display:block!important}
   #printHead{display:block;margin-bottom:10px;color:#111}
   #resCard{border:0;background:#fff;padding:0}
   .m{background:#f3f4f6;color:#111}.m .l,.note,th{color:#444}
@@ -111,9 +143,26 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
+<div id="vHome">
+  <div class="card"><h2>Elegí un test</h2><div class="tiles" id="tiles"></div></div>
+</div>
+
+<div id="vGroup" class="hide"><div class="card">
+  <div class="navrow"><button class="sm" id="btnBackHome">‹ Inicio</button><h2 id="gTitle"></h2></div>
+  <div class="tlist" id="glist"></div>
+  <div id="romPick" class="hide">
+    <div class="chips" id="jChips"></div>
+    <div class="chips" id="mChips"></div>
+    <div class="romcard" id="romCard"></div>
+    <button class="pri big" id="btnRomGo" style="margin-top:14px">Medir este movimiento ›</button>
+  </div>
+</div></div>
+
+<div id="vTest" class="hide">
 <div class="card">
-  <h2>Test</h2>
-  <select id="selTest" style="width:100%"></select>
+  <div class="navrow"><button class="sm" id="btnBackGroup">‹ Volver</button><h2 id="testTitle">Test</h2></div>
+  <select id="selTest" class="hide"></select>
+  <div id="romInfo" class="hide" style="margin-bottom:6px"></div>
   <p class="note" id="testHelp" style="margin-top:8px"></p>
   <button class="sm" id="btnGuide" style="margin-top:8px">▶ Cómo se hace</button>
   <div id="guideBox" class="hide" style="margin-top:10px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px">
@@ -160,6 +209,10 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   <div id="optRom" class="row" style="margin-top:10px">
     <label class="f" style="flex:1">Movimiento<select id="romMove"></select></label>
   </div>
+  <div id="optIso" class="row" style="margin-top:10px">
+    <label class="f" style="flex:2;min-width:180px">Ejercicio<select id="isoEx"></select></label>
+    <label class="f">Duración<select id="isoDur"><option value="15">15 s</option><option value="20">20 s</option><option value="30" selected>30 s</option><option value="45">45 s</option><option value="60">60 s</option><option value="90">90 s</option><option value="120">2 min</option><option value="0">Hasta el fallo (Stop)</option></select></label>
+  </div>
   <div id="optScrum" class="row" style="margin-top:10px">
     <label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="scBeep" checked> Pitido de salida en cada empuje (mide tiempo de reacción)</label>
   </div>
@@ -195,6 +248,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
     <button id="btnPrint">Imprimir / PDF</button>
   </div>
 </div>
+</div><!-- /vTest -->
 
 <div class="card">
   <h2>Historial del atleta</h2>
@@ -205,7 +259,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v0.7 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v0.9 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -862,6 +916,66 @@ function analyzeBalance(S, fr, sig, a, b, opts) {
   return res;
 }
 
+// ---------- Isométricos: oscilación, temblor, deriva postural y fatiga ----------
+function analyzeIso(S, fr, a, b) {
+  if (b - a < 3 * FS) return { error: 'La posición duró muy poco: no hay datos suficientes para analizar.' };
+  pcaForward(S, fr, a, b);
+  const sig = signals(S, fr);
+  const bal = analyzeBalance(S, fr, sig, a, b, {});
+  if (bal.error) return { error: 'Se salió de la posición enseguida: no hay datos suficientes para analizar.' };
+  const end = a + Math.round(bal.held * FS), n = end - a;
+  // oscilación angular (giroscopio perpendicular a la gravedad)
+  const wm = new Float64Array(S.length); for (let i = 0; i < S.length; i++) wm[i] = Math.hypot(sig.wAP[i], sig.wML[i]);
+  const osc = gaussSmooth(wm, 0.25);
+  const rmsR = (arr, i0, i1) => { let q = 0; for (let i = i0; i < i1; i++) q += arr[i] * arr[i]; return Math.sqrt(q / Math.max(1, i1 - i0)); };
+  const n3 = Math.floor(n / 3), o1 = rmsR(wm, a, a + n3), o3 = rmsR(wm, end - n3, end);
+  // temblor: componente de 3–15 Hz del giroscopio y su frecuencia dominante
+  const lpAP = gaussSmooth(sig.wAP, 0.03), lpML = gaussSmooth(sig.wML, 0.03), sAP = gaussSmooth(sig.wAP, 0.06), sML = gaussSmooth(sig.wML, 0.06);
+  const hAP = new Float64Array(n), hML = new Float64Array(n);
+  for (let k = 0; k < n; k++) { hAP[k] = lpAP[a + k] - sAP[a + k]; hML[k] = lpML[a + k] - sML[a + k]; }
+  let tq = 0; for (let k = 0; k < n; k++) tq += hAP[k] * hAP[k] + hML[k] * hML[k];
+  const trRMS = Math.sqrt(tq / n);
+  const dec = Math.max(1, Math.floor(n / 6000));
+  let fBest = null, pBest = 0;
+  for (let f = 3; f <= 15.001; f += 0.25) {
+    let c1 = 0, s1 = 0, c2 = 0, s2 = 0; const wv = 2 * Math.PI * f / FS;
+    for (let k = 0; k < n; k += dec) { const c = Math.cos(wv * k), sn = Math.sin(wv * k); c1 += hAP[k] * c; s1 += hAP[k] * sn; c2 += hML[k] * c; s2 += hML[k] * sn; }
+    const pw = c1 * c1 + s1 * s1 + c2 * c2 + s2 * s2; if (pw > pBest) { pBest = pw; fBest = f; }
+  }
+  // vibración (aceleración de alta frecuencia)
+  const magS = gaussSmooth(sig.MAG, 0.1); let vq = 0; for (let i = a; i < end; i++) vq += (sig.MAG[i] - magS[i]) ** 2;
+  const vib = Math.sqrt(vq / n) * 1000;
+  // deriva postural: cambio de orientación entre los primeros y los últimos 2 s
+  const avgV = (i0, i1) => { const v = [0, 0, 0]; for (let i = i0; i < i1; i++) for (let k = 0; k < 3; k++) v[k] += S[i][k]; return nrm(v); };
+  const w2 = Math.min(2 * FS, n3), v0 = avgV(a, a + w2), v1 = avgV(end - w2, end);
+  const drift = Math.acos(Math.max(-1, Math.min(1, dot(v0, v1)))) * R2D;
+  const inc = new Float64Array(S.length), ax = gaussSmooth(S.map(x => x[0]), 0.2), ay = gaussSmooth(S.map(x => x[1]), 0.2), az = gaussSmooth(S.map(x => x[2]), 0.2);
+  for (let i = a; i < end; i++) inc[i] = Math.acos(Math.max(-1, Math.min(1, dot(nrm([ax[i], ay[i], az[i]]), v0)))) * R2D;
+  const res = { tiles: [], tiles2: [], warn: [], m: {} };
+  const T = (l, v, u, d, main, sec) => { if (fin(v)) { (sec ? res.tiles2 : res.tiles).push([l, r(v, d), u, main]); res.m[l + ' (' + u + ')'] = r(v, d); } };
+  const open = !isFinite(+$('isoDur').value || Infinity) || +$('isoDur').value === 0;
+  T('Tiempo sostenido', bal.held, 's', 1, true);
+  T('Área de oscilación (95%)', bal.area, '°²', 2, true);
+  T('Velocidad angular media', mean(Array.from(wm.slice(a, end))), '°/s', 1);
+  T('Deriva postural', drift, '°', 1);
+  T('Temblor (3–15 Hz)', trRMS, '°/s', 2);
+  T('Frecuencia del temblor', trRMS > 0.3 ? fBest : null, 'Hz', 1);
+  T('Cambio de oscilación final vs inicio', o1 > 0 ? (o3 / o1 - 1) * 100 : null, '%', 0, false, true);
+  T('Vibración (aceleración RMS)', vib, 'mg', 1, false, true);
+  bal.tiles.concat(bal.tiles2).forEach(x => { if (/RMS|Velocidad media de oscilación|Rango/.test(x[0])) { res.tiles2.push([x[0], x[1], x[2]]); res.m[x[0] + ' (' + x[2] + ')'] = x[1]; } });
+  if (bal.lost) res.warn.push(open ? `Fin de la posición a los ${r(bal.lost, 1)} s.` : `Se salió de la posición a los ${r(bal.lost, 1)} s: se analizó hasta ese momento.`);
+  if (o1 > 0 && o3 / o1 > 1.5) res.warn.push('La oscilación aumentó más de 50 % hacia el final: signo de fatiga o pérdida de control.');
+  if (drift > 8) res.warn.push(`La posición cambió ${r(drift, 0)}° del inicio al final (por ejemplo, cadera que cae en la plancha).`);
+  res.warn.push('Ejes estimados según la dirección de mayor oscilación.');
+  const e2 = Math.max(a + FS, end - Math.round(0.5 * FS)), pk = (arr) => { const v = Array.from(arr.slice(a, e2)).sort((x, y) => x - y); return v[Math.floor(v.length * 0.99)] || 0; };
+  for (let i = e2; i < S.length; i++) { osc[i] = NaN; inc[i] = NaN; }
+  res.chart = { type: 'lines', from: Math.max(0, a - FS / 2), to: Math.min(S.length - 1, end),
+    lines: [{ arr: osc, color: '#4c9ef5', lo: 0, hi: Math.max(5, pk(osc) * 1.3), label: 'Oscilación (°/s)' }, { arr: inc, color: '#18c29c', lo: 0, hi: Math.max(5, pk(inc) * 1.3), label: 'Cambio de posición (°)' }],
+    spans: [['Inicio', a, a + n3, 'con'], ['Final', end - n3, end, 'brk']], marks: bal.lost ? [['✕', end, 'Fin', 0]] : [] };
+  res.main = open ? ['Tiempo sostenido', r(bal.held, 1), 's'] : ['Área de oscilación (95%)', r(bal.area, 2), '°²'];
+  return res;
+}
+
 // ---------- ROM ----------
 function analyzeROM(S, calStart, calEnd, opts) {
   const c = calibrate(S, calStart, calEnd), ref = c.u.slice(), gb = [0, 0, 0];
@@ -878,8 +992,9 @@ function analyzeROM(S, calStart, calEnd, opts) {
   }
   const rotational = !!opts.rotational, sig = rotational ? yw.map(Math.abs) : inc;
   const mx = Math.max(...Array.from(sig).slice(calEnd));
-  if (mx < 5) return { error: 'No se detectó movimiento suficiente (menos de 5°).' };
-  const pk = localMax(gaussSmooth(sig, 0.05), calEnd, n, Math.round(0.8 * FS), Math.max(8, 0.4 * mx));
+  const minD = opts.minDeg || 5;
+  if (mx < minD) return { error: `No se detectó movimiento suficiente (menos de ${minD}°).` };
+  const pk = localMax(gaussSmooth(sig, 0.05), calEnd, n, Math.round(0.8 * FS), Math.max(Math.min(8, mx * 0.5), 0.4 * mx));
   const vals = pk.map(i => sig[i]);
   const res = { tiles: [], tiles2: [], warn: [], m: {}, table: { head: ['Rep', 'Ángulo'], rows: pk.map((i, k) => [k + 1, r(sig[i], 1) + '°']) } };
   const T = (l, v, u, d, main, sec) => { if (fin(v)) { (sec ? res.tiles2 : res.tiles).push([l, r(v, d), u, main]); res.m[l + ' (' + u + ')'] = r(v, d); } };
@@ -1066,7 +1181,7 @@ const AN = (() => {
     const X = (x) => p.px + (x - p.px) * sx;
     const out = [], line = (a, b, col, w) => out.push(`<line x1="${X(a[0]).toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${X(b[0]).toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>`);
     const tr = rad(p.tr), hip = [p.px, p.py], sho = [p.px + Math.sin(tr) * LTR, p.py - Math.cos(tr) * LTR];
-    const head = [sho[0] + Math.sin(tr) * (HR + 5), sho[1] - Math.cos(tr) * (HR + 5)];
+    const hd = rad(p.tr + (p.nk || 0)), head = [sho[0] + Math.sin(hd) * (HR + 5), sho[1] - Math.cos(hd) * (HR + 5)];
     const arm = (s, e) => {
       if (p.hands === 'hips') { const el = [sho[0] - Math.sin(tr) * 6 + Math.cos(tr) * -16, sho[1] + 26]; return { el, wr: [hip[0] + 6, hip[1] - 6] }; }
       if (p.hands === 'cross') { const el = [sho[0] + 14, sho[1] + 20]; return { el, wr: [sho[0] + 4, sho[1] + 6] }; }
@@ -1082,12 +1197,23 @@ const AN = (() => {
     line(hip, sho, NEAR, 12);
     out.push(`<circle cx="${X(head[0]).toFixed(1)}" cy="${head[1].toFixed(1)}" r="${HR}" fill="${NEAR}"/>`);
     if (opts.eyesClosed) out.push(`<path d="M${X(head[0] + 3).toFixed(1)} ${(head[1] - 1).toFixed(1)} q 4 3 7 0" stroke="#0e1116" stroke-width="2" fill="none" stroke-linecap="round"/>`);
-    if (near === 'L') { drawLeg(legL, NEAR); drawArm(armL, NEAR); } else { drawLeg(legR, NEAR); drawArm(armR, NEAR); }
-    // sensor en L5 (atrás de la pelvis) o en el brazo (ROM)
-    if (opts.sensor === 'arm') {
-      const A = near === 'L' ? armL : armR, m = [(sho[0] + A.el[0]) / 2, (sho[1] + A.el[1]) / 2];
-      out.push(`<rect x="${(X(m[0]) - 6).toFixed(1)}" y="${(m[1] - 6).toFixed(1)}" width="12" height="12" rx="3" fill="${ACC}"/>`);
-    } else {
+    if (near === 'L') { drawLeg(legL, NEAR); if (!opts.hideNearArm) drawArm(armL, NEAR); } else { drawLeg(legR, NEAR); if (!opts.hideNearArm) drawArm(armR, NEAR); }
+    // sensor: L5 (atrás de la pelvis) o en el segmento que se mide
+    const nArm = near === 'L' ? armL : armR, nLeg = near === 'L' ? legL : legR;
+    const mid = (a, b, f = 0.5) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+    const sq = (m, w = 12, h = 12) => out.push(`<rect x="${(X(m[0]) - w / 2).toFixed(1)}" y="${(m[1] - h / 2).toFixed(1)}" width="${w}" height="${h}" rx="3" fill="${ACC}"/>`);
+    const sn = opts.sensor || 'L5';
+    if (opts.post) out.push(opts.post({ hip, sho, head, X, line, tr, hd, nArm, nLeg }) || '');
+    if (sn === 'none') {}
+    else if (sn === 'arm') sq(mid(sho, nArm.el));
+    else if (sn === 'forearm') sq(mid(nArm.el, nArm.wr));
+    else if (sn === 'wrist') sq(mid(nArm.el, nArm.wr, 0.85), 11, 11);
+    else if (sn === 'foot') sq(mid(nLeg.ank, nLeg.toe, 0.5), 10, 10);
+    else if (sn === 'thigh') sq(mid(hip, nLeg.knee));
+    else if (sn === 'shin') sq(mid(nLeg.knee, nLeg.ank, 0.45));
+    else if (sn === 'chest') sq([hip[0] + Math.sin(tr) * LTR * 0.72 + Math.cos(tr) * 7, hip[1] - Math.cos(tr) * LTR * 0.72 + Math.sin(tr) * 7], 10, 10);
+    else if (sn === 'head') sq([head[0] + Math.cos(hd) * HR * 0.75 + Math.sin(hd) * 3, head[1] + Math.sin(hd) * HR * 0.75 - Math.cos(hd) * 3], 9, 9);
+    else {
       const back = [-Math.cos(tr), -Math.sin(tr)], s0 = [hip[0] + back[0] * 8 - Math.sin(tr) * -8, hip[1] + back[1] * 8 - 8];
       out.push(`<rect x="${(X(s0[0]) - 6).toFixed(1)}" y="${(s0[1] - 7).toFixed(1)}" width="12" height="14" rx="3" fill="${ACC}"/>`);
     }
@@ -1098,8 +1224,9 @@ const AN = (() => {
   const chair = (x, dir = 1) => `<g stroke="#5b6574" stroke-width="5" stroke-linecap="round" fill="none"><path d="M${x - 16 * dir} 166 H${x + 20 * dir} M${x - 14 * dir} 166 V205 M${x + 18 * dir} 166 V205 M${x - 16 * dir} 166 V120"/></g>`;
   const box = (x, w, h) => `<rect x="${x}" y="${GROUND - h}" width="${w}" height="${h}" rx="3" fill="#2a313c" stroke="#3a4352" stroke-width="2"/>`;
   const cone = (x) => `<path d="M${x - 9} ${GROUND} L${x} ${GROUND - 26} L${x + 9} ${GROUND} Z" fill="#f0a63a"/>`;
-  const label = (t) => t ? `<text x="160" y="236" text-anchor="middle" fill="#9aa4b2" font-size="14" font-family="sans-serif">${t}</text>` : '';
-  const tag = (x, y, t) => `<text x="${x}" y="${y}" text-anchor="middle" fill="#6b7685" font-size="11" font-family="sans-serif">${t}</text>`;
+  let noLabel = false;
+  const label = (t) => t && !noLabel ? `<text x="160" y="236" text-anchor="middle" fill="#9aa4b2" font-size="14" font-family="sans-serif">${t}</text>` : '';
+  const tag = (x, y, t) => noLabel ? '' : `<text x="${x}" y="${y}" text-anchor="middle" fill="#6b7685" font-size="11" font-family="sans-serif">${t}</text>`;
 
   // ---------- Animaciones por test ----------
   const SQUAT = P({ tr: 38, hL: 82, kL: 112, aL: -20, hR: 82, kR: 112, aR: -20 });
@@ -1194,6 +1321,263 @@ const AN = (() => {
     } },
   };
 
+  // ---------- Vista de frente (abducciones, inclinaciones y rotaciones) ----------
+  // q: lean (inclinación lateral del tronco, °), rot (rotación del tronco, °), aL/aR (abducción de hombro), hipL/hipR (abducción de cadera),
+  //    hdTilt / hdRot (cabeza), elb (flexión de codo), foreL (largo visible del antebrazo, 0–1), cross (brazos cruzados)
+  // El lado izquierdo del atleta (el que se mide) queda a la derecha de la pantalla y se dibuja más claro.
+  function drawFront(q, opts) {
+    opts = opts || {};
+    const OTH = '#9aa4b2', cx = q.cx != null ? q.cx : 160, LL = LT + LS, PW = 10, SW = 18;
+    const out = [], ln = (a, b, col, w) => out.push(`<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${col}" stroke-width="${w}" stroke-linecap="round"/>`);
+    const lean = rad(q.lean || 0), rot = rad(q.rot || 0);
+    const pc = [cx, GROUND - LL - 5], hipL = [pc[0] + PW, pc[1]], hipR = [pc[0] - PW, pc[1]];
+    const leg = (h, ab, sg) => { const t = rad(ab) * sg, knee = [h[0] + Math.sin(t) * LT, h[1] + Math.cos(t) * LT]; return { knee, ank: [knee[0] + Math.sin(t) * LS, knee[1] + Math.cos(t) * LS] }; };
+    const lL = leg(hipL, q.hipL != null ? q.hipL : 3, 1), lR = leg(hipR, q.hipR != null ? q.hipR : 3, -1);
+    if (q.legRShort) { const k = q.legRShort; lR.knee = [hipR[0] + (lR.knee[0] - hipR[0]) * k, hipR[1] + (lR.knee[1] - hipR[1]) * k]; lR.ank = [lR.knee[0] - 3, lR.knee[1] + 4]; }
+    if (q.shinRotL != null) { lL.knee = [hipL[0], hipL[1] + LT]; lL.ank = [lL.knee[0] - Math.sin(rad(q.shinRotL)) * LS, lL.knee[1] + 1]; }
+    const up = [Math.sin(lean), -Math.cos(lean)], sd = [Math.cos(lean), Math.sin(lean)];
+    const neck = [pc[0] + up[0] * LTR, pc[1] + up[1] * LTR], sw = SW * Math.max(0.3, Math.abs(Math.cos(rot)));
+    const shL = [neck[0] + sd[0] * sw, neck[1] + sd[1] * sw], shR = [neck[0] - sd[0] * sw, neck[1] - sd[1] * sw];
+    const arm = (sh, ab, sg, fl) => {
+      const t = lean + rad(ab) * sg, el = [sh[0] + Math.sin(t) * LUA, sh[1] + Math.cos(t) * LUA], t2 = t + rad((sg > 0 ? q.elb : q.elbR) || 0) * sg;
+      return { el, wr: [el[0] + Math.sin(t2) * LFA * fl, el[1] + Math.cos(t2) * LFA * fl] };
+    };
+    let aL = arm(shL, q.aL != null ? q.aL : 8, 1, q.foreL != null ? q.foreL : 1), aR = arm(shR, q.aR != null ? q.aR : 8, -1, 1);
+    if (q.foreRotL != null) { const el = [shL[0] + Math.sin(lean) * LUA, shL[1] + Math.cos(lean) * LUA], fr = rad(q.foreRotL); aL = { el, wr: [el[0] - Math.sin(fr) * LFA, el[1] - 2 * Math.cos(fr)] }; }
+    if (q.cross) { aL = { el: [shL[0] + 2, shL[1] + 22], wr: [shR[0] + 4, shR[1] + 14] }; aR = { el: [shR[0] - 2, shR[1] + 22], wr: [shL[0] - 4, shL[1] + 12] }; }
+    const ht = lean + rad(q.hdTilt || 0), hc = [neck[0] + Math.sin(ht) * (HR + 5), neck[1] - Math.cos(ht) * (HR + 5)];
+    const foot = (L, sg, col) => { if (L === lL && q.shinRotL != null) { out.push(`<circle cx="${L.ank[0].toFixed(1)}" cy="${L.ank[1].toFixed(1)}" r="5" fill="${col}"/>`); if (Math.abs(q.shinRotL) > 1) ln([L.knee[0], L.knee[1]], [L.knee[0], L.knee[1]], col, 9); return; } if (L === lR && q.legRShort) return; ln(L.ank, [L.ank[0] + sg * 6, L.ank[1] + 2], col, 6); };
+    ln(hipR, lR.knee, OTH, 9); ln(lR.knee, lR.ank, OTH, 8); foot(lR, -1, OTH);
+    if (!q.cross) { ln(shR, aR.el, OTH, 7); ln(aR.el, aR.wr, OTH, 6); }
+    ln(pc, neck, NEAR, 12); ln(shR, shL, NEAR, 8); ln(hipR, hipL, NEAR, 8);
+    ln(hipL, lL.knee, NEAR, 9); ln(lL.knee, lL.ank, NEAR, 8); foot(lL, 1, NEAR);
+    ln(shL, aL.el, NEAR, 7); ln(aL.el, aL.wr, NEAR, 6);
+    if (q.foreRotL != null) out.push(`<circle cx="${aL.wr[0].toFixed(1)}" cy="${aL.wr[1].toFixed(1)}" r="4.5" fill="${NEAR}"/>`);
+    if (q.cross) { ln(shR, aR.el, OTH, 7); ln(aR.el, aR.wr, OTH, 6); }
+    out.push(`<circle cx="${hc[0].toFixed(1)}" cy="${hc[1].toFixed(1)}" r="${HR}" fill="${NEAR}"/>`);
+    const hr = rad(q.hdRot || 0), hs = [Math.cos(ht), Math.sin(ht)], ff = Math.sin(hr) * 5;
+    if (!q.back && Math.abs(q.hdRot || 0) < 80) [-3.5, 3.5].forEach(o => { const e = o * Math.cos(hr) + ff; out.push(`<circle cx="${(hc[0] + hs[0] * e - Math.sin(ht) * 1.5).toFixed(1)}" cy="${(hc[1] + hs[1] * e + Math.cos(ht) * -1.5).toFixed(1)}" r="1.4" fill="#0e1116"/>`); });
+    const nose = [hc[0] + hs[0] * ff * 1.3 + Math.sin(ht) * -2, hc[1] + hs[1] * ff * 1.3 - Math.cos(ht) * -2];
+    if (!q.back) out.push(`<circle cx="${nose[0].toFixed(1)}" cy="${nose[1].toFixed(1)}" r="1.6" fill="#5b6574"/>`);
+    if (q.hdRot) { const y = hc[1] - HR - 6, w = 16; out.push(`<path d="M${hc[0] - w} ${y + 4} A ${w} 6 0 0 0 ${hc[0] + w} ${y + 4}" stroke="#4c9ef5" stroke-width="2.5" fill="none" stroke-dasharray="4 4"/>`); }
+    if (q.rot) { const y = neck[1] - 4, w = 30; out.push(`<path d="M${cx - w} ${y} A ${w} 8 0 0 0 ${cx + w} ${y}" stroke="#4c9ef5" stroke-width="2.5" fill="none" stroke-dasharray="4 4"/><path d="M${cx + w - 6} ${y - 5} L${cx + w} ${y} L${cx + w - 7} ${y + 3}" stroke="#4c9ef5" stroke-width="2.5" fill="none" stroke-linecap="round"/>`); }
+    const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const sq = (m, w = 12, h = 12) => out.push(`<rect x="${(m[0] - w / 2).toFixed(1)}" y="${(m[1] - h / 2).toFixed(1)}" width="${w}" height="${h}" rx="3" fill="${ACC}"/>`);
+    const sn = opts.sensor || 'L5';
+    if (sn === 'arm') sq(mid(shL, aL.el));
+    else if (sn === 'wrist') sq([aL.el[0] + (aL.wr[0] - aL.el[0]) * 0.85, aL.el[1] + (aL.wr[1] - aL.el[1]) * 0.85], 11, 11);
+    else if (sn === 'foreEnd') sq([aL.el[0] + (aL.wr[0] - aL.el[0]) * 0.8 + 0.01, aL.el[1] + (aL.wr[1] - aL.el[1]) * 0.8 - 7], 10, 10);
+    else if (sn === 'shinEnd') sq([lL.ank[0], lL.ank[1] - 9], 10, 10);
+    else if (sn === 'thigh') sq(mid(hipL, lL.knee));
+    else if (sn === 'chest') sq([pc[0] + up[0] * LTR * 0.72 + Math.sin(rot) * 6, pc[1] + up[1] * LTR * 0.72], 10, 10);
+    else if (sn === 'head') sq([hc[0] + ff * 0.8 + Math.sin(ht) * 4, hc[1] - Math.cos(ht) * 4], 8, 8);
+    else if (sn === 'L5') out.push(`<rect x="${(pc[0] - 6).toFixed(1)}" y="${(pc[1] - 9).toFixed(1)}" width="12" height="14" rx="3" fill="none" stroke="${ACC}" stroke-width="2" stroke-dasharray="3 2"/>`);
+    const svg = out.join('');
+    return opts.rotate ? `<g transform="rotate(${opts.rotate} ${opts.pivot[0]} ${opts.pivot[1]})">${svg}</g>` : svg;
+  }
+
+  // Ciclo de un movimiento de ROM: quieto → al máximo → sostener → volver → quieto (0…1)
+  const cyc = (t) => { t = ((t % 4.6) + 4.6) % 4.6; if (t < 0.8) return 0; if (t < 2.2) return ease((t - 0.8) / 1.4); if (t < 2.8) return 1; if (t < 4) return 1 - ease((t - 2.8) / 1.2); return 0; };
+  const lerp = (a, b, f) => a + (b - a) * f;
+  // deja fijo el pie indicado en x (para que no "patine" mientras se mueve el resto)
+  const plant = (p, s, x) => { const lp = s === 'L' ? legPts(0, 0, p.hL, p.kL, p.aL) : legPts(0, 0, p.hR, p.kR, p.aR); return Object.assign({}, p, { px: x - lp.ank[0], g: s, py: 0 }); };
+  const wall = (x, top = 50) => `<line x1="${x}" y1="${GROUND}" x2="${x}" y2="${top}" stroke="#3a4352" stroke-width="5" stroke-linecap="round"/>`;
+  const sag = (A, B, o) => ({ thumbT: 2.5, draw: (t) => {
+    const f = cyc(t); let p = lerpPose(P(A), P(B), f);
+    if (o.plant) p = plant(p, o.plant, o.px);
+    return groundLine(GROUND) + (o.bg ? o.bg(p, f) : '') + drawFigure(p, Object.assign({ sensor: o.sensor }, o.fig ? o.fig(f) : {})) + label(o.lbl);
+  } });
+  const front = (A, B, o) => ({ thumbT: 2.5, draw: (t) => {
+    const f = cyc(t), q = {}; for (const k of new Set([...Object.keys(A), ...Object.keys(B)])) { const a = A[k] != null ? A[k] : B[k], b = B[k] != null ? B[k] : A[k]; q[k] = typeof a === 'number' ? lerp(a, b, f) : (f < 0.5 ? a : b); }
+    return groundLine(GROUND) + drawFront(q, { sensor: o.sensor }) + label(o.lbl);
+  } });
+  const DOWN = { hands: 'free', sL: 6, eL: 4, sR: 6, eR: 4 };
+  const BLUE = '#4c9ef5';
+  // ---- utilidades para los primeros planos (muñeca, antebrazo, tobillo) ----
+  const pt = (o, ang, r) => [o[0] + Math.cos(rad(ang)) * r, o[1] + Math.sin(rad(ang)) * r];
+  const L2 = (a, b, col, w, extra = '') => `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="${col}" stroke-width="${w}" stroke-linecap="round" ${extra}/>`;
+  const arc = (o, r, a0, a1, col = BLUE) => { if (Math.abs(a1 - a0) < 0.5) return ''; const p0 = pt(o, a0, r), p1 = pt(o, a1, r), lg = Math.abs(a1 - a0) > 180 ? 1 : 0, sw = a1 > a0 ? 1 : 0; return `<path d="M${p0[0].toFixed(1)} ${p0[1].toFixed(1)} A ${r} ${r} 0 ${lg} ${sw} ${p1[0].toFixed(1)} ${p1[1].toFixed(1)}" stroke="${col}" stroke-width="3" fill="none" stroke-linecap="round"/>`; };
+  const ghost = (a, b) => L2(a, b, '#7d8796', 3, 'stroke-dasharray="4 5" opacity="0.7"');
+  const sens = (p, w = 11) => `<rect x="${(p[0] - w / 2).toFixed(1)}" y="${(p[1] - w / 2).toFixed(1)}" width="${w}" height="${w}" rx="3" fill="${ACC}"/>`;
+  const tagL = (x, y, t) => noLabel ? '' : `<text x="${x}" y="${y}" fill="#6b7685" font-size="11" font-family="sans-serif">${t}</text>`;
+  const close = (fn, lbl) => ({ thumbT: 2.5, draw: (t) => fn(cyc(t), t) + label(lbl) });
+  // muñeca de costado: antebrazo apoyado, la mano sale del borde de la mesa (+ = flexión, hacia abajo)
+  const wristSide = (deg) => (f) => {
+    const W = [196, 132], a = deg * f, u = pt([0, 0], a, 1), n = [Math.sin(rad(a)), -Math.cos(rad(a))];
+    const pe = pt(W, a, 30), fe = [pe[0] + u[0] * 20 + n[0] * -3, pe[1] + u[1] * 20 + n[1] * -3];
+    return `<rect x="40" y="146" width="160" height="10" rx="3" fill="#2a313c"/>` + L2([60, 156], [60, 205], '#2a313c', 6) + L2([180, 156], [180, 205], '#2a313c', 6) +
+      ghost(W, pt(W, 0, 54)) + L2([52, 134], [W[0] - 2, W[1]], '#9aa4b2', 16) + arc(W, 62, 0, a) +
+      L2(W, pe, NEAR, 15) + L2(pe, fe, NEAR, 9) + sens([W[0] + u[0] * 16 + n[0] * 9, W[1] + u[1] * 16 + n[1] * 9]) + tagL(52, 120, 'antebrazo apoyado');
+  };
+  // muñeca vista desde arriba (palma hacia abajo): + = hacia el meñique (cubital)
+  const wristTop = (deg) => (f) => {
+    const W = [190, 120], a = deg * f, u = pt([0, 0], a, 1), n = [-u[1], u[0]];
+    const P = (s, t) => [W[0] + u[0] * s + n[0] * t, W[1] + u[1] * s + n[1] * t];
+    let g = `<rect x="30" y="92" width="200" height="60" rx="8" fill="#1d232c"/>` + ghost(W, pt(W, 0, 64)) + L2([48, 120], [W[0] - 4, 120], '#9aa4b2', 24) + arc(W, 70, 0, a);
+    g += `<path d="M${P(0, -12).join(' ')} L${P(30, -13).join(' ')} L${P(32, 13).join(' ')} L${P(0, 12).join(' ')} Z" fill="${NEAR}" stroke="${NEAR}" stroke-width="4" stroke-linejoin="round"/>`;
+    [-9, -3, 3, 9].forEach((t, k) => { g += L2(P(31, t), P(48 + (k === 1 || k === 2 ? 4 : 0), t * 1.1), NEAR, 5); });
+    g += L2(P(6, -13), P(24, -24), NEAR, 6);
+    return g + sens(P(15, 0)) + tagL(212, 92, 'pulgar') + tagL(200, 164, 'meñique');
+  };
+  // antebrazo de frente (codo a 90°, el antebrazo apunta hacia vos): + = supinación
+  const forearm = (deg) => (f) => {
+    const E = [168, 138], a = deg * f, u = pt([0, 0], -90 + a, 1);
+    const hand = (k) => [E[0] + u[0] * k, E[1] + u[1] * k];
+    let g = L2([168, 52], [168, 124], '#9aa4b2', 12) + `<circle cx="168" cy="44" r="10" fill="#9aa4b2"/>` + L2([150, 60], [186, 60], '#9aa4b2', 8);
+    g += `<circle cx="${E[0]}" cy="${E[1]}" r="15" fill="#2a313c" stroke="#9aa4b2" stroke-width="3"/>` + ghost([E[0], E[1] + 26], [E[0], E[1] - 26]);
+    g += arc(E, 40, -90, -90 + a);
+    g += L2(hand(-24), hand(24), NEAR, 14) + `<circle cx="${hand(30)[0].toFixed(1)}" cy="${hand(30)[1].toFixed(1)}" r="5" fill="${NEAR}"/>`;
+    const sn = [E[0] + Math.cos(rad(a)) * 11, E[1] + Math.sin(rad(a)) * 11];
+    return g + sens(sn, 10) + tagL(196, 72, 'pulgar arriba = neutro');
+  };
+  // tobillo de costado (sentado, pierna colgando): - = flexión dorsal (punta arriba), + = plantar
+  const footSide = (deg, tap) => (f, t) => {
+    const A = [150, 152], a = tap ? deg * Math.max(0, Math.sin(t * 6)) : deg * f;
+    const toe = pt(A, a, 52), heel = pt(A, a + 180, 8);
+    let g = (tap ? `<line x1="60" y1="164" x2="260" y2="164" stroke="#3a4352" stroke-width="3"/>` : '') + L2([150, 58], [150, 144], '#9aa4b2', 13) + `<circle cx="150" cy="52" r="7" fill="#9aa4b2"/>`;
+    g += ghost(A, pt(A, 0, 56)) + arc(A, 64, 0, a) + L2(heel, toe, NEAR, 11) + sens(pt(pt(A, a, 22), a - 90, 8));
+    return g;
+  };
+  // tobillo de frente: + = inversión (planta hacia adentro)
+  const footFront = (deg) => (f) => {
+    const A = [160, 150], a = deg * f;
+    let g = L2([160, 58], [160, 140], '#9aa4b2', 13) + `<circle cx="160" cy="52" r="7" fill="#9aa4b2"/>` + ghost(pt(A, 180, 30), pt(A, 0, 30)) + arc(A, 46, 0, a);
+    g += L2(pt(A, 180 + a, 28), pt(A, a, 28), NEAR, 13) + sens(pt(pt(A, a, 8), a - 90, 9), 10);
+    return g + tagL(198, 186, 'afuera') + tagL(98, 186, 'adentro');
+  };
+  // codo de costado: brazo colgando; + = flexión (antebrazo hacia adelante y arriba), - = hiperextensión
+  const elbowSide = (deg) => (f) => {
+    const Sh = [150, 52], E = [150, 132], a = 90 - deg * f, W = pt(E, a, 62);
+    let g = `<circle cx="132" cy="30" r="12" fill="#9aa4b2"/>` + L2([132, 46], [132, 150], '#9aa4b2', 14) + L2(Sh, E, '#c3cad4', 12) + `<circle cx="${Sh[0]}" cy="${Sh[1]}" r="7" fill="#c3cad4"/>`;
+    g += ghost(E, pt(E, 90, 64)) + arc(E, 50, 90, a) + L2(E, W, NEAR, 10) + `<circle cx="${E[0]}" cy="${E[1]}" r="6" fill="${NEAR}"/><circle cx="${pt(E, a, 70)[0].toFixed(1)}" cy="${pt(E, a, 70)[1].toFixed(1)}" r="7" fill="${NEAR}"/>`;
+    return g + sens(pt(pt(E, a, 52), a + 90, 0), 11);
+  };
+  // hombro boca arriba, brazo a 90° de abducción y codo a 90°: + = hacia los pies (interna), - = hacia la cabeza (externa)
+  const shSupine = (deg) => (f) => {
+    const Sh = [118, 176], a = -90 + deg * f, W = pt(Sh, a, 60);
+    let g = groundLine(GROUND) + L2([70, 186], [262, 186], '#9aa4b2', 16) + `<circle cx="52" cy="182" r="13" fill="#9aa4b2"/>` + L2([200, 186], [262, 190], '#9aa4b2', 13);
+    g += `<circle cx="${Sh[0]}" cy="${Sh[1]}" r="9" fill="#c3cad4"/>` + ghost(Sh, pt(Sh, -90, 62)) + arc(Sh, 46, -90, a) + L2(Sh, W, NEAR, 9) + `<circle cx="${W[0].toFixed(1)}" cy="${W[1].toFixed(1)}" r="6" fill="${NEAR}"/>`;
+    return g + sens(pt(Sh, a, 48), 11) + tagL(30, 160, 'cabeza') + tagL(236, 172, 'pies');
+  };
+  // cabeza de costado (+ = flexión, mentón al pecho; - = extensión)
+  const headSide = (deg) => (f) => {
+    const N = [150, 150], a = -90 + deg * f, C = pt(N, a, 44), fw = a + 90;
+    let g = `<path d="M96 210 Q100 168 150 160 Q196 166 206 210 Z" fill="#9aa4b2"/>` + ghost(N, pt(N, -90, 70)) + arc(N, 78, -90, a);
+    g += L2(N, pt(N, a, 22), NEAR, 16) + `<circle cx="${C[0].toFixed(1)}" cy="${C[1].toFixed(1)}" r="24" fill="${NEAR}"/>`;
+    const nose = pt(pt(C, fw, 24), a, -2), eye = pt(pt(C, fw, 13), a, 6);
+    g += `<circle cx="${nose[0].toFixed(1)}" cy="${nose[1].toFixed(1)}" r="5" fill="${NEAR}"/><circle cx="${eye[0].toFixed(1)}" cy="${eye[1].toFixed(1)}" r="2.6" fill="#0e1116"/>`;
+    return g + sens(pt(pt(C, fw, 16), a, 16), 11);
+  };
+  // cabeza de frente: tilt = inclinación lateral, rot = rotación
+  const headFront = (tilt, rot) => (f) => {
+    const N = [160, 150], a = -90 + tilt * f, C = pt(N, a, 44), r = rad(rot * f), sd = [Math.cos(rad(a + 90)), Math.sin(rad(a + 90))], up = pt([0, 0], a, 1);
+    let g = `<path d="M84 212 Q90 170 160 162 Q230 170 236 212 Z" fill="#9aa4b2"/>` + (tilt ? ghost(N, pt(N, -90, 74)) + arc(N, 82, -90, a) : '');
+    g += L2(N, pt(N, a, 22), NEAR, 18) + `<circle cx="${C[0].toFixed(1)}" cy="${C[1].toFixed(1)}" r="25" fill="${NEAR}"/>`;
+    const P = (x, y) => [C[0] + sd[0] * x + up[0] * y, C[1] + sd[1] * x + up[1] * y], off = Math.sin(r) * 13;
+    [-9, 9].forEach(x => { const e = P(x * Math.cos(r) + off, 4); g += `<circle cx="${e[0].toFixed(1)}" cy="${e[1].toFixed(1)}" r="2.8" fill="#0e1116"/>`; });
+    const ns = P(off * 1.25, -4); g += `<circle cx="${ns[0].toFixed(1)}" cy="${ns[1].toFixed(1)}" r="3.2" fill="#5b6574"/>`;
+    if (rot) { const y = C[1] - 40; g += `<path d="M${C[0] - 26} ${y} A 26 8 0 0 0 ${C[0] + 26} ${y}" stroke="${BLUE}" stroke-width="3" fill="none" stroke-dasharray="5 4"/><path d="M${C[0] + 19} ${y - 5} L${C[0] + 26} ${y} L${C[0] + 18} ${y + 4}" stroke="${BLUE}" stroke-width="3" fill="none" stroke-linecap="round"/>`; }
+    return g + sens(P(off * 0.8, 15), 11);
+  };
+  // vistas "desde arriba" de un cuerpo acostado (camilla)
+  const mat = () => `<rect x="104" y="20" width="112" height="210" rx="14" fill="#1d232c"/>`;
+  const topView = (A, B, o) => ({ thumbT: 2.5, draw: (t) => {
+    const f = cyc(t), q = {}; for (const k of new Set([...Object.keys(A), ...Object.keys(B)])) { const a = A[k] != null ? A[k] : B[k], b = B[k] != null ? B[k] : A[k]; q[k] = typeof a === 'number' ? lerp(a, b, f) : (f < 0.5 ? a : b); }
+    return mat() + drawFront(q, { sensor: o.sensor }) + label(o.lbl);
+  } });
+  // acostado boca arriba (cabeza a la izquierda) y boca abajo (cabeza a la derecha)
+  const SUP = { px: 158, py: GROUND - 8, g: null, tr: -90, hL: 90, kL: 0, aL: 0, hR: 90, kR: 0, aR: 0, hands: 'free', sL: 135, eL: 0, sR: 135, eR: 0 };
+  const PRO = { px: 168, py: GROUND - 8, g: null, tr: 90, hL: -90, kL: 0, aL: 0, hR: -90, kR: 0, aR: 0, hands: 'free', sL: -135, eL: 0, sR: -135, eR: 0 };
+  const shRotSup = (sg, deg) => (f) => ({ hideNearArm: true, post: (c) => {
+    const el = [c.sho[0] + 3, c.sho[1] - 5], ph = rad(deg * f), d = [sg * Math.sin(ph), -Math.cos(ph)], wr = [el[0] + d[0] * LFA, el[1] + d[1] * LFA];
+    c.line(c.sho, el, NEAR, 10); c.line([el[0], el[1]], [el[0], el[1] - LFA], '#7d8796', 3);
+    c.line(el, wr, NEAR, 6);
+    return `<circle cx="${c.X(el[0]).toFixed(1)}" cy="${el[1].toFixed(1)}" r="5" fill="${NEAR}"/>` + sens([c.X(el[0] + d[0] * LFA * 0.82), el[1] + d[1] * LFA * 0.82], 10);
+  } });
+
+  const ROMA = {
+    // Hombro
+    'Flexión de hombro': sag(DOWN, Object.assign({}, DOWN, { sL: 172, eL: 2 }), { sensor: 'wrist', lbl: 'Flexión de hombro' }),
+    'Extensión de hombro': sag(DOWN, Object.assign({}, DOWN, { sL: -55, eL: 2 }), { sensor: 'wrist', lbl: 'Extensión de hombro' }),
+    'Abducción de hombro': front({ aL: 8, aR: 8 }, { aL: 168, aR: 8 }, { sensor: 'wrist', lbl: 'Abducción de hombro (de frente)' }),
+    'Rotación externa de hombro': front({ aL: 3, foreRotL: 0 }, { aL: 3, foreRotL: -80 }, { sensor: 'foreEnd', lbl: 'Codo pegado al cuerpo · antebrazo hacia afuera' }),
+    'Rotación interna de hombro': front({ aL: 3, foreRotL: 0 }, { aL: 3, foreRotL: 70 }, { sensor: 'foreEnd', lbl: 'Codo pegado al cuerpo · antebrazo hacia el abdomen' }),
+    'Rotación externa de hombro (supino)': close(shSupine(-85), 'Boca arriba · antebrazo hacia la cabeza'),
+    'Rotación interna de hombro (supino)': close(shSupine(65), 'Boca arriba · antebrazo hacia los pies'),
+    // Codo
+    'Flexión de codo': close(elbowSide(140), 'Mano hacia el hombro'),
+    'Extensión de codo': close(elbowSide(-12), 'Extensión más allá de la línea (hiperextensión)'),
+    // Antebrazo
+    'Supinación del antebrazo': close(forearm(85), 'Palma hacia arriba (vista de frente)'),
+    'Pronación del antebrazo': close(forearm(-80), 'Palma hacia abajo (vista de frente)'),
+    // Muñeca
+    'Flexión de muñeca': close(wristSide(70), 'Flexión de muñeca'),
+    'Extensión de muñeca': close(wristSide(-65), 'Extensión de muñeca'),
+    'Desviación cubital': close(wristTop(30), 'Hacia el meñique (vista desde arriba)'),
+    'Desviación radial': close(wristTop(-20), 'Hacia el pulgar (vista desde arriba)'),
+    // Cadera
+    'Flexión de cadera': sag(SUP, Object.assign({}, SUP, { hL: 208, kL: 128, aL: 0 }), { sensor: 'thigh', lbl: 'Boca arriba · muslo al pecho' }),
+    'Extensión de cadera': sag(PRO, Object.assign({}, PRO, { hL: -112, kL: 2 }), { sensor: 'thigh', lbl: 'Boca abajo · pierna extendida hacia atrás' }),
+    'Abducción de cadera': topView({ hipL: 2, aL: 6, aR: 6 }, { hipL: 40, aL: 6, aR: 6 }, { sensor: 'thigh', lbl: 'Boca arriba (vista desde arriba)' }),
+    'Aducción de cadera': topView({ hipL: 2, legRShort: 0.55, aL: 6, aR: 6 }, { hipL: -18, legRShort: 0.55, aL: 6, aR: 6 }, { sensor: 'thigh', lbl: 'Boca arriba · la otra pierna levantada' }),
+    'Rotación externa de cadera (prono)': topView({ back: 1, shinRotL: 0, aL: 6, aR: 6 }, { back: 1, shinRotL: 42, aL: 6, aR: 6 }, { sensor: 'shinEnd', lbl: 'Boca abajo · el pie cae hacia adentro' }),
+    'Rotación interna de cadera (prono)': topView({ back: 1, shinRotL: 0, aL: 6, aR: 6 }, { back: 1, shinRotL: -42, aL: 6, aR: 6 }, { sensor: 'shinEnd', lbl: 'Boca abajo · el pie cae hacia afuera' }),
+    // Rodilla
+    'Flexión de rodilla': sag(PRO, Object.assign({}, PRO, { kL: 132, aL: -30 }), { sensor: 'shin', lbl: 'Boca abajo · talón al glúteo' }),
+    'Extensión de rodilla': sag({ px: 150, tr: 4, hL: 88, kL: 88, hR: 88, kR: 88, g: 'R', hands: 'cross' }, { px: 150, tr: 4, hL: 88, kL: -4, aL: 0, hR: 88, kR: 88, g: 'R', hands: 'cross' }, { sensor: 'shin', lbl: 'Sentado · extendé la rodilla', bg: () => chair(140) }),
+    // Tobillo
+    'Flexión dorsal de tobillo': close(footSide(-22), 'Empeine hacia la espinilla'),
+    'Flexión plantar de tobillo': close(footSide(45), 'Dedos hacia abajo'),
+    'Eversión de tobillo': close(footFront(-15), 'Planta hacia afuera (de frente)'),
+    'Inversión de tobillo': close(footFront(30), 'Planta hacia adentro (de frente)'),
+    'Knee to wall': sag({ tr: 10, hL: 38, kL: 38, aL: 0, hR: -26, kR: 18, aR: 40, hands: 'free', sL: 72, eL: 14, sR: 72, eR: 14 },
+      { tr: 14, hL: 52, kL: 92, aL: -40, hR: -14, kR: 48, aR: 70, hands: 'free', sL: 66, eL: 24, sR: 66, eR: 24 },
+      { sensor: 'shin', plant: 'L', px: 196, lbl: 'Rodilla a la pared sin levantar el talón', bg: () => wall(226) }),
+    'Toe tap test': { thumbT: 0.25, draw: (t) => footSide(-25, true)(0, t) + label('Talón fijo · subí y bajá los dedos rápido') },
+    // Columna
+    'Rotación del tronco': front({ rot: 0, cross: true }, { rot: 70, cross: true }, { sensor: 'chest', lbl: 'Pelvis fija · brazos cruzados' }),
+    'Flexión de tronco': sag(Object.assign({}, DOWN, { sL: 0, sR: 0 }), Object.assign({}, DOWN, { tr: 100, sL: -50, sR: -50, eL: 2, eR: 2 }), { sensor: 'chest', plant: 'L', px: 160, lbl: 'Flexión de tronco' }),
+    'Extensión de tronco': sag({}, { tr: -28, hL: -4, hR: -4 }, { sensor: 'chest', plant: 'L', px: 160, lbl: 'Extensión de tronco' }),
+    'Inclinación lateral de tronco': front({ lean: 0, aL: 6, aR: 6 }, { lean: 30, aL: -24, aR: 30 }, { sensor: 'chest', lbl: 'Inclinación lateral (de frente)' }),
+    // Cervical
+    'Flexión cervical': close(headSide(50), 'Mentón al pecho'),
+    'Extensión cervical': close(headSide(-60), 'Mirada al techo'),
+    'Inclinación lateral cervical': close(headFront(40, 0), 'Oreja hacia el hombro'),
+    'Rotación cervical': close(headFront(0, 70), 'Girá la cabeza hacia un lado'),
+  };
+  ROMA['Otro'] = Object.assign({}, ROMA['Flexión de hombro'], { draw: (t) => ROMA['Flexión de hombro'].draw(t).replace('Flexión de hombro<', 'Sensor en el segmento que se mueve<') });
+  // nombres de versiones anteriores (registros viejos del historial)
+  ROMA['Dorsiflexión de tobillo'] = ROMA['Knee to wall']; ROMA['Rotación de tronco'] = ROMA['Rotación del tronco']; ROMA['Rotación externa de hombro (90° abd.)'] = ROMA['Rotación externa de hombro (supino)'];
+
+  // ---------- Isométricos (con un leve temblor para mostrar la oscilación) ----------
+  const trem = (t) => 0.7 * Math.sin(t * 7.3) + 0.4 * Math.sin(t * 12.7);
+  const iso = (pose, o) => ({ thumbT: 1, draw: (t) => {
+    const p = Object.assign({}, P(pose), { tr: (pose.tr || 0) + trem(t) * (o.amp || 1) });
+    if (pose.py) p.py = pose.py + trem(t + 1) * 0.8;
+    return groundLine(GROUND) + (o.bg ? o.bg() : '') + drawFigure(p, { sensor: o.sensor }) + label(o.lbl || 'Mantené la posición');
+  } });
+  const PLANK = { px: 168, py: 181.9, g: null, tr: 81.7, hL: -81.7, kL: 0, aL: 0, hR: -81.7, kR: 0, aR: 0, hands: 'free', sL: -40.85, eL: 90, sR: -40.85, eR: 90 };
+  const BRIDGE = { px: 172, tr: -115, nk: 35, hL: 115, kL: 126, aL: -11, hR: 115, kR: 126, aR: -11, hands: 'free', sL: 147.5, eL: 0, sR: 147.5, eR: 0 };
+  const ISOA = {
+    'Plancha frontal': iso(PLANK, { amp: 0.4, lbl: 'Plancha: cuerpo en línea' }),
+    'Plancha lateral': { thumbT: 1, draw: (t) => groundLine(GROUND) + drawFront({ cx: 112, aL: 90, foreL: 0.22, elb: 90, aR: 4, hipL: 0, hipR: 0 }, { sensor: 'L5', rotate: 69 + trem(t) * 0.6, pivot: [112, GROUND - 7] }) + label('Plancha lateral (apoyo en antebrazo)') },
+    'Sentadilla en pared': iso({ px: 150, tr: 0, hL: 90, kL: 90, aL: 0, hR: 90, kR: 90, aR: 0, hands: 'cross' }, { bg: () => wall(134, 60), amp: 0.3 }),
+    'Media sentadilla isométrica': iso({ tr: 25, hL: 60, kL: 75, aL: -15, hR: 60, kR: 75, aR: -15, hands: 'free', sL: 75, eL: 5, sR: 75, eR: 5 }, {}),
+    'Sentadilla unipodal isométrica': iso({ tr: 28, hL: 62, kL: 78, aL: -16, hR: 45, kR: 12, g: 'L', hands: 'free', sL: 75, eL: 5, sR: 75, eR: 5 }, {}),
+    'Puente de glúteo': iso(BRIDGE, { amp: 0.4 }),
+    'Puente de glúteo unipodal': iso(Object.assign({}, BRIDGE, { hL: 115, kL: 0, aL: 25, g: 'R' }), { amp: 0.4 }),
+    'Posición de scrum (isométrico)': { thumbT: 1, draw: (t) => ANIMS.SCRUM.draw(t % 1.6) },
+    'Libre': iso(Object.assign({}, DOWN, { sL: 90, eL: 2 }), { sensor: 'arm', lbl: 'Sensor en el segmento a evaluar' }),
+  };
+  for (const k in ROMA) ANIMS['ROM:' + k] = ROMA[k];
+  for (const k in ISOA) ANIMS['ISO:' + k] = ISOA[k];
+  Object.assign(ANIMS.CMJ, { thumbT: 2.35 }); Object.assign(ANIMS.SJ, { thumbT: 1.5 }); Object.assign(ANIMS.DJ, { thumbT: 2.3 });
+  Object.assign(ANIMS.CMJU, { thumbT: 2.2 }); Object.assign(ANIMS.SQ, { thumbT: 1.9 }); Object.assign(ANIMS.SQU, { thumbT: 2.0 });
+  Object.assign(ANIMS.TUG, { thumbT: 4.2 }); Object.assign(ANIMS.W10, { thumbT: 3.2 }); Object.assign(ANIMS.W6, { thumbT: 1.3 });
+  Object.assign(ANIMS.STS5, { thumbT: 1.4 }); Object.assign(ANIMS.STS30, { thumbT: 0.3 }); Object.assign(ANIMS.SCRUM, { thumbT: 3.0 });
+  Object.assign(ANIMS.TURN, { thumbT: 2.0 }); Object.assign(ANIMS.RUN, { thumbT: 0.35 }); Object.assign(ANIMS.WALK, { thumbT: 0.3 });
+  ANIMS.ROM = ROMA['Flexión de hombro'];
+
   let raf = 0, t0 = 0, cur = null, el = null;
   function frame(ts) {
     if (!cur || !el) return;
@@ -1205,7 +1589,9 @@ const AN = (() => {
     has: (id) => !!ANIMS[id],
     play(id, node) { cancelAnimationFrame(raf); cur = id; el = node; t0 = performance.now(); raf = requestAnimationFrame(frame); },
     stop() { cancelAnimationFrame(raf); cur = null; },
-    render(id, t) { return `<svg viewBox="0 10 320 232" xmlns="http://www.w3.org/2000/svg">${ANIMS[id].draw(t)}</svg>`; }
+    render(id, t) { return `<svg viewBox="0 10 320 232" xmlns="http://www.w3.org/2000/svg">${ANIMS[id].draw(t)}</svg>`; },
+    // imagen fija (sin textos) para las tarjetas del menú
+    thumb(id, vb) { const a = ANIMS[id]; if (!a) return ''; noLabel = true; let g = ''; try { g = a.draw(a.thumbT != null ? a.thumbT : 1.5); } finally { noLabel = false; } return `<svg viewBox="${vb || '0 40 320 180'}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${g}</svg>`; }
   };
 })();
 
@@ -1238,6 +1624,8 @@ const GUIDE = {
           errors: ['No extender del todo al pararse.', 'Usar los brazos o rebotar en la silla.'] },
   STS30: { steps: ['Silla sin apoyabrazos (~46 cm) contra la pared.', 'Sentado, brazos cruzados sobre el pecho.', 'Al "¡Ya!": pararse y sentarse la mayor cantidad de veces en 30 s.', 'Cuentan solo las repeticiones completas.'],
            errors: ['Pararse a medias.', 'Usar los brazos.'] },
+  ISO: { steps: ['Colocá el sensor: en L5 con el cinturón (en "Libre", firme en el segmento a evaluar).', 'Elegí el ejercicio y la duración (o "Hasta el fallo").', 'Adoptá la posición y quedate quieto hasta que aparezca "¡Ya!".', 'Mantené la posición lo más estable posible.', 'Si no podés seguir, salí de la posición: la app detecta el final y termina sola.'],
+         errors: ['Moverse durante la calibración.', 'Cinturón flojo (el sensor oscila solo).', 'Acomodarse o cambiar la posición durante el test.'] },
   BAL: { steps: ['Elegí postura, visión, superficie y duración.', 'Brazos cruzados sobre el pecho.', 'Adoptá la postura antes de iniciar y quedate quieto hasta el "¡Ya!".', 'Mantenela sin moverte. Si apoya el otro pie o da un paso, la app marca la pérdida.', 'Hacé ojos abiertos y cerrados (Romberg) y ambos lados en unipodal.'],
          errors: ['Mover los brazos para equilibrarse.', 'Hablar durante la prueba.'] },
   ROM: { steps: ['Elegí el movimiento: la app indica dónde va el sensor.', 'Sujetá el sensor con una banda elástica firme en ese segmento.', 'Posición inicial, quieto 2 s.', 'Hacé el movimiento hasta el máximo, lento y controlado, y volvé. Repetí 3 veces.', 'Tocá Stop y repetí del otro lado para comparar.'],
@@ -1262,7 +1650,7 @@ const rawDB = {
   async get(k) { try { const db = await this.open(); return await new Promise((ok, ko) => { const q = db.transaction('raw').objectStore('raw').get(k); q.onsuccess = () => ok(q.result || null); q.onerror = () => ko(q.error); }); } catch (e) { return null; } },
   async del(k) { try { const db = await this.open(); db.transaction('raw', 'readwrite').objectStore('raw').delete(k); } catch (e) {} },
 };
-const UI_KEYS = ['boxH', 'romMove', 'balStance', 'balEyes', 'balSurf', 'balDur', 'tmSpeed', 'dist', 'invLR', 'scBeep'];
+const UI_KEYS = ['boxH', 'romMove', 'isoEx', 'isoDur', 'balStance', 'balEyes', 'balSurf', 'balDur', 'tmSpeed', 'dist', 'invLR', 'scBeep'];
 function uiSnap() { const o = {}; UI_KEYS.forEach(k => { const el = $(k); if (el) o[k] = el.type === 'checkbox' ? el.checked : el.value; }); return { ui: o, testId, side, orient }; }
 function uiApply(sn) { UI_KEYS.forEach(k => { const el = $(k); if (el && sn.ui[k] !== undefined) { if (el.type === 'checkbox') el.checked = sn.ui[k]; else el.value = sn.ui[k]; } }); testId = sn.testId; side = sn.side; orient = sn.orient; }
 function packS(S) { const a = new Int16Array(S.length * 6); for (let i = 0; i < S.length; i++) for (let j = 0; j < 6; j++) a[i * 6 + j] = Math.round(S[i][j] * (j < 3 ? ACC_LSB : GYR_LSB)); return a; }
@@ -1317,20 +1705,93 @@ const TESTS = {
            help: 'Adoptá la postura elegida, brazos cruzados. Quieto: cuando aparezca "¡Ya!", mantenela el tiempo indicado.' },
   ROM:   { cat: 'Movilidad', name: 'Rango de movimiento (ROM)', kind: 'rom', calib: 'stand', stop: 'manual', side: true, rom: true,
            help: 'Sujetá el sensor firme en el segmento que se mueve. Quieto 2 s en la posición inicial, hacé el movimiento (podés repetirlo) y tocá Stop.' },
+  ISO:   { cat: 'Isométricos', name: 'Isométrico', kind: 'iso', calib: 'pos', stop: 'time', iso: true,
+           help: 'Adoptá la posición con el sensor firme. Quedate quieto hasta el "¡Ya!" y mantené la posición lo más estable posible. Si no podés seguir, salí de la posición: el registro termina solo.' },
   SCRUM: { cat: 'Scrum', name: 'Scrum contra máquina (empuje)', kind: 'scrum', calib: 'stand', stop: 'scrum', mode: true, orient: true, scrum: true,
            help: 'Parado quieto 2 s. Engancharse en la máquina y quedarse quieto en isometría; al pitido (o cuando quiera): carga y empuje. Al terminar cada empuje, quieto en posición.' },
   FREE:  { cat: 'Otros', name: 'Registro libre (datos crudos)', kind: 'free', calib: 'stand', stop: 'manual',
            help: 'Graba todo lo que hagas entre Play y Stop y lo exporta en CSV. Ideal para mandar datos y ajustar los cálculos.' },
 };
-const ROM_MOVES = [
-  ['Flexión de rodilla', 'sensor en la tibia'], ['Extensión de rodilla', 'sensor en la tibia'],
-  ['Flexión de cadera', 'sensor en el muslo'], ['Extensión de cadera', 'sensor en el muslo'], ['Abducción de cadera', 'sensor en el muslo'],
-  ['Dorsiflexión de tobillo', 'sensor en la tibia (rodilla al frente)'],
-  ['Flexión de hombro', 'sensor en el brazo'], ['Abducción de hombro', 'sensor en el brazo'], ['Rotación externa de hombro (90° abd.)', 'sensor en el antebrazo'],
-  ['Flexión de tronco', 'sensor en el esternón'], ['Extensión de tronco', 'sensor en el esternón'], ['Inclinación lateral de tronco', 'sensor en el esternón'],
-  ['Rotación de tronco', 'sensor en el esternón', true], ['Flexión cervical', 'sensor en la frente'], ['Rotación cervical', 'sensor en la frente', true],
-  ['Otro', 'sensor en el segmento que se mueve']
+// ---------- ROM: articulaciones, movimientos y valores de referencia ----------
+// j: articulación · n: nombre · z: posición inicial (cero) · m: movimiento · s: dónde va el sensor · r: rango de referencia (°)
+// rot: se mide con el giroscopio (giro sobre el eje vertical) · cmp: false = no comparar el resultado con la referencia
+const ROM_JOINTS = ['Hombro', 'Codo', 'Antebrazo', 'Muñeca', 'Cadera', 'Rodilla', 'Tobillo', 'Columna', 'Cervical', 'Otro'];
+const ROM_DB = [
+  { j: 'Hombro', n: 'Flexión de hombro', z: 'De pie, brazo al costado, codo extendido.', m: 'Levantá el brazo hacia adelante hasta arriba de la cabeza.', s: 'Muñeca', r: [120, 180] },
+  { j: 'Hombro', n: 'Extensión de hombro', z: 'De pie, brazo al costado, codo extendido.', m: 'Llevá el brazo extendido hacia atrás.', s: 'Muñeca', r: [30, 60] },
+  { j: 'Hombro', n: 'Abducción de hombro', z: 'De pie, brazo al costado, codo extendido.', m: 'Levantá el brazo por el costado hasta arriba de la cabeza.', s: 'Muñeca', r: [120, 180] },
+  { j: 'Hombro', n: 'Rotación externa de hombro', z: 'De pie, codo a 90° pegado al torso, antebrazo hacia adelante.', m: 'Girá el antebrazo hacia afuera, sin despegar el codo.', s: 'Muñeca', r: [60, 90], rot: true },
+  { j: 'Hombro', n: 'Rotación interna de hombro', z: 'De pie, codo a 90° pegado al torso, antebrazo hacia adelante.', m: 'Girá el antebrazo hacia adentro, hacia el abdomen.', s: 'Muñeca', r: [45, 70], rot: true },
+  { j: 'Hombro', n: 'Rotación externa de hombro (supino)', z: 'Boca arriba, hombro en abducción de 90°, codo a 90°, antebrazo vertical.', m: 'Bajá el antebrazo hacia la cabeza.', s: 'Muñeca', r: [75, 90] },
+  { j: 'Hombro', n: 'Rotación interna de hombro (supino)', z: 'Boca arriba, hombro en abducción de 90°, codo a 90°, antebrazo vertical.', m: 'Bajá el antebrazo hacia los pies.', s: 'Muñeca', r: [45, 70] },
+  { j: 'Codo', n: 'Flexión de codo', z: 'Brazo completamente extendido.', m: 'Flexioná el codo llevando la mano hacia el hombro.', s: 'Muñeca', r: [130, 150] },
+  { j: 'Codo', n: 'Extensión de codo', z: 'Brazo completamente extendido.', m: 'Extendé el codo más allá de la posición neutra (hiperextensión).', s: 'Muñeca', r: [0, 10] },
+  { j: 'Antebrazo', n: 'Supinación del antebrazo', z: 'Codo a 90°, pulgar hacia arriba (posición neutra).', m: 'Girá el antebrazo hasta que la palma mire hacia arriba.', s: 'Muñeca', r: [50, 80] },
+  { j: 'Antebrazo', n: 'Pronación del antebrazo', z: 'Codo a 90°, pulgar hacia arriba (posición neutra).', m: 'Girá el antebrazo hasta que la palma mire hacia abajo.', s: 'Muñeca', r: [50, 80] },
+  { j: 'Muñeca', n: 'Flexión de muñeca', z: 'Antebrazo apoyado, mano en posición neutra.', m: 'Flexioná la mano hacia el lado de la palma.', s: 'Dorso de la mano', r: [40, 80] },
+  { j: 'Muñeca', n: 'Extensión de muñeca', z: 'Antebrazo apoyado, mano en posición neutra.', m: 'Extendé la mano hacia el dorso.', s: 'Dorso de la mano', r: [40, 70] },
+  { j: 'Muñeca', n: 'Desviación cubital', z: 'Antebrazo apoyado, mano en posición neutra.', m: 'Incliná la mano hacia el lado del meñique.', s: 'Dorso de la mano', r: [20, 30], rot: true },
+  { j: 'Muñeca', n: 'Desviación radial', z: 'Antebrazo apoyado, mano en posición neutra.', m: 'Incliná la mano hacia el lado del pulgar.', s: 'Dorso de la mano', r: [10, 20], rot: true },
+  { j: 'Cadera', n: 'Flexión de cadera', z: 'Boca arriba, pierna extendida.', m: 'Flexioná la rodilla y llevá el muslo hacia el pecho.', s: 'Muslo', r: [90, 120] },
+  { j: 'Cadera', n: 'Extensión de cadera', z: 'Boca abajo, pierna extendida.', m: 'Levantá la pierna extendida hacia atrás.', s: 'Muslo', r: [10, 20] },
+  { j: 'Cadera', n: 'Abducción de cadera', z: 'Boca arriba, pierna extendida.', m: 'Separá la pierna hacia el costado.', s: 'Muslo', r: [25, 45], rot: true },
+  { j: 'Cadera', n: 'Aducción de cadera', z: 'Boca arriba, la otra pierna levantada para dejar espacio.', m: 'Llevá la pierna hacia adentro cruzando la línea media.', s: 'Muslo', r: [10, 20], rot: true },
+  { j: 'Cadera', n: 'Rotación externa de cadera (prono)', z: 'Boca abajo, rodilla a 90°, espinilla vertical.', m: 'Dejá caer el pie hacia adentro, sobre el cuerpo.', s: 'Empeine', r: [30, 45] },
+  { j: 'Cadera', n: 'Rotación interna de cadera (prono)', z: 'Boca abajo, rodilla a 90°, espinilla vertical.', m: 'Dejá caer el pie hacia afuera, lejos del cuerpo.', s: 'Empeine', r: [30, 45] },
+  { j: 'Rodilla', n: 'Flexión de rodilla', z: 'Boca abajo, pierna extendida.', m: 'Flexioná la rodilla llevando el talón hacia el glúteo.', s: 'Espinilla', r: [120, 140] },
+  { j: 'Rodilla', n: 'Extensión de rodilla', z: 'Sentado, rodilla a 90°, espinilla vertical.', m: 'Extendé la rodilla y levantá la pierna (incluida la hiperextensión).', s: 'Espinilla', r: [0, 10], cmp: false },
+  { j: 'Tobillo', n: 'Flexión dorsal de tobillo', z: 'Sentado, tobillo en posición neutra.', m: 'Llevá el empeine hacia la espinilla.', s: 'Empeine', r: [10, 20] },
+  { j: 'Tobillo', n: 'Flexión plantar de tobillo', z: 'Sentado, tobillo en posición neutra.', m: 'Apuntá los dedos del pie hacia abajo.', s: 'Empeine', r: [25, 50] },
+  { j: 'Tobillo', n: 'Eversión de tobillo', z: 'Sentado, tobillo en posición neutra.', m: 'Girá la planta del pie hacia afuera.', s: 'Empeine', r: [8, 15] },
+  { j: 'Tobillo', n: 'Inversión de tobillo', z: 'Sentado, tobillo en posición neutra.', m: 'Girá la planta del pie hacia adentro.', s: 'Empeine', r: [20, 35] },
+  { j: 'Tobillo', n: 'Knee to wall', z: 'Zancada frente a una pared, pie apoyado por completo.', m: 'Empujá la rodilla hacia la pared sin levantar el talón.', s: 'Espinilla', r: null },
+  { j: 'Tobillo', n: 'Toe tap test', z: 'Sentado, talón fijo en el piso.', m: 'Levantá y bajá los dedos del pie repetidamente.', s: 'Empeine', r: null },
+  { j: 'Columna', n: 'Rotación del tronco', z: 'Sentado, pelvis fija, brazos cruzados sobre el pecho.', m: 'Girá el torso hacia un lado.', s: 'Torso', r: null, rot: true },
+  { j: 'Columna', n: 'Flexión de tronco', z: 'De pie, erguido, brazos al costado.', m: 'Inclinate hacia adelante con las rodillas extendidas.', s: 'Torso', r: null },
+  { j: 'Columna', n: 'Extensión de tronco', z: 'De pie, manos en la cintura.', m: 'Llevá el tronco hacia atrás.', s: 'Torso', r: null },
+  { j: 'Columna', n: 'Inclinación lateral de tronco', z: 'De pie, brazos al costado.', m: 'Deslizá la mano por el costado del muslo hacia la rodilla.', s: 'Torso', r: null },
+  { j: 'Cervical', n: 'Flexión cervical', z: 'Sentado, espalda recta, mirada al frente.', m: 'Llevá el mentón hacia el pecho.', s: 'Frente', r: [40, 50] },
+  { j: 'Cervical', n: 'Extensión cervical', z: 'Sentado, espalda recta, mirada al frente.', m: 'Llevá la cabeza hacia atrás mirando al techo.', s: 'Frente', r: [50, 70] },
+  { j: 'Cervical', n: 'Inclinación lateral cervical', z: 'Sentado, espalda recta, mirada al frente.', m: 'Llevá la oreja hacia el hombro sin levantarlo.', s: 'Frente', r: [40, 45] },
+  { j: 'Cervical', n: 'Rotación cervical', z: 'Sentado, espalda recta, mirada al frente.', m: 'Girá la cabeza hacia un lado.', s: 'Frente', r: [60, 80], rot: true },
+  { j: 'Otro', n: 'Otro', z: 'Posición inicial del segmento a medir, quieto 2 s.', m: 'Hacé el movimiento hasta el máximo y volvé.', s: 'Segmento que se mueve', r: null },
 ];
+const ROM_SENS = { 'Muñeca': 'la muñeca', 'Dorso de la mano': 'el dorso de la mano', 'Muslo': 'el muslo', 'Empeine': 'el empeine', 'Espinilla': 'la espinilla', 'Torso': 'el esternón (torso)', 'Frente': 'la frente', 'Segmento que se mueve': 'el segmento que se mueve' };
+const ROM_MOVES = ROM_DB.map(m => [m.n, 'sensor en ' + (ROM_SENS[m.s] || m.s.toLowerCase()), !!m.rot]);
+const romOf = (name) => ROM_DB.find(m => m.n === name);
+// [nombre, ubicación del sensor, unilateral, consejo]
+const ISO_EX = [
+  ['Plancha frontal', 'sensor en L5 con el cinturón', false, 'Codos debajo de los hombros, cuerpo en línea recta de hombros a tobillos.'],
+  ['Plancha lateral', 'sensor en L5 con el cinturón', true, 'Codo debajo del hombro, cadera alta y cuerpo alineado. El lado es el del brazo de apoyo.'],
+  ['Sentadilla en pared', 'sensor en L5 con el cinturón', false, 'Espalda apoyada en la pared, rodillas y caderas a 90°.'],
+  ['Media sentadilla isométrica', 'sensor en L5 con el cinturón', false, 'Rodillas a ~60–90°, tronco firme, brazos al frente.'],
+  ['Sentadilla unipodal isométrica', 'sensor en L5 con el cinturón', true, 'Rodilla alineada con el pie, pelvis nivelada.'],
+  ['Puente de glúteo', 'sensor en L5 con el cinturón', false, 'Cadera arriba, línea recta de hombros a rodillas.'],
+  ['Puente de glúteo unipodal', 'sensor en L5 con el cinturón', true, 'Pelvis nivelada, sin rotar. El lado es la pierna de apoyo.'],
+  ['Posición de scrum (isométrico)', 'sensor en L5 con el cinturón', false, 'Contra la máquina, espalda plana y quieto: mide la estabilidad del tronco en la posición.'],
+  ['Libre', 'sensor firme en el segmento a evaluar', false, 'Sujetá el sensor con una banda elástica firme en el segmento que querés evaluar.'],
+];
+const isoUni = () => { const x = ISO_EX.find(e => e[0] === $('isoEx').value); return !!(x && x[2]); };
+function sideOf(id) { const t = TESTS[id]; if (id === 'BAL') return balSide(); if (t.iso) return isoUni() ? side : null; return t.side ? side : null; }
+// Grupos de la pantalla inicial
+const GROUPS = [
+  { id: 'saltos', name: 'Saltos', icon: 'CMJ', vb: '0 8 320 184', items: ['CMJ', 'SJ', 'DJ', 'CMJU'] },
+  { id: 'sentadilla', name: 'Sentadillas', icon: 'SQ', items: ['SQ', 'SQU'] },
+  { id: 'iso', name: 'Isométricos', icon: 'ISO:Plancha frontal', items: () => ISO_EX.map((x, k) => ['ISO', k]) },
+  { id: 'rom', name: 'ROM / Movilidad', icon: 'ROM:Abducción de hombro', items: () => ROM_MOVES.map((x, k) => ['ROM', k]) },
+  { id: 'equilibrio', name: 'Equilibrio', icon: 'BAL', items: ['BAL'] },
+  { id: 'marcha', name: 'Marcha y carrera', icon: 'RUN', items: ['WALK', 'RUN'] },
+  { id: 'clinicos', name: 'Tests clínicos', icon: 'TUG', items: ['W10', 'TUG', 'W6', 'TURN', 'STS5', 'STS30'] },
+  { id: 'scrum', name: 'Scrum', icon: 'SCRUM', items: ['SCRUM'] },
+  { id: 'otros', name: 'Registro libre', icon: 'FREE', items: ['FREE'] },
+];
+const gItems = (g) => (typeof g.items === 'function' ? g.items() : g.items).map(x => Array.isArray(x) ? { t: x[0], s: x[1] } : { t: x, s: null });
+function itemInfo(it) {
+  if (it.t === 'ROM' && it.s != null) { const m = ROM_MOVES[it.s]; return { name: m[0], desc: m[1][0].toUpperCase() + m[1].slice(1), anim: 'ROM:' + m[0] }; }
+  if (it.t === 'ISO' && it.s != null) { const x = ISO_EX[it.s]; return { name: x[0], desc: x[1][0].toUpperCase() + x[1].slice(1) + (x[2] ? ' · por lado' : ''), anim: 'ISO:' + x[0] }; }
+  const t = TESTS[it.t]; return { name: t.name, desc: t.help.split('. ')[0].replace(/\.$/, '') + '.', anim: it.t };
+}
+const groupOf = (id) => GROUPS.find(g => gItems(g).some(x => x.t === id)) || GROUPS[0];
 
 // ---------- Bluetooth ----------
 async function connect() {
@@ -1420,7 +1881,7 @@ const target = () => {
   return Math.max(1, Math.min(30, parseInt($('nJumps').value) || 1));
 };
 const fmtT = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-function testSecs() { const t = T_(); return t.bal ? +$('balDur').value : t.secs; }
+function testSecs() { const t = T_(); if (t.iso) return +$('isoDur').value || Infinity; return t.bal ? +$('balDur').value : t.secs; }
 
 function setRecBtn() {
   const b = $('btnRec'), t = T_();
@@ -1454,6 +1915,7 @@ function goMsg() {
   if (t.kind === 'jump') { if (t.jump === 'DJ') return rec.jumps ? 'Subí al cajón, quieto 1 s y otro drop' : '¡Bajá del cajón y rebotá!'; return rec.jumps ? 'Quieto 1 s y saltá de nuevo' : '¡Saltá!'; }
   if (t.kind === 'squat') return '¡Empezá las sentadillas!';
   if (t.kind === 'bal') return '¡Ya! Mantené la postura';
+  if (t.kind === 'iso') return '¡Ya! Mantené la posición';
   if (t.kind === 'rom') return 'Hacé el movimiento';
   if (t.kind === 'turn') return '¡Girá!';
   if (t.kind === 'gait') return t.run ? '¡A correr!' : '¡A caminar!';
@@ -1525,7 +1987,8 @@ function onSample(s) {
   if (t.stop === 'scrum') { if (scrumTick(i, s, m, gm)) return; }
   // criterios de fin
   const secs = testSecs();
-  if (t.stop === 'time') { counter(`${fmtT(Math.min(el, secs))} / ${fmtT(secs)}`); if (el >= secs) return finishRec(); }
+  if (t.kind === 'iso' && el > 2 && (Math.abs(m / g0 - 1) > 0.5 || gm > 120)) return finishRec(isFinite(secs) && el < secs - 0.5 ? `Fin de la posición a los ${el.toFixed(1)} s` : null);
+  if (t.stop === 'time') { if (isFinite(secs)) { counter(`${fmtT(Math.min(el, secs))} / ${fmtT(secs)}`); if (el >= secs) return finishRec(); } else if (i % 20 === 0) counter('Sosteniendo ' + fmtT(el)); }
   if (t.stop === 'manual' && i % 20 === 0) counter('Grabando ' + fmtT(el));
   if (t.stop === 'still') {
     if (i % 20 === 0) counter(fmtT(el));
@@ -1560,7 +2023,7 @@ function finishRec(msg) {
   if (res.error) { status(res.error); return; }
   if (r0.lost > 0) res.warn.push(`Se perdieron ${r0.lost} paquetes de Bluetooth: acercá el dispositivo al sensor.`);
   const cond = condLabel(r0.test);
-  const entry = { id: Date.now(), serie: Date.now(), n: 1, ath: a.id, test: r0.test, side: t.side || r0.test === 'BAL' ? (t.side ? side : balSide()) : null, cond, date: new Date().toISOString(), main: res.main, m: res.m, extra: res.extra || null };
+  const entry = { id: Date.now(), serie: Date.now(), n: 1, ath: a.id, test: r0.test, side: sideOf(r0.test), cond, date: new Date().toISOString(), main: res.main, m: res.m, extra: res.extra || null };
   entry.raw = true; saveRaw(entry.serie, r0);
   results.push(entry); store.set('trs_results', results);
   current = { res, entry, t };
@@ -1572,7 +2035,8 @@ function finishRec(msg) {
 function balSide() { const s = $('balStance').value; return s === 'UNI_L' ? 'L' : s === 'UNI_R' ? 'R' : null; }
 function condLabel(id) {
   const t = TESTS[id], p = [];
-  if (t.side) p.push(side === 'L' ? 'izq' : 'der');
+  if (t.side || (t.iso && isoUni())) p.push(side === 'L' ? 'izq' : 'der');
+  if (t.iso) p.push($('isoEx').value, +$('isoDur').value ? $('isoDur').value + ' s' : 'hasta el fallo');
   if (t.box) p.push($('boxH').value + ' cm');
   if (t.bal) p.push($('balStance').selectedOptions[0].text, $('balEyes').value, $('balSurf').value === 'E' ? 'espuma' : '', $('balDur').value + ' s');
   if (t.rom) p.push($('romMove').value);
@@ -1585,14 +2049,24 @@ function analyzeTest(r0, a, t) {
   const S = r0.S, calA = r0.calStart + Math.floor(0.5 * FS), calB = r0.calEnd;
   const opts = { invLR: $('invLR').checked, mass: a.mass };
   if (t.kind === 'rom') {
-    const mv = ROM_MOVES.find(x => x[0] === $('romMove').value) || [];
-    return withTitle(analyzeROM(S, calA, calB, { rotational: !!mv[2] }), t);
+    const mv = ROM_MOVES.find(x => x[0] === $('romMove').value) || [], db = romOf(mv[0]);
+    const res = withTitle(analyzeROM(S, calA, calB, { rotational: !!mv[2], minDeg: db && db.r && db.r[1] <= 15 ? 2 : 5 }), t);
+    if (!res.error && db && db.r) {
+      const mx = +res.m['ROM máximo (°)'], ok = db.cmp === false ? null : mx >= db.r[0] ? 'good' : mx >= 0.8 * db.r[0] ? 'mid' : 'bad';
+      res.tiles.push(['Rango de referencia', db.r[0] + '–' + db.r[1], '°', false]);
+      if (ok) { res.tiles[0][4] = ok; res.warn.unshift(ok === 'good' ? 'Dentro del rango de referencia.' : ok === 'mid' ? 'Levemente por debajo del rango de referencia.' : 'Por debajo del rango de referencia.'); }
+    }
+    return res;
   }
   if (t.kind === 'free') {
     const n = S.length, mag = new Float64Array(n); for (let i = 0; i < n; i++) mag[i] = Math.hypot(S[i][0], S[i][1], S[i][2]);
     const d = (n - calB) / FS;
     return withTitle({ tiles: [['Duración', r(d, 1), 's', true], ['Muestras', n, '']], tiles2: [], warn: ['Usá "Exportar datos crudos" para descargar el CSV.'], m: { 'Duración (s)': r(d, 1) }, main: ['Duración', r(d, 1), 's'],
       chart: { type: 'lines', from: 0, to: n - 1, lines: [{ arr: mag, color: '#18c29c', lo: 0, hi: 4, label: '|a| (g)' }], spans: [], marks: [] } }, t);
+  }
+  if (t.kind === 'iso') {
+    const fr0 = bodyFrame(S, calA, calB, null), secs = +$('isoDur').value || Infinity;
+    return withTitle(analyzeIso(S, fr0, calB, Math.min(S.length, isFinite(secs) ? calB + secs * FS : S.length)), t);
   }
   const fr = bodyFrame(S, calA, calB, orient);
   const sig = signals(S, fr);
@@ -1637,6 +2111,7 @@ function analyzeTest(r0, a, t) {
   if (t.kind === 'squat') return withTitle(analyzeSquat(S, fr, sig, calB, { unipodal: !!t.side }), t);
   if (t.kind === 'bal') {
     const end = Math.min(S.length, calB + testSecs() * FS);
+    if (!fr.f) { pcaForward(S, fr, calB, end); Object.assign(sig, signals(S, fr)); }
     const res = analyzeBalance(S, fr, sig, calB, end, opts);
     if (!res.error) res.extra = { area: res.area, held: res.held };
     return withTitle(res, t);
@@ -1744,9 +2219,9 @@ function renderLSI(entry, val, res) {
   const box = $('lsiBox'), out = [], a = currentAthlete();
   const sameDay = (x) => new Date(x.date).toDateString() === new Date(entry.date).toDateString();
   if (entry.side && fin(val)) {
-    const other = results.filter(x => x.ath === entry.ath && x.test === entry.test && x.side && x.side !== entry.side && sameDay(x) && x.main && (entry.test !== 'ROM' || (x.cond || '').split(' · ')[1] === (entry.cond || '').split(' · ')[1]) && (entry.test !== 'BAL' || (x.cond || '').replace(/Unipodal (izquierda|derecha)/, '') === (entry.cond || '').replace(/Unipodal (izquierda|derecha)/, '')));
+    const other = results.filter(x => x.ath === entry.ath && x.test === entry.test && x.side && x.side !== entry.side && sameDay(x) && x.main && (entry.test !== 'ROM' || (x.cond || '').split(' · ')[1] === (entry.cond || '').split(' · ')[1]) && (entry.test !== 'BAL' || (x.cond || '').replace(/Unipodal (izquierda|derecha)/, '') === (entry.cond || '').replace(/Unipodal (izquierda|derecha)/, '')) && (entry.test !== 'ISO' || ((x.cond || '').replace(/^(izq|der) · /, '') === (entry.cond || '').replace(/^(izq|der) · /, '') && x.main[0] === entry.main[0])));
     if (other.length) {
-      const lowBetter = entry.test === 'BAL';
+      const lowBetter = entry.test === 'BAL' || (entry.test === 'ISO' && /^Área/.test(entry.main[0]));
       const ov = lowBetter ? Math.min(...other.map(x => x.main[1])) : Math.max(...other.map(x => x.main[1]));
       const L = entry.side === 'L' ? val : ov, R = entry.side === 'R' ? val : ov;
       let lsi;
@@ -1951,7 +2426,11 @@ function renderHist() {
 let openId = null;
 async function openHist(id) {
   const e = results.find(x => x.id === id); if (!e) return;
-  const t = TESTS[e.test]; openId = id; renderHist();
+  const t = TESTS[e.test]; openId = id;
+  const parts = (e.cond || '').split(' · ');
+  const sIdx = e.test === 'ROM' ? ROM_MOVES.findIndex(m => parts.includes(m[0])) : e.test === 'ISO' ? ISO_EX.findIndex(m => parts.includes(m[0])) : -1;
+  if (!nav('#t=' + e.test + (sIdx >= 0 ? '&s=' + sIdx : ''))) return;
+  renderHist();
   const raw = e.raw ? await rawDB.get(e.serie) : null;
   if (raw) {
     const S = unpackS(raw.S), r0 = { S, test: raw.test, calStart: raw.calStart, calEnd: raw.calEnd, cueAt: raw.cueAt, lost: raw.lost };
@@ -2022,18 +2501,30 @@ function renderOrient() {
 let guideOpen = false;
 function renderGuide() {
   const g = GUIDE[testId];
+  if (testId === 'ROM') { $('btnGuide').classList.add('hide'); $('guideBox').classList.add('hide'); if ($('romAnimT')) AN.play(animId(), $('romAnimT')); return; }
+  $('btnGuide').classList.remove('hide');
   $('btnGuide').textContent = guideOpen ? '▲ Ocultar instrucciones' : '▶ Cómo se hace';
   $('guideBox').classList.toggle('hide', !guideOpen);
   if (!guideOpen || !g) { AN.stop(); return; }
   $('guideSteps').innerHTML = g.steps.map(x => `<li>${esc(x)}</li>`).join('');
+  if (testId === 'ISO') { const x = ISO_EX.find(e => e[0] === $('isoEx').value); if (x) $('guideSteps').innerHTML += `<li><b>${esc(x[0])}:</b> ${esc(x[3])}</li>`; }
+  if (testId === 'ROM') { const mv = ROM_MOVES.find(x => x[0] === $('romMove').value); if (mv) $('guideSteps').innerHTML = `<li><b>${esc(mv[0])}:</b> ${esc(mv[1])}.</li>` + $('guideSteps').innerHTML; }
   $('guideErr').innerHTML = g.errors.length ? '<b style="color:var(--warn)">Errores comunes:</b> ' + g.errors.map(esc).join(' · ') : '';
-  if (AN.has(testId)) AN.play(testId, $('animBox'));
+  const id = animId();
+  if (AN.has(id)) AN.play(id, $('animBox')); else AN.stop();
 }
+// animación según el test y, en ROM / isométricos, según el movimiento elegido
+function animId() { return testId === 'ROM' ? 'ROM:' + $('romMove').value : testId === 'ISO' ? 'ISO:' + $('isoEx').value : testId; }
+function subIdx() { return testId === 'ROM' ? ROM_MOVES.findIndex(x => x[0] === $('romMove').value) : testId === 'ISO' ? ISO_EX.findIndex(x => x[0] === $('isoEx').value) : -1; }
 $('btnGuide').onclick = () => { guideOpen = !guideOpen; renderGuide(); };
 function renderTestOpts() {
   const t = T_();
   $('testHelp').textContent = t.help;
-  $('optSide').classList.toggle('hide', !t.side);
+  $('optSide').classList.toggle('hide', !(t.side || (t.iso && isoUni())));
+  $('optIso').classList.toggle('hide', !t.iso);
+  if (t.iso) { const x = ISO_EX.find(e => e[0] === $('isoEx').value); $('testHelp').textContent = t.help + (x ? ' (' + x[1] + ').' : ''); }
+  $('testTitle').textContent = testId === 'ROM' ? 'Medir ROM · ' + ((romOf($('romMove').value) || {}).j || '') : testId === 'ISO' ? 'Isométrico · ' + $('isoEx').value : t.name;
+  const gr = groupOf(testId); $('btnBackGroup').textContent = '‹ ' + gr.name; $('btnBackGroup').dataset.g = gr.id;
   $('optBox').classList.toggle('hide', !t.box);
   $('optMode').classList.toggle('hide', !t.mode);
   $('optBal').classList.toggle('hide', !t.bal);
@@ -2044,7 +2535,8 @@ function renderTestOpts() {
   $('optRom').classList.toggle('hide', !t.rom);
   $('optScrum').classList.toggle('hide', !t.scrum);
   $('optOrient').classList.toggle('hide', !t.orient);
-  if (t.rom) { const mv = ROM_MOVES.find(x => x[0] === $('romMove').value); $('testHelp').textContent = t.help + (mv ? ' (' + mv[1] + ').' : ''); }
+  if (t.rom) { const mv = ROM_MOVES.find(x => x[0] === $('romMove').value); $('testHelp').textContent = 'Quieto 2 s en la posición inicial, hacé el movimiento (podés repetirlo) y tocá Stop.'; $('romInfo').innerHTML = romCardHTML(romOf(mv && mv[0]) || ROM_DB[0], 'romAnimT'); }
+  $('romInfo').classList.toggle('hide', !t.rom);
   renderGuide();
   setRecBtn();
 }
@@ -2053,10 +2545,101 @@ function buildTestSelect() {
   $('selTest').innerHTML = cats.map(c => `<optgroup label="${c}">` + Object.entries(TESTS).filter(([, t]) => t.cat === c).map(([id, t]) => `<option value="${id}">${t.name}</option>`).join('') + '</optgroup>').join('');
   if (!TESTS[testId]) testId = 'CMJ';
   $('selTest').value = testId;
-  $('romMove').innerHTML = ROM_MOVES.map(m => `<option>${m[0]}</option>`).join('');
+  $('romMove').innerHTML = ROM_JOINTS.map(j => `<optgroup label="${j}">` + ROM_DB.filter(m => m.j === j).map(m => `<option>${m.n}</option>`).join('') + '</optgroup>').join('');
+  $('isoEx').innerHTML = ISO_EX.map(m => `<option>${m[0]}</option>`).join('');
+  const lr = store.get('trs_lastRom', null), li = store.get('trs_lastIso', null);
+  if (lr && ROM_MOVES.some(m => m[0] === lr)) $('romMove').value = lr;
+  if (li && ISO_EX.some(m => m[0] === li)) $('isoEx').value = li;
 }
 $('selTest').onchange = () => { if (rec) { $('selTest').value = testId; return; } testId = $('selTest').value; store.set('trs_lastTest', testId); renderTestOpts(); };
-$('romMove').onchange = renderTestOpts;
+// al cambiar de movimiento / ejercicio: nueva animación, título y dirección
+function onSubChange() {
+  if (rec) return;
+  store.set('trs_lastRom', $('romMove').value); store.set('trs_lastIso', $('isoEx').value);
+  $('resCard').classList.add('hide');
+  const k = subIdx(); if (k >= 0) history.replaceState(null, '', `#t=${testId}&s=${k}`);
+  renderTestOpts();
+}
+$('romMove').onchange = onSubChange;
+$('isoEx').onchange = onSubChange;
+
+// ---------- Navegación: inicio → grupo → test ----------
+function parseHash() {
+  const q = {}; location.hash.replace(/^#/, '').split('&').filter(Boolean).forEach(x => { const [k, v] = x.split('='); q[k] = decodeURIComponent(v || ''); });
+  if (q.t && TESTS[q.t]) return { v: 'test', t: q.t, s: q.s !== undefined && q.s !== '' ? +q.s : null };
+  if (q.g && GROUPS.some(g => g.id === q.g)) return { v: 'group', g: q.g };
+  return { v: 'home' };
+}
+let curHash = location.hash;
+function nav(h) {
+  if (rec) { status('Terminá o cancelá el registro antes de salir del test'); return false; }
+  if (location.hash !== h) history.pushState(null, '', h || (location.pathname + location.search));
+  renderRoute(); return true;
+}
+window.addEventListener('popstate', () => {
+  if (rec) { history.pushState(null, '', curHash); status('Terminá o cancelá el registro antes de salir del test'); return; }
+  renderRoute();
+});
+function renderRoute() {
+  const r = parseHash(); curHash = location.hash;
+  $('vHome').classList.toggle('hide', r.v !== 'home'); $('vGroup').classList.toggle('hide', r.v !== 'group'); $('vTest').classList.toggle('hide', r.v !== 'test');
+  if (r.v !== 'test') AN.stop();
+  if (r.v === 'home') renderHome();
+  else if (r.v === 'group') renderGroup(r.g);
+  else openTest(r.t, r.s);
+  window.scrollTo(0, 0);
+}
+let homeBuilt = false;
+function renderHome() {
+  if (homeBuilt) return; homeBuilt = true;
+  $('tiles').innerHTML = GROUPS.map(g => { const n = gItems(g).length; return `<button class="tile" data-g="${g.id}"><div class="ti">${AN.thumb(g.icon, g.vb || '0 38 320 184')}</div><b>${esc(g.name)}</b><small>${n} ${n > 1 ? 'tests' : 'test'}</small></button>`; }).join('');
+  $('tiles').querySelectorAll('.tile').forEach(b => b.onclick = () => nav('#g=' + b.dataset.g));
+}
+const RICON = {
+  pos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="4.5" r="2.2" fill="currentColor" stroke="none"/><path d="M5 9h14M12 9v6M12 15l-3.5 6M12 15l3.5 6"/></svg>',
+  mov: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg>',
+  sen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/><path d="M7.5 7.5a6.4 6.4 0 0 0 0 9M16.5 7.5a6.4 6.4 0 0 1 0 9M4.6 4.6a10.5 10.5 0 0 0 0 14.8M19.4 4.6a10.5 10.5 0 0 1 0 14.8"/></svg>',
+  rng: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="2.5" y="8" width="19" height="8" rx="1.5"/><path d="M6.5 8v3.5M10.5 8v2.5M14.5 8v3.5M18.5 8v2.5"/></svg>' };
+function romCardHTML(m, animEl) {
+  return `<div class="rhead"><span class="jbadge">${esc(m.j)}</span><h3>${esc(m.n)}</h3></div>
+  <div class="rgrid"><div class="ranim" id="${animEl}"></div><div>
+  <div class="rsec"><div class="rt">${RICON.pos} Posición inicial (cero)</div><p>${esc(m.z)}</p></div>
+  <div class="rsec"><div class="rt">${RICON.mov} Movimiento</div><p>${esc(m.m)}</p></div>
+  <div class="rsec"><div class="rt">${RICON.sen} Colocación del sensor</div><div class="srow"><span class="schip">${RICON.sen} ${esc(m.s)}</span><span>Colocá el sensor en el lado que vas a medir.</span></div></div>
+  ${m.r ? `<div class="rsec"><div class="rt">${RICON.rng} Rango de referencia</div><p class="rng">${m.r[0]}° – ${m.r[1]}°</p></div>` : ''}
+  ${m.rot ? '<p class="note" style="margin-top:8px">Movimiento de rotación: se mide con el giroscopio. Hacelo sin mover el resto del cuerpo.</p>' : ''}
+  </div></div>`;
+}
+function renderRomPick() {
+  const cur = romOf(store.get('trs_lastRom', '')) || ROM_DB[0];
+  $('jChips').innerHTML = ROM_JOINTS.map(j => `<button class="chip${j === cur.j ? ' on' : ''}" data-j="${j}">${j}</button>`).join('');
+  $('mChips').innerHTML = ROM_DB.filter(m => m.j === cur.j).map(m => `<button class="chip mv${m.n === cur.n ? ' on' : ''}" data-n="${esc(m.n)}">${esc(m.n)}</button>`).join('');
+  $('romCard').innerHTML = romCardHTML(cur, 'romAnimG');
+  AN.play('ROM:' + cur.n, $('romAnimG'));
+  const keep = (el) => { const b = el.querySelector('.on'); if (b) el.scrollLeft = Math.max(0, b.offsetLeft - el.offsetLeft - 24); };
+  keep($('jChips')); keep($('mChips'));
+  $('jChips').querySelectorAll('.chip').forEach(b => b.onclick = () => { store.set('trs_lastRom', ROM_DB.find(m => m.j === b.dataset.j).n); renderRomPick(); });
+  $('mChips').querySelectorAll('.chip').forEach(b => b.onclick = () => { store.set('trs_lastRom', b.dataset.n); renderRomPick(); });
+  $('btnRomGo').onclick = () => nav('#t=ROM&s=' + ROM_MOVES.findIndex(x => x[0] === cur.n));
+}
+function renderGroup(id) {
+  const g = GROUPS.find(x => x.id === id);
+  $('gTitle').textContent = g.name;
+  $('romPick').classList.toggle('hide', id !== 'rom'); $('glist').classList.toggle('hide', id === 'rom');
+  if (id === 'rom') { $('gTitle').textContent = 'ROM · Guía del test'; renderRomPick(); return; }
+  $('glist').innerHTML = gItems(g).map(it => { const f = itemInfo(it); return `<button class="titem" data-h="#t=${it.t}${it.s != null ? '&s=' + it.s : ''}"><div class="th">${AN.thumb(f.anim, '0 45 320 180')}</div><div class="tx"><b>${esc(f.name)}</b><small>${esc(f.desc)}</small></div><span class="go">›</span></button>`; }).join('');
+  $('glist').querySelectorAll('.titem').forEach(b => b.onclick = () => nav(b.dataset.h));
+}
+function openTest(id, s) {
+  const before = testId + '|' + animId();
+  testId = id; store.set('trs_lastTest', testId); $('selTest').value = id;
+  if (id === 'ROM' && s != null && ROM_MOVES[s]) { $('romMove').value = ROM_MOVES[s][0]; store.set('trs_lastRom', ROM_MOVES[s][0]); }
+  if (id === 'ISO' && s != null && ISO_EX[s]) { $('isoEx').value = ISO_EX[s][0]; store.set('trs_lastIso', ISO_EX[s][0]); }
+  if (before !== testId + '|' + animId()) $('resCard').classList.add('hide');
+  renderTestOpts();
+}
+$('btnBackHome').onclick = () => nav('');
+$('btnBackGroup').onclick = () => nav('#g=' + ($('btnBackGroup').dataset.g || groupOf(testId).id));
 document.querySelectorAll('#optSide .seg').forEach(b => b.onclick = () => { if (rec) return; document.querySelectorAll('#optSide .seg').forEach(x => x.classList.remove('on')); b.classList.add('on'); side = b.dataset.side; });
 document.querySelectorAll('#modes .seg').forEach(b => b.onclick = () => {
   if (rec) return;
@@ -2076,6 +2659,7 @@ $('btnRec').onclick = () => rec ? stopRec() : startRec();
 $('btnCsv').onclick = exportCsv;
 $('btnRaw').onclick = exportRaw;
 buildTestSelect(); renderTestOpts(); renderOrient(); renderAth(); setRecBtn(); $('btnOrient').disabled = true;
+renderRoute();
 drawLive();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
