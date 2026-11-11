@@ -54,7 +54,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 .tile .ti{aspect-ratio:320/170;border-radius:10px;background:rgba(14,17,22,.55);overflow:hidden}
 .tile b{font-size:15px;margin-top:4px}.tile small{color:var(--tx2);font-size:12px}
 .navrow{display:flex;align-items:center;gap:10px;margin-bottom:12px}.navrow h2{margin:0;flex:1}
-#testTitle,#gTitle{font-size:17px;text-transform:none;letter-spacing:0;color:var(--tx)}
+#testTitle,#gTitle,#pTitle{font-size:17px;text-transform:none;letter-spacing:0;color:var(--tx)}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.chips::-webkit-scrollbar{display:none}
 .chip{flex:none;border-radius:999px;padding:8px 16px;font-size:15px;font-weight:600;background:#20262f;border:1px solid #303846;color:var(--tx2);white-space:nowrap}
 .chip.on{background:var(--acc);border-color:var(--acc);color:#04241c}
@@ -79,6 +79,15 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 .titem .th{width:104px;flex:none;aspect-ratio:320/180;border-radius:8px;background:#0e1116;overflow:hidden}
 .titem .tx{flex:1;min-width:0}.titem b{display:block;font-size:15px;font-weight:600}.titem small{display:block;color:var(--tx2);font-size:12px;margin-top:2px}
 .titem .go{color:var(--acc);font-size:22px;padding:0 4px}
+.tile.prog{background:linear-gradient(165deg,#1d3550 0%,#141c24 70%);border-color:#2a4664}
+.pdesc{color:var(--tx2);font-size:16px;line-height:1.45;margin:0 0 14px}
+.ph{font-size:19px;font-weight:650;margin:4px 0 10px}
+.pstep .pnum{flex:none;width:36px;height:36px;border-radius:9px;background:#173a32;color:var(--tx);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px}
+.pstep .pnum.ok{background:var(--acc);color:#04241c}.pstep .pnum.cur{outline:2px solid var(--acc)}
+.pstep .th{width:84px}
+.pbar{background:#12261f;border:1px solid #24493f;border-radius:12px;padding:10px 12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px}
+.pbt{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:14px}
+.pdots{display:flex;gap:6px}.pdots span{flex:1;height:5px;border-radius:3px;background:#2a3340}.pdots span.d{background:var(--acc)}.pdots span.c{outline:1px solid var(--acc)}
 .scroll{overflow-x:auto}
 .hide{display:none!important}
 .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:var(--card2);border:1px solid var(--line)}
@@ -158,8 +167,17 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div></div>
 
+<div id="vProg" class="hide"><div class="card">
+  <div class="navrow"><button class="sm" id="btnBackProgs">‹ Programas</button><h2 id="pTitle"></h2></div>
+  <p id="pDesc" class="pdesc"></p>
+  <h3 class="ph" id="pHead">Lista de ejercicios</h3>
+  <div class="tlist" id="plist"></div>
+  <div class="row" id="pBtns" style="margin-top:14px"></div>
+</div></div>
+
 <div id="vTest" class="hide">
 <div class="card">
+  <div id="progBar" class="pbar hide"></div>
   <div class="navrow"><button class="sm" id="btnBackGroup">‹ Volver</button><h2 id="testTitle">Test</h2></div>
   <select id="selTest" class="hide"></select>
   <div id="romInfo" class="hide" style="margin-bottom:6px"></div>
@@ -259,7 +277,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v0.9 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v1.0 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -268,6 +286,7 @@ const ACC_LSB = 2048, GYR_LSB = 16.4;
 const FF_IN = 0.35, FF_OUT = 0.6, EDGE = 0.5;   // umbrales de caída libre (g)
 const MIN_FLIGHT = 0.1;                          // s
 const QW = Math.round(0.3 * FS);                 // ventana de quietud antes de cada salto
+const RJ_GAP = 0.6;                              // s máx. de contacto entre saltos continuos
 const DJ_GAP = 0.6;                              // s máx. entre caída del cajón y rebote
 
 function calibrate(S, a, b) {
@@ -357,6 +376,34 @@ function analyzeSession(S, calEnd, test, mass, boxCm) {
       jumps.push(j); k++;
     }
     if (!jumps.length) return { error: 'No se detectó ningún drop jump completo (caída + rebote). Repetí.' };
+    return { jumps };
+  }
+
+  if (test === 'RJ') {
+    // saltos continuos: cada rebote = contacto entre un aterrizaje y el despegue siguiente
+    for (let k = 1; k < segs.length; k++) {
+      const s0 = segs[k - 1], s1 = segs[k], ct = (s1.to - s0.ld) / FS;
+      if (ct <= 0.05 || ct > RJ_GAP) continue;
+      const flight = s1.dur, h = G * flight * flight / 8, rsi = h / ct;
+      const j = { warn: [], key: { h: h * 100, rsi, ct: ct * 1000, rr: flight / ct } };
+      j.metrics = [
+        ['RSI', r(rsi, 2), 'm/s', true],
+        ['RSI (vuelo / contacto)', r(flight / ct, 2), '', true],
+        ['Altura (t. vuelo)', r(h * 100, 1), 'cm'],
+        ['Tiempo de contacto', Math.round(ct * 1000), 'ms'],
+        ['Tiempo de vuelo', Math.round(flight * 1000), 'ms'],
+        ['Impacto', r(impactAfter(s0.ld), 1), 'g'],
+      ];
+      if (ct > 0.25) j.warn.push('Contacto largo (>250 ms): rebotá más rápido, con las rodillas casi extendidas, como un resorte.');
+      if (impactAfter(s0.ld) >= 15.5) j.warn.push('El impacto llegó al límite del sensor (16 g).');
+      j.plot = {
+        F: mag, from: Math.max(0, Math.floor(s0.to) - 10), to: Math.min(n - 1, Math.ceil(s1.ld) + Math.round(0.25 * FS)),
+        phases: [['Vuelo', s0.to, s0.ld, 'fly'], ['Contacto', s0.ld, s1.to, 'con'], ['Vuelo', s1.to, s1.ld, 'fly']],
+        marks: [[1, s0.ld, 'Aterrizaje'], [2, s1.to, 'Despegue'], [3, s1.ld, 'Aterrizaje']]
+      };
+      jumps.push(j);
+    }
+    if (!jumps.length) return { error: 'No se detectaron rebotes. Saltá en forma continua, sin pausa entre saltos.' };
     return { jumps };
   }
 
@@ -1566,9 +1613,20 @@ const AN = (() => {
     'Sentadilla unipodal isométrica': iso({ tr: 28, hL: 62, kL: 78, aL: -16, hR: 45, kR: 12, g: 'L', hands: 'free', sL: 75, eL: 5, sR: 75, eR: 5 }, {}),
     'Puente de glúteo': iso(BRIDGE, { amp: 0.4 }),
     'Puente de glúteo unipodal': iso(Object.assign({}, BRIDGE, { hL: 115, kL: 0, aL: 25, g: 'R' }), { amp: 0.4 }),
+    'Dead bug': iso({ px: 150, py: GROUND - 8, g: null, tr: -90, hL: 180, kL: 90, aL: 0, hR: 180, kR: 90, aR: 0, hands: 'free', sL: 225, eL: 0, sR: 225, eR: 0 }, { amp: 0.3, lbl: 'Dead bug: lumbar pegada al piso' }),
+    'Bird dog': iso({ px: 150, py: GROUND - LT - 6, g: null, tr: 76, hL: -96, kL: 2, aL: 0, hR: 0, kR: 90, aR: -10, hands: 'free', sL: 64, eL: 0, sR: -38, eR: 0 }, { amp: 0.5, lbl: 'Bird dog: brazo y pierna opuestos' }),
     'Posición de scrum (isométrico)': { thumbT: 1, draw: (t) => ANIMS.SCRUM.draw(t % 1.6) },
     'Libre': iso(Object.assign({}, DOWN, { sL: 90, eL: 2 }), { sensor: 'arm', lbl: 'Sensor en el segmento a evaluar' }),
   };
+  // saltos continuos y drop jump unipodal
+  const RJ_FLY = P({ tr: 0, hL: 0, kL: 6, aL: 30, hR: 0, kR: 6, aR: 30, g: null, py: GROUND - (LT + LS + 16) - 18 });
+  const RJ_GND = P({ tr: 6, hL: 10, kL: 22, aL: -6, hR: 10, kR: 22, aR: -6 });
+  const rjKeys = [[0, P({})], [0.6, P({})], [0.8, P({ tr: 14, hL: 30, kL: 50, aL: -10, hR: 30, kR: 50, aR: -10 })], [0.95, RJ_FLY], [1.3, RJ_FLY], [1.42, RJ_GND], [1.54, RJ_FLY], [1.9, RJ_FLY], [2.02, RJ_GND], [2.14, RJ_FLY], [2.5, RJ_FLY], [2.62, RJ_GND], [2.74, RJ_FLY], [3.1, RJ_FLY], [3.3, LAND], [3.9, P({})], [4.4, P({})]];
+  const oneLeg = (keys) => keys.map(([t, p]) => [t, Object.assign({}, p, { hR: 12, kR: 92, aR: 10 }, p.g === 'B' ? { g: 'L' } : {})]);
+  ANIMS.RJ = { thumbT: 1.1, draw: (t) => groundLine(GROUND) + drawFigure(tween(rjKeys, t), {}) + label(t % 4.4 < 0.6 ? 'Quieto…' : t % 4.4 < 3.2 ? 'Rebotá rápido y alto' : '') };
+  ANIMS.RJU = { thumbT: 1.1, draw: (t) => groundLine(GROUND) + drawFigure(tween(oneLeg(rjKeys), t), {}) + label(t % 4.4 < 0.6 ? 'Quieto en una pierna…' : t % 4.4 < 3.2 ? 'Rebotá con la misma pierna' : '') };
+  ANIMS.DJU = { thumbT: 2.3, draw: (t) => groundLine(GROUND) + box(70, 70, BOXH) + tag(105, 190, 'cajón') + drawFigure(tween(oneLeg(djKeys), t), {}) + label(t % 4.2 > 1.75 && t % 4.2 < 2.05 ? 'Rebote rápido' : '') };
+  ANIMS.DJ.thumbT = 2.3;
   for (const k in ROMA) ANIMS['ROM:' + k] = ROMA[k];
   for (const k in ISOA) ANIMS['ISO:' + k] = ISOA[k];
   Object.assign(ANIMS.CMJ, { thumbT: 2.35 }); Object.assign(ANIMS.SJ, { thumbT: 1.5 }); Object.assign(ANIMS.DJ, { thumbT: 2.3 });
@@ -1602,6 +1660,12 @@ const GUIDE = {
         errors: ['Hacer un pequeño contramovimiento antes de saltar (la app lo avisa).', 'Cambiar la profundidad entre saltos.'] },
   DJ: { steps: ['Cajón a la altura elegida (20–40 cm) y cargala en la app.', 'Parado arriba del cajón, manos en la cintura, quieto.', 'Dejate caer adelantando un pie: no saltes hacia arriba.', 'Al tocar el piso, rebotá lo más rápido y alto posible.', 'Aterrizá extendido y quieto.'],
         errors: ['Saltar desde el cajón (cambia la altura de caída).', 'Contacto largo o apoyando talones.'] },
+  DJU: { steps: ['Elegí el lado y la altura del cajón (20–30 cm en unipodal).', 'Arriba del cajón en esa pierna, manos en la cintura, quieto.', 'Dejate caer adelantando el pie: no saltes hacia arriba.', 'Al tocar el piso rebotá con la misma pierna lo más rápido y alto posible.', 'Repetí con el otro lado: la app calcula el LSI del RSI.'],
+         errors: ['Apoyar el otro pie.', 'Saltar hacia arriba al salir del cajón.', 'Contacto largo (flexionar mucho la rodilla).'] },
+  RJ: { steps: ['Cinturón con el sensor en L5, firme. Manos en la cintura.', 'Elegí la cantidad (por ejemplo 10: se analizan los rebotes).', 'Quieto hasta el "¡Ya!".', 'Saltá en forma continua: contacto lo más corto posible y salto lo más alto posible.', 'Rodillas casi extendidas: el rebote sale de los tobillos.'],
+        errors: ['Pausas entre saltos.', 'Flexionar mucho las rodillas en cada contacto.', 'Sacar las manos de la cintura.'] },
+  RJU: { steps: ['Elegí el lado. Parado en esa pierna, manos en la cintura.', 'Quieto hasta el "¡Ya!".', 'Saltos continuos con la misma pierna, contacto corto y lo más alto posible.', 'Repetí con el otro lado: la app calcula el LSI del RSI.'],
+         errors: ['Apoyar el otro pie.', 'Pausas entre saltos.', 'Perder la alineación de la rodilla.'] },
   CMJU: { steps: ['Elegí el lado en la app.', 'Parado en esa pierna, la otra flexionada atrás, manos en la cintura.', 'Quieto 2 s, contramovimiento y saltá con una pierna.', 'Aterrizá en la misma pierna y estabilizá 2 s.', 'Repetí con el otro lado: la app calcula el LSI.'],
           errors: ['Apoyar la otra pierna al aterrizar.', 'Impulsarse con los brazos.'] },
   SQ: { steps: ['Calibrá la orientación del cinturón (una vez por colocación).', 'Pies al ancho de los hombros, brazos al frente.', 'Quieto 2 s.', 'Bajá controlado hasta ~90° de rodilla y subí.', 'Pausa breve arriba entre repeticiones.'],
@@ -1677,8 +1741,14 @@ const TESTS = {
            help: 'Parado, manos en la cintura. Quieto, bajá y saltá lo más alto posible. Aterrizá con piernas extendidas.' },
   SJ:    { cat: 'Saltos', name: 'SJ (squat jump)', kind: 'jump', jump: 'SJ', calib: 'stand', stop: 'jumps', mode: true,
            help: 'Bajá a ~90° de rodilla, manos en la cintura. Quieto en esa posición y saltá sin bajar antes.' },
-  DJ:    { cat: 'Saltos', name: 'Drop jump', kind: 'jump', jump: 'DJ', calib: 'stand', stop: 'jumps', mode: true, box: true,
+  DJ:    { cat: 'RSI', name: 'Drop jump', kind: 'jump', jump: 'DJ', calib: 'stand', stop: 'jumps', mode: true, box: true,
            help: 'Parado en el cajón, manos en la cintura. Dejate caer (sin saltar hacia arriba) y rebotá lo más rápido y alto posible.' },
+  DJU:   { cat: 'RSI', name: 'Drop jump unipodal', kind: 'jump', jump: 'DJ', calib: 'stand', stop: 'jumps', mode: true, box: true, side: true,
+           help: 'Arriba del cajón en una pierna, manos en la cintura, quieto. Dejate caer y rebotá con la misma pierna lo más rápido y alto posible.' },
+  RJ:    { cat: 'RSI', name: 'Saltos continuos', kind: 'jump', jump: 'RJ', calib: 'stand', stop: 'jumps', mode: true,
+           help: 'Parado quieto, manos en la cintura. Al "¡Ya!": saltos continuos rebotando lo más rápido y alto posible (tobillos como resorte). La cantidad incluye el primer salto.' },
+  RJU:   { cat: 'RSI', name: 'Saltos continuos unipodal', kind: 'jump', jump: 'RJ', calib: 'stand', stop: 'jumps', mode: true, side: true,
+           help: 'Parado en una pierna, manos en la cintura, quieto. Al "¡Ya!": saltos continuos con esa pierna, rebotando lo más rápido posible.' },
   CMJU:  { cat: 'Saltos', name: 'CMJ unipodal', kind: 'jump', jump: 'CMJ', calib: 'stand', stop: 'jumps', mode: true, side: true,
            help: 'Parado en una pierna, manos en la cintura. Quieto, bajá y saltá con esa pierna; aterrizá en la misma.' },
   SQ:    { cat: 'Sentadilla', name: 'Sentadilla bipodal', kind: 'squat', calib: 'stand', stop: 'reps', mode: true, orient: true,
@@ -1768,14 +1838,39 @@ const ISO_EX = [
   ['Sentadilla unipodal isométrica', 'sensor en L5 con el cinturón', true, 'Rodilla alineada con el pie, pelvis nivelada.'],
   ['Puente de glúteo', 'sensor en L5 con el cinturón', false, 'Cadera arriba, línea recta de hombros a rodillas.'],
   ['Puente de glúteo unipodal', 'sensor en L5 con el cinturón', true, 'Pelvis nivelada, sin rotar. El lado es la pierna de apoyo.'],
+  ['Dead bug', 'sensor en L5 con el cinturón', false, 'Boca arriba, brazos hacia arriba, cadera y rodillas a 90°; zona lumbar pegada al piso.'],
+  ['Bird dog', 'sensor en L5 con el cinturón', true, 'En cuadrupedia, extendé el brazo y la pierna opuestos y sostené sin rotar la pelvis. El lado es la pierna extendida.'],
   ['Posición de scrum (isométrico)', 'sensor en L5 con el cinturón', false, 'Contra la máquina, espalda plana y quieto: mide la estabilidad del tronco en la posición.'],
   ['Libre', 'sensor firme en el segmento a evaluar', false, 'Sujetá el sensor con una banda elástica firme en el segmento que querés evaluar.'],
+];
+// ---------- Programas: baterías de evaluación ----------
+const PROGRAMS = [
+  { id: 'iso-inf', name: 'Evaluación isométrica del tren inferior', desc: 'Evaluación de la fuerza y el equilibrio isométrico del tren inferior.', steps: [
+    { t: 'ISO', ex: 'Sentadilla en pared', dur: 60 }, { t: 'ISO', ex: 'Media sentadilla isométrica', dur: 45, name: 'Squat hold' },
+    { t: 'BAL', stance: 'UNI_L', eyes: 'OA', dur: 30, name: 'Apoyo monopodal izquierdo' }, { t: 'BAL', stance: 'UNI_R', eyes: 'OA', dur: 30, name: 'Apoyo monopodal derecho' },
+    { t: 'ISO', ex: 'Puente de glúteo', dur: 45 }] },
+  { id: 'iso-core', name: 'Evaluación isométrica del core', desc: 'Test de estabilidad y resistencia isométrica del core.', steps: [
+    { t: 'ISO', ex: 'Plancha frontal', dur: 60, name: 'Plancha' }, { t: 'ISO', ex: 'Plancha lateral', dur: 45, side: 'L' }, { t: 'ISO', ex: 'Plancha lateral', dur: 45, side: 'R' },
+    { t: 'ISO', ex: 'Dead bug', dur: 30 }, { t: 'ISO', ex: 'Bird dog', dur: 30, side: 'L' }, { t: 'ISO', ex: 'Puente de glúteo', dur: 45 }] },
+  { id: 'mov-sup', name: 'Movilidad del tren superior', desc: 'Evaluación de la movilidad del tren superior: rango de hombro, codo y muñeca.',
+    steps: ['Flexión de hombro', 'Extensión de hombro', 'Rotación interna de hombro', 'Rotación externa de hombro', 'Flexión de codo', 'Flexión de muñeca'].map(mv => ({ t: 'ROM', mv })) },
+  { id: 'mov-inf', name: 'Movilidad del tren inferior', desc: 'Evaluación de la movilidad del tren inferior: rango de cadera, rodilla y tobillo.',
+    steps: ['Flexión de cadera', 'Extensión de cadera', 'Rotación interna de cadera (prono)', 'Rotación externa de cadera (prono)', 'Flexión de rodilla', 'Flexión dorsal de tobillo'].map(mv => ({ t: 'ROM', mv })) },
+  { id: 'saltos', name: 'Evaluación de saltos', desc: 'Altura, potencia y asimetría de salto: CMJ, SJ y CMJ unipodal de cada lado.', steps: [
+    { t: 'CMJ', n: 3 }, { t: 'SJ', n: 3 }, { t: 'CMJU', n: 3, side: 'L' }, { t: 'CMJU', n: 3, side: 'R' }] },
+  { id: 'rsi', name: 'Evaluación de RSI (reactividad)', desc: 'Capacidad reactiva: saltos continuos y drop jump, bipodal y de cada pierna.', steps: [
+    { t: 'RJ', n: 10 }, { t: 'DJ', n: 3 }, { t: 'DJU', n: 3, side: 'L' }, { t: 'DJU', n: 3, side: 'R' }, { t: 'RJU', n: 10, side: 'L' }, { t: 'RJU', n: 10, side: 'R' }] },
+  { id: 'equilibrio', name: 'Equilibrio y Romberg', desc: 'Control postural: bipodal con ojos abiertos y cerrados, y apoyo unipodal de cada lado.', steps: [
+    { t: 'BAL', stance: 'BIP', eyes: 'OA', dur: 30, name: 'Bipodal ojos abiertos' }, { t: 'BAL', stance: 'BIP', eyes: 'OC', dur: 30, name: 'Bipodal ojos cerrados' },
+    { t: 'BAL', stance: 'UNI_L', eyes: 'OA', dur: 30, name: 'Apoyo monopodal izquierdo' }, { t: 'BAL', stance: 'UNI_R', eyes: 'OA', dur: 30, name: 'Apoyo monopodal derecho' }] },
 ];
 const isoUni = () => { const x = ISO_EX.find(e => e[0] === $('isoEx').value); return !!(x && x[2]); };
 function sideOf(id) { const t = TESTS[id]; if (id === 'BAL') return balSide(); if (t.iso) return isoUni() ? side : null; return t.side ? side : null; }
 // Grupos de la pantalla inicial
 const GROUPS = [
-  { id: 'saltos', name: 'Saltos', icon: 'CMJ', vb: '0 8 320 184', items: ['CMJ', 'SJ', 'DJ', 'CMJU'] },
+  { id: 'programas', name: 'Programas', icon: 'ISO:Bird dog', items: [], label: () => PROGRAMS.length + ' evaluaciones' },
+  { id: 'saltos', name: 'Saltos', icon: 'CMJ', vb: '0 8 320 184', items: ['CMJ', 'SJ', 'CMJU'] },
+  { id: 'rsi', name: 'RSI · Reactividad', icon: 'RJ', vb: '0 8 320 184', items: [['RJ'], ['DJ'], ['DJU', null, 'L'], ['DJU', null, 'R'], ['RJU', null, 'L'], ['RJU', null, 'R']] },
   { id: 'sentadilla', name: 'Sentadillas', icon: 'SQ', items: ['SQ', 'SQU'] },
   { id: 'iso', name: 'Isométricos', icon: 'ISO:Plancha frontal', items: () => ISO_EX.map((x, k) => ['ISO', k]) },
   { id: 'rom', name: 'ROM / Movilidad', icon: 'ROM:Abducción de hombro', items: () => ROM_MOVES.map((x, k) => ['ROM', k]) },
@@ -1785,11 +1880,12 @@ const GROUPS = [
   { id: 'scrum', name: 'Scrum', icon: 'SCRUM', items: ['SCRUM'] },
   { id: 'otros', name: 'Registro libre', icon: 'FREE', items: ['FREE'] },
 ];
-const gItems = (g) => (typeof g.items === 'function' ? g.items() : g.items).map(x => Array.isArray(x) ? { t: x[0], s: x[1] } : { t: x, s: null });
+const gItems = (g) => (typeof g.items === 'function' ? g.items() : g.items).map(x => Array.isArray(x) ? { t: x[0], s: x[1] != null ? x[1] : null, side: x[2] || null } : { t: x, s: null, side: null });
+const SIDE_TXT = { L: 'izquierda', R: 'derecha' };
 function itemInfo(it) {
   if (it.t === 'ROM' && it.s != null) { const m = ROM_MOVES[it.s]; return { name: m[0], desc: m[1][0].toUpperCase() + m[1].slice(1), anim: 'ROM:' + m[0] }; }
   if (it.t === 'ISO' && it.s != null) { const x = ISO_EX[it.s]; return { name: x[0], desc: x[1][0].toUpperCase() + x[1].slice(1) + (x[2] ? ' · por lado' : ''), anim: 'ISO:' + x[0] }; }
-  const t = TESTS[it.t]; return { name: t.name, desc: t.help.split('. ')[0].replace(/\.$/, '') + '.', anim: it.t };
+  const t = TESTS[it.t]; return { name: t.name + (it.side ? ' · ' + SIDE_TXT[it.side] : ''), desc: t.help.split('. ')[0].replace(/\.$/, '') + '.', anim: it.t };
 }
 const groupOf = (id) => GROUPS.find(g => gItems(g).some(x => x.t === id)) || GROUPS[0];
 
@@ -1912,6 +2008,7 @@ function startRec(kind) {
 
 function goMsg() {
   const t = TESTS[rec.test];
+  if (t.kind === 'jump' && t.jump === 'RJ') return rec.jumps ? 'Seguí rebotando…' : '¡Saltos continuos!';
   if (t.kind === 'jump') { if (t.jump === 'DJ') return rec.jumps ? 'Subí al cajón, quieto 1 s y otro drop' : '¡Bajá del cajón y rebotá!'; return rec.jumps ? 'Quieto 1 s y saltá de nuevo' : '¡Saltá!'; }
   if (t.kind === 'squat') return '¡Empezá las sentadillas!';
   if (t.kind === 'bal') return '¡Ya! Mantené la postura';
@@ -2028,6 +2125,7 @@ function finishRec(msg) {
   results.push(entry); store.set('trs_results', results);
   current = { res, entry, t };
   status(msg || '¡Listo! Resultado guardado');
+  if (progRecord([entry.id])) status((msg || '¡Listo! Resultado guardado') + ' · paso del programa completado');
   showGeneric(res, entry, t);
   renderHist();
 }
@@ -2128,10 +2226,10 @@ function finishJumps(r0, a, t, msg) {
   if (r0.lost > 0) out.jumps.forEach(j => j.warn.push(`Se perdieron ${r0.lost} paquetes de Bluetooth en la serie: acercá el dispositivo al sensor.`));
   const sid = Date.now(), date = new Date().toISOString(), cond = condLabel(r0.test);
   out.jumps.forEach((j, k) => {
-    const isDJ = t.jump === 'DJ';
+    const isDJ = t.jump === 'DJ', isRSI = isDJ || t.jump === 'RJ';
     j.entry = { id: sid + k, serie: sid, n: k + 1, ath: a.id, test: r0.test, side: t.side ? side : null, cond, date, box: isDJ ? box : null,
       m: Object.fromEntries(j.metrics.map(x => [x[0] + ' (' + x[2] + ')', x[1]])),
-      main: isDJ ? ['RSI', r(j.key.rsi, 2), 'm/s'] : ['Altura (t. vuelo)', r(j.key.h, 1), 'cm'] };
+      main: isRSI ? ['RSI', r(j.key.rsi, 2), 'm/s'] : ['Altura (t. vuelo)', r(j.key.h, 1), 'cm'] };
     results.push(j.entry);
   });
   out.jumps.forEach(j => j.entry.raw = true); saveRaw(sid, r0);
@@ -2140,6 +2238,7 @@ function finishJumps(r0, a, t, msg) {
   status(msg || `¡Listo! ${out.jumps.length} salto${out.jumps.length > 1 ? 's' : ''} analizado${out.jumps.length > 1 ? 's' : ''}`);
   showSerie();
   renderHist();
+  if (progRecord(out.jumps.map(j => j.entry.id))) status($('status').textContent + ' · paso del programa completado');
 }
 
 function stats(arr) {
@@ -2164,11 +2263,17 @@ function showSerie() {
   $('resCard').classList.remove('hide'); setButtons(true);
   $('resTitle').textContent = `${t.name}${t.side ? ' · ' + (J[0].entry.side === 'L' ? 'izq' : 'der') : ''} · ${J.length} salto${J.length > 1 ? 's' : ''}`;
   printHead(t.name, J[0].entry);
-  const isDJ = serie.jt === 'DJ';
+  const isDJ = serie.jt === 'DJ' || serie.jt === 'RJ', isRJ = serie.jt === 'RJ';
   const main = stats(J.map(j => isDJ ? j.key.rsi : j.key.h)), pw = stats(J.map(j => j.key.pw)), ct = stats(J.map(j => j.key.ct));
   const tiles = [];
   if (isDJ) tiles.push(['Mejor RSI', r(main.best, 2), 'm/s', true], ['RSI promedio', r(main.mean, 2), 'm/s'], ['CV RSI', r(main.cv, 1), '%']);
   else tiles.push(['Mejor altura', r(main.best, 1), 'cm', true], ['Altura promedio', r(main.mean, 1), 'cm'], ['CV altura', r(main.cv, 1), '%']);
+  if (isRJ) {
+    const rs = J.map(j => j.key.rsi), top5 = rs.slice().sort((a, b) => b - a).slice(0, 5), hs = J.map(j => j.key.h);
+    if (J.length >= 5) tiles.push(['RSI medio (mejores 5)', r(mean(top5), 2), 'm/s', true]);
+    tiles.push(['Altura promedio', r(mean(hs), 1), 'cm'], ['RSI vuelo/contacto (mejor)', r(Math.max(...J.map(j => j.key.rr)), 2), '']);
+    if (J.length >= 6) { const a3 = mean(rs.slice(0, 3)), b3 = mean(rs.slice(-3)); tiles.push(['Caída de RSI (últimos 3 vs primeros 3)', r((b3 / a3 - 1) * 100, 0), '%']); }
+  }
   if (pw) tiles.push(['Mejor potencia', r(pw.best, 1), 'W/kg']);
   if (ct) tiles.push(['Contacto promedio', Math.round(ct.mean), 'ms']);
   $('sumGrid').innerHTML = tiles.map(tile).join('');
@@ -2539,6 +2644,7 @@ function renderTestOpts() {
   $('romInfo').classList.toggle('hide', !t.rom);
   renderGuide();
   setRecBtn();
+  renderProgBar();
 }
 function buildTestSelect() {
   const cats = [...new Set(Object.values(TESTS).map(t => t.cat))];
@@ -2566,7 +2672,8 @@ $('isoEx').onchange = onSubChange;
 // ---------- Navegación: inicio → grupo → test ----------
 function parseHash() {
   const q = {}; location.hash.replace(/^#/, '').split('&').filter(Boolean).forEach(x => { const [k, v] = x.split('='); q[k] = decodeURIComponent(v || ''); });
-  if (q.t && TESTS[q.t]) return { v: 'test', t: q.t, s: q.s !== undefined && q.s !== '' ? +q.s : null };
+  if (q.t && TESTS[q.t]) return { v: 'test', t: q.t, s: q.s !== undefined && q.s !== '' ? +q.s : null, side: q.side === 'L' || q.side === 'R' ? q.side : null };
+  if (q.p && PROGRAMS.some(x => x.id === q.p)) return { v: 'prog', p: q.p, sum: q.sum === '1' };
   if (q.g && GROUPS.some(g => g.id === q.g)) return { v: 'group', g: q.g };
   return { v: 'home' };
 }
@@ -2582,17 +2689,18 @@ window.addEventListener('popstate', () => {
 });
 function renderRoute() {
   const r = parseHash(); curHash = location.hash;
-  $('vHome').classList.toggle('hide', r.v !== 'home'); $('vGroup').classList.toggle('hide', r.v !== 'group'); $('vTest').classList.toggle('hide', r.v !== 'test');
+  $('vHome').classList.toggle('hide', r.v !== 'home'); $('vGroup').classList.toggle('hide', r.v !== 'group'); $('vTest').classList.toggle('hide', r.v !== 'test'); $('vProg').classList.toggle('hide', r.v !== 'prog');
   if (r.v !== 'test') AN.stop();
   if (r.v === 'home') renderHome();
   else if (r.v === 'group') renderGroup(r.g);
-  else openTest(r.t, r.s);
+  else if (r.v === 'prog') renderProg(r.p, r.sum);
+  else openTest(r.t, r.s, r.side);
   window.scrollTo(0, 0);
 }
 let homeBuilt = false;
 function renderHome() {
   if (homeBuilt) return; homeBuilt = true;
-  $('tiles').innerHTML = GROUPS.map(g => { const n = gItems(g).length; return `<button class="tile" data-g="${g.id}"><div class="ti">${AN.thumb(g.icon, g.vb || '0 38 320 184')}</div><b>${esc(g.name)}</b><small>${n} ${n > 1 ? 'tests' : 'test'}</small></button>`; }).join('');
+  $('tiles').innerHTML = GROUPS.map(g => { const n = gItems(g).length; return `<button class="tile${g.id === 'programas' ? ' prog' : ''}" data-g="${g.id}"><div class="ti">${AN.thumb(g.icon, g.vb || '0 38 320 184')}</div><b>${esc(g.name)}</b><small>${g.label ? g.label() : n + ' ' + (n > 1 ? 'tests' : 'test')}</small></button>`; }).join('');
   $('tiles').querySelectorAll('.tile').forEach(b => b.onclick = () => nav('#g=' + b.dataset.g));
 }
 const RICON = {
@@ -2627,18 +2735,116 @@ function renderGroup(id) {
   $('gTitle').textContent = g.name;
   $('romPick').classList.toggle('hide', id !== 'rom'); $('glist').classList.toggle('hide', id === 'rom');
   if (id === 'rom') { $('gTitle').textContent = 'ROM · Guía del test'; renderRomPick(); return; }
-  $('glist').innerHTML = gItems(g).map(it => { const f = itemInfo(it); return `<button class="titem" data-h="#t=${it.t}${it.s != null ? '&s=' + it.s : ''}"><div class="th">${AN.thumb(f.anim, '0 45 320 180')}</div><div class="tx"><b>${esc(f.name)}</b><small>${esc(f.desc)}</small></div><span class="go">›</span></button>`; }).join('');
+  if (id === 'programas') { $('gTitle').textContent = 'Programas de evaluación'; renderProgList(); return; }
+  $('glist').innerHTML = gItems(g).map(it => { const f = itemInfo(it); return `<button class="titem" data-h="#t=${it.t}${it.s != null ? '&s=' + it.s : ''}${it.side ? '&side=' + it.side : ''}"><div class="th">${AN.thumb(f.anim, '0 45 320 180')}</div><div class="tx"><b>${esc(f.name)}</b><small>${esc(f.desc)}</small></div><span class="go">›</span></button>`; }).join('');
   $('glist').querySelectorAll('.titem').forEach(b => b.onclick = () => nav(b.dataset.h));
 }
-function openTest(id, s) {
-  const before = testId + '|' + animId();
-  testId = id; store.set('trs_lastTest', testId); $('selTest').value = id;
+// ---------- Programas: ejecución paso a paso ----------
+let prog = store.get('trs_prog', null);
+if (prog && !PROGRAMS.some(x => x.id === prog.id)) prog = null;
+const progDef = (id) => PROGRAMS.find(x => x.id === (id || (prog && prog.id)));
+const saveProg = () => store.set('trs_prog', prog);
+const stepOf = () => prog ? progDef().steps[prog.k] : null;
+const STANCE_TXT = { BIP: 'Bipodal', TAN: 'Tándem', UNI_L: 'Unipodal izquierda', UNI_R: 'Unipodal derecha' };
+function stepInfo(st) {
+  const sd = st.side ? ' · ' + SIDE_TXT[st.side] : '';
+  if (st.t === 'ISO') return { name: (st.name || st.ex) + sd, desc: `${st.name || st.ex} ${st.dur} s`, anim: 'ISO:' + st.ex };
+  if (st.t === 'BAL') return { name: st.name || STANCE_TXT[st.stance], desc: `${st.name || STANCE_TXT[st.stance]} ${st.dur} s · ${st.eyes === 'OC' ? 'ojos cerrados' : 'ojos abiertos'}`, anim: 'BAL' };
+  if (st.t === 'ROM') return { name: st.mv, desc: 'Medición del rango de movimiento articular', anim: 'ROM:' + st.mv };
+  const t = TESTS[st.t]; return { name: t.name + sd, desc: st.n ? `${st.n} ${t.jump ? 'saltos' : 'repeticiones'}` : t.help.split('. ')[0], anim: st.t };
+}
+function stepHash(st) {
+  let h = '#t=' + st.t;
+  if (st.t === 'ROM') h += '&s=' + ROM_MOVES.findIndex(x => x[0] === st.mv);
+  if (st.t === 'ISO') h += '&s=' + ISO_EX.findIndex(x => x[0] === st.ex);
+  return h + (st.side ? '&side=' + st.side : '');
+}
+function stepMatches(st) {
+  if (!st || st.t !== testId) return false;
+  if (st.t === 'ROM') return $('romMove').value === st.mv;
+  if (st.t === 'ISO') return $('isoEx').value === st.ex;
+  return true;
+}
+function applyStep(st) {
+  if (st.t === 'ISO' && st.dur) $('isoDur').value = st.dur;
+  if (st.t === 'BAL') { $('balStance').value = st.stance; $('balEyes').value = st.eyes || 'OA'; $('balSurf').value = 'F'; $('balDur').value = st.dur || 30; }
+  if (st.side) setSide(st.side);
+  if (st.n) { mode = 'N'; document.querySelectorAll('#modes .seg').forEach(x => x.classList.toggle('on', x.dataset.m === 'N')); $('nBox').classList.remove('hide'); $('nJumps').value = st.n; }
+  renderTestOpts();
+}
+function startProg(id, k = 0) { prog = { id, k: 0, done: {}, date: new Date().toISOString() }; saveProg(); goStep(k); }
+function goStep(k) {
+  const P = progDef();
+  if (k >= P.steps.length) { nav('#p=' + P.id + '&sum=1'); return; }
+  prog.k = k; saveProg();
+  const st = P.steps[k];
+  if (nav(stepHash(st))) applyStep(st);
+}
+function progMain(ids) {
+  const E = (ids || []).map(id => results.find(x => x.id === id)).filter(x => x && x.main);
+  if (!E.length) return null;
+  return E.reduce((b, x) => (+x.main[1] > +b.main[1] ? x : b), E[0]).main;
+}
+function progRecord(ids) {
+  const st = stepOf();
+  if (!st || !stepMatches(st) || (st.side && side !== st.side)) return false;
+  prog.done[prog.k] = ids; saveProg(); renderProgBar(); return true;
+}
+function renderProgBar() {
+  const bar = $('progBar'), st = stepOf();
+  if (!st || !stepMatches(st)) { bar.classList.add('hide'); return; }
+  const P = progDef(), N = P.steps.length, k = prog.k, done = !!prog.done[k];
+  bar.classList.remove('hide');
+  bar.innerHTML = `<div class="pbt"><span>Programa · <b>${esc(P.name)}</b></span><span class="note">Paso ${k + 1} de ${N}</span></div>
+    <div class="pdots">${P.steps.map((_, i) => `<span class="${prog.done[i] ? 'd' : ''}${i === k ? ' c' : ''}"></span>`).join('')}</div>
+    <div class="row"><button class="sm" id="pbProg">☰ Ver programa</button><button class="sm${done ? ' pri' : ''}" id="pbNext">${k + 1 < N ? (done ? 'Siguiente test ›' : 'Saltar ›') : 'Ver resumen ›'}</button></div>`;
+  $('pbProg').onclick = () => nav('#p=' + P.id);
+  $('pbNext').onclick = () => goStep(k + 1);
+}
+function renderProg(id, sum) {
+  const P = progDef(id), active = prog && prog.id === id, N = P.steps.length;
+  $('pTitle').textContent = P.name; $('pDesc').textContent = P.desc;
+  const nDone = active ? Object.keys(prog.done).length : 0;
+  $('pHead').textContent = sum || (active && nDone === N) ? 'Resultados' : 'Lista de ejercicios';
+  $('plist').innerHTML = P.steps.map((st, i) => {
+    const f = stepInfo(st), ids = active ? prog.done[i] : null, res = ids ? progMain(ids) : null;
+    return `<button class="titem pstep" data-k="${i}"><span class="pnum${res ? ' ok' : ''}${active && i === prog.k && !res ? ' cur' : ''}">${res ? '✓' : i + 1}</span><div class="tx"><b>${esc(f.name)}</b><small>${res ? `${esc(res[0])}: <b style="color:var(--tx)">${res[1]}</b> ${res[2]}` : esc(f.desc)}</small></div><div class="th">${AN.thumb(f.anim, '0 45 320 180')}</div></button>`;
+  }).join('');
+  $('plist').querySelectorAll('.pstep').forEach(b => b.onclick = () => {
+    const i = +b.dataset.k;
+    if (!active) return startProg(id, i);
+    if (prog.done[i] && prog.done[i].length && results.some(x => x.id === prog.done[i][0])) { prog.k = i; saveProg(); openHist(prog.done[i][0]); return; }
+    goStep(i);
+  });
+  const a = currentAthlete();
+  $('pBtns').innerHTML = active
+    ? (nDone < N ? `<button class="pri big" id="pGo">Continuar · paso ${Math.min(prog.k + 1, N)} de ${N}</button>` : `<p class="note" style="width:100%">✓ Programa completo${a ? ' · ' + esc(a.name) : ''} · ${new Date(prog.date).toLocaleDateString('es-AR')}. Tocá un ejercicio para ver su resultado completo.</p>`) +
+      `<button id="pRestart">Empezar de nuevo</button><button id="pExit">Salir del programa</button>`
+    : `<button class="pri big" id="pStart">Iniciar el programa</button>`;
+  if ($('pGo')) $('pGo').onclick = () => { let k = prog.k; while (k < N && prog.done[k]) k++; goStep(k < N ? k : prog.k); };
+  if ($('pStart')) $('pStart').onclick = () => startProg(id, 0);
+  if ($('pRestart')) $('pRestart').onclick = () => { if (confirm('¿Empezar el programa de nuevo? Los resultados ya guardados quedan en el historial.')) startProg(id, 0); };
+  if ($('pExit')) $('pExit').onclick = () => { prog = null; saveProg(); renderProg(id); };
+}
+function renderProgList() {
+  $('glist').innerHTML = PROGRAMS.map(P => { const f = stepInfo(P.steps[0]), act = prog && prog.id === P.id; return `<button class="titem" data-h="#p=${P.id}"><div class="th">${AN.thumb(f.anim, '0 45 320 180')}</div><div class="tx"><b>${esc(P.name)}</b><small>${P.steps.length} ejercicios${act ? ' · <span style="color:var(--acc)">en curso</span>' : ''} · ${esc(P.desc)}</small></div><span class="go">›</span></button>`; }).join('');
+  $('glist').querySelectorAll('.titem').forEach(b => b.onclick = () => nav(b.dataset.h));
+}
+
+function setSide(sd) { side = sd; document.querySelectorAll('#optSide .seg').forEach(x => x.classList.toggle('on', x.dataset.side === sd)); }
+function openTest(id, s, sd) {
+  const before = testId + '|' + animId(), wasRJ = TESTS[testId] && TESTS[testId].jump === 'RJ';
+  testId = id;
+  if (sd) setSide(sd);
+  const isRJ = TESTS[id].jump === 'RJ';
+  if (isRJ && !wasRJ) $('nJumps').value = 10; else if (!isRJ && wasRJ) $('nJumps').value = 3; store.set('trs_lastTest', testId); $('selTest').value = id;
   if (id === 'ROM' && s != null && ROM_MOVES[s]) { $('romMove').value = ROM_MOVES[s][0]; store.set('trs_lastRom', ROM_MOVES[s][0]); }
   if (id === 'ISO' && s != null && ISO_EX[s]) { $('isoEx').value = ISO_EX[s][0]; store.set('trs_lastIso', ISO_EX[s][0]); }
   if (before !== testId + '|' + animId()) $('resCard').classList.add('hide');
   renderTestOpts();
 }
 $('btnBackHome').onclick = () => nav('');
+$('btnBackProgs').onclick = () => nav('#g=programas');
 $('btnBackGroup').onclick = () => nav('#g=' + ($('btnBackGroup').dataset.g || groupOf(testId).id));
 document.querySelectorAll('#optSide .seg').forEach(b => b.onclick = () => { if (rec) return; document.querySelectorAll('#optSide .seg').forEach(x => x.classList.remove('on')); b.classList.add('on'); side = b.dataset.side; });
 document.querySelectorAll('#modes .seg').forEach(b => b.onclick = () => {
