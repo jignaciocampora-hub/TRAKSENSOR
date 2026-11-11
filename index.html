@@ -287,7 +287,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v1.1 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v1.2 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -1539,6 +1539,8 @@ const AN = (() => {
 
   const ANIMS = {
     CMJ: { draw: (t) => groundLine(GROUND) + drawFigure(tween(cmjKeys, t), {}) + label(t % 4 < 1.2 ? 'Quieto 2 s…' : '¡Saltá!') },
+    ABK: { thumbT: 2.35, draw: (t) => groundLine(GROUND) + drawFigure(tween(cmjKeys.map(([tt, p], k) => [tt, Object.assign({}, p, { hands: 'free', sL: [0, 0, -60, 110, 140, 140, 40, 0, 0][k], eL: 8, sR: [0, 0, -60, 110, 140, 140, 40, 0, 0][k], eR: 8 })]), t), {}) + label(t % 4 < 1.2 ? 'Quieto 2 s…' : 'Saltá con impulso de brazos') },
+    CMJR: { thumbT: 2.35, draw: (t) => groundLine(GROUND) + drawFigure(tween([[0, P({})], [1.0, P({})], [1.5, DEEP], [1.8, PUSH], [1.9, FLY], [2.3, FLY], [2.42, P({ tr: 8, hL: 16, kL: 30, aL: -8, hR: 16, kR: 30, aR: -8 })], [2.54, PUSH], [2.62, FLY], [3.02, FLY], [3.22, LAND], [3.7, P({})], [4.4, P({})]], t), {}) + label(t % 4.4 < 1 ? 'Quieto 2 s…' : t % 4.4 < 2.3 ? 'CMJ máximo' : t % 4.4 < 3.1 ? '¡Rebotá rápido!' : '') },
     SJ: { draw: (t) => groundLine(GROUND) + drawFigure(tween(sjKeys, t), {}) + label(t % 4.6 > 0.8 && t % 4.6 < 2.6 ? 'Quieto abajo…' : '') },
     DJ: { draw: (t) => groundLine(GROUND) + box(70, 70, BOXH) + tag(105, 190, 'cajón') + drawFigure(tween(djKeys, t), {}) + label(t % 4.2 > 1.75 && t % 4.2 < 2.05 ? 'Rebote rápido' : '') },
     CMJU: { draw: (t) => groundLine(GROUND) + drawFigure(tween(cmjuKeys, t), {}) },
@@ -1963,6 +1965,10 @@ const AN = (() => {
 const GUIDE = {
   CMJ: { steps: ['Cinturón con el sensor en L5 (centro de la cintura, atrás), bien firme.', 'Parado, pies al ancho de las caderas, manos en la cintura.', 'Quieto unos 2 s hasta que aparezca "¡Saltá!".', 'Bajá rápido a la profundidad que te salga natural y saltá lo más alto posible.', 'Aterrizá con las piernas extendidas y quedate quieto 1 s.'],
          errors: ['Sacar las manos de la cintura.', 'Flexionar las rodillas en el aire (infla la altura).', 'Moverse durante la calibración.'] },
+  ABK: { steps: ['Cinturón con el sensor en L5, bien firme.', 'Parado, pies al ancho de las caderas, brazos libres al costado.', 'Quieto unos 2 s hasta que aparezca "¡Saltá!".', 'Bajá rápido llevando los brazos atrás y saltá lo más alto posible lanzándolos hacia arriba.', 'Aterrizá con las piernas extendidas y quedate quieto 1 s.'],
+         errors: ['Flexionar las rodillas en el aire.', 'Pausa en la parte baja.', 'Moverse durante la calibración.'] },
+  CMJR: { steps: ['Cinturón con el sensor en L5, bien firme. Manos en la cintura.', 'Quieto hasta el "¡Saltá!".', 'Hacé un CMJ máximo y, apenas tocás el piso, rebotá lo más rápido y alto posible (contacto corto).', 'Aterrizá y quedate quieto 1 s antes del próximo intento.', 'La cantidad cuenta los dos saltos: 6 = 3 intentos.'],
+          errors: ['Pausa entre el aterrizaje y el rebote.', 'Flexionar mucho las rodillas en el rebote.', 'Sacar las manos de la cintura.'] },
   SJ: { steps: ['Cinturón con el sensor en L5, bien firme.', 'Bajá a ~90° de rodilla con las manos en la cintura.', 'Mantené esa posición quieto 2–3 s.', 'Saltá hacia arriba sin bajar antes.', 'Aterrizá con las piernas extendidas.'],
         errors: ['Hacer un pequeño contramovimiento antes de saltar (la app lo avisa).', 'Cambiar la profundidad entre saltos.'] },
   DJ: { steps: ['Cajón a la altura elegida (20–40 cm) y cargala en la app.', 'Parado arriba del cajón, manos en la cintura, quieto.', 'Dejate caer adelantando un pie: no saltes hacia arriba.', 'Al tocar el piso, rebotá lo más rápido y alto posible.', 'Aterrizá extendido y quieto.'],
@@ -2076,7 +2082,11 @@ const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;
 
 // ---------- Catálogo de tests ----------
 const TESTS = {
-  CMJ:   { cat: 'Saltos', name: 'CMJ', kind: 'jump', jump: 'CMJ', calib: 'stand', stop: 'jumps', mode: true, orient: false,
+  ABK:   { cat: 'Saltos', name: 'Abalakov', kind: 'jump', jump: 'CMJ', calib: 'stand', stop: 'jumps', mode: true,
+           help: 'CMJ con impulso de brazos. Parado, brazos libres. Quieto, bajá balanceando los brazos atrás y saltá lo más alto posible llevándolos arriba.' },
+  CMJR:  { cat: 'Saltos', name: 'CMJ rebound', kind: 'jump', jump: 'CMJ', calib: 'stand', stop: 'jumps', mode: true, rebound: true,
+           help: 'CMJ y, al aterrizar, rebote inmediato lo más rápido y alto posible. Cada intento son 2 saltos (CMJ + rebote).' },
+  CMJ:   { cat: 'Saltos', name: 'CMJ bipodal', kind: 'jump', jump: 'CMJ', calib: 'stand', stop: 'jumps', mode: true, orient: false,
            help: 'Parado, manos en la cintura. Quieto, bajá y saltá lo más alto posible. Aterrizá con piernas extendidas.' },
   SJ:    { cat: 'Saltos', name: 'SJ (squat jump)', kind: 'jump', jump: 'SJ', calib: 'stand', stop: 'jumps', mode: true,
            help: 'Bajá a ~90° de rodilla, manos en la cintura. Quieto en esa posición y saltá sin bajar antes.' },
@@ -2232,8 +2242,9 @@ const PROGRAMS = [
     steps: ['Flexión de hombro', 'Extensión de hombro', 'Rotación interna de hombro', 'Rotación externa de hombro', 'Flexión de codo', 'Flexión de muñeca'].map(mv => ({ t: 'ROM', mv })) },
   { id: 'mov-inf', name: 'Movilidad del tren inferior', desc: 'Evaluación de la movilidad del tren inferior: rango de cadera, rodilla y tobillo.',
     steps: ['Flexión de cadera', 'Extensión de cadera', 'Rotación interna de cadera (prono)', 'Rotación externa de cadera (prono)', 'Flexión de rodilla', 'Flexión dorsal de tobillo'].map(mv => ({ t: 'ROM', mv })) },
-  { id: 'saltos', name: 'Evaluación de saltos', desc: 'Altura, potencia y asimetría de salto: CMJ, SJ y CMJ unipodal de cada lado.', steps: [
-    { t: 'CMJ', n: 3 }, { t: 'SJ', n: 3 }, { t: 'CMJU', n: 3, side: 'L' }, { t: 'CMJU', n: 3, side: 'R' }] },
+  { id: 'saltos', name: 'Evaluación de saltos', desc: 'Altura, potencia y asimetría de salto: Abalakov, SJ, CMJ bipodal, CMJ unipodal de cada lado y CMJ rebound.', steps: [
+    { t: 'ABK', n: 3 }, { t: 'SJ', n: 3 }, { t: 'CMJ', n: 3 }, { t: 'CMJU', n: 3, side: 'L' }, { t: 'CMJU', n: 3, side: 'R' }, { t: 'CMJR', n: 6 }],
+    ratios: [['Uso de brazos (Abalakov / CMJ)', 0, 2, 'típico 1,10–1,20'], ['Índice de elasticidad (CMJ / SJ)', 2, 1, 'típico 1,05–1,15']] },
   { id: 'rsi', name: 'Evaluación de RSI (reactividad)', desc: 'Capacidad reactiva: saltos continuos y drop jump, bipodal y de cada pierna.', steps: [
     { t: 'RJ', n: 10 }, { t: 'DJ', n: 3 }, { t: 'DJU', n: 3, side: 'L' }, { t: 'DJU', n: 3, side: 'R' }, { t: 'RJU', n: 10, side: 'L' }, { t: 'RJU', n: 10, side: 'R' }] },
   { id: 'conmocion', name: 'Conmoción (SCAT6)', desc: 'Evaluación de equilibrio, marcha y propiocepción cervical tras un golpe en la cabeza (HIA y retorno al juego): mBESS, marcha en tándem simple y con doble tarea, reposición cervical.', steps: [
@@ -2265,7 +2276,7 @@ function sideOf(id) { const t = TESTS[id]; if (id === 'BAL') return balSide(); i
 // Grupos de la pantalla inicial
 const GROUPS = [
   { id: 'programas', name: 'Programas', icon: 'ISO:Bird dog', items: [], label: () => PROGRAMS.length + ' evaluaciones' },
-  { id: 'saltos', name: 'Saltos', icon: 'CMJ', vb: '0 8 320 184', items: ['CMJ', 'SJ', 'CMJU'] },
+  { id: 'saltos', name: 'Saltos', icon: 'CMJ', vb: '0 8 320 184', items: ['ABK', 'SJ', 'CMJ', ['CMJU', null, 'L'], ['CMJU', null, 'R'], 'CMJR'] },
   { id: 'rsi', name: 'RSI · Reactividad', icon: 'RJ', vb: '0 8 320 184', items: [['RJ'], ['DJ'], ['DJU', null, 'L'], ['DJU', null, 'R'], ['RJU', null, 'L'], ['RJU', null, 'R']] },
   { id: 'sentadilla', name: 'Sentadillas', icon: 'SQ', items: ['SQ', 'SQU'] },
   { id: 'iso', name: 'Isométricos', icon: 'ISO:Plancha frontal', items: () => ISO_EX.map((x, k) => ['ISO', k]) },
@@ -2694,6 +2705,10 @@ function showSerie() {
     tiles.push(['Altura promedio', r(mean(hs), 1), 'cm'], ['RSI vuelo/contacto (mejor)', r(Math.max(...J.map(j => j.key.rr)), 2), '']);
     if (J.length >= 6) { const a3 = mean(rs.slice(0, 3)), b3 = mean(rs.slice(-3)); tiles.push(['Caída de RSI (últimos 3 vs primeros 3)', r((b3 / a3 - 1) * 100, 0), '%']); }
   }
+  const rb = !isDJ ? J.filter(j => fin(j.key.rsi)) : [];
+  if (rb.length) { const rr = stats(rb.map(j => j.key.rsi)), hc = stats(J.filter(j => !fin(j.key.rsi)).map(j => j.key.h)), hr = stats(rb.map(j => j.key.h));
+    tiles.push(['Mejor RSI del rebote', r(rr.best, 2), 'm/s', true]);
+    if (hc && hr) tiles.push(['Altura rebote / CMJ', r(hr.mean / hc.mean * 100, 0), '%']); }
   if (pw) tiles.push(['Mejor potencia', r(pw.best, 1), 'W/kg']);
   if (ct) tiles.push(['Contacto promedio', Math.round(ct.mean), 'ms']);
   $('sumGrid').innerHTML = tiles.map(tile).join('');
@@ -3269,7 +3284,8 @@ function openTest(id, s, sd) {
   testId = id;
   if (sd) setSide(sd);
   const isRJ = TESTS[id].jump === 'RJ';
-  if (isRJ && !wasRJ) $('nJumps').value = 10; else if (!isRJ && wasRJ) $('nJumps').value = 3; store.set('trs_lastTest', testId); $('selTest').value = id;
+  if (isRJ && !wasRJ) $('nJumps').value = 10; else if (!isRJ && wasRJ) $('nJumps').value = 3;
+  if (id === 'CMJR') $('nJumps').value = 6; else if (before.startsWith('CMJR|')) $('nJumps').value = 3; store.set('trs_lastTest', testId); $('selTest').value = id;
   if (id === 'ROM' && s != null && ROM_MOVES[s]) { $('romMove').value = ROM_MOVES[s][0]; store.set('trs_lastRom', ROM_MOVES[s][0]); }
   if (id === 'ISO' && s != null && ISO_EX[s]) { $('isoEx').value = ISO_EX[s][0]; store.set('trs_lastIso', ISO_EX[s][0]); }
   if (id === 'MBESS' && s != null && MBESS_ST[s]) $('bessStance').value = MBESS_ST[s][0];
