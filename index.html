@@ -172,6 +172,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   <p id="pDesc" class="pdesc"></p>
   <h3 class="ph" id="pHead">Lista de ejercicios</h3>
   <div class="tlist" id="plist"></div>
+  <div id="pExtra"></div>
   <div class="row" id="pBtns" style="margin-top:14px"></div>
 </div></div>
 
@@ -214,6 +215,15 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
     <label class="f">Visión<select id="balEyes"><option value="OA">Ojos abiertos</option><option value="OC">Ojos cerrados</option></select></label>
     <label class="f">Superficie<select id="balSurf"><option value="F">Firme</option><option value="E">Espuma</option></select></label>
     <label class="f">Duración<select id="balDur"><option>10</option><option>20</option><option selected>30</option><option>60</option></select></label>
+  </div>
+  <div id="optBess" class="row" style="margin-top:10px">
+    <label class="f" style="flex:2;min-width:200px">Postura<select id="bessStance"><option value="BIP">Dos pies juntos</option><option value="UNI">Una pierna (no dominante)</option><option value="TAN">Tándem (no dominante atrás)</option></select></label>
+  </div>
+  <div id="optYbal" class="row" style="margin-top:10px">
+    <label class="f">Anterior (cm)<input id="ybA" type="number" inputmode="decimal" style="width:90px"></label>
+    <label class="f">Posteromedial (cm)<input id="ybPM" type="number" inputmode="decimal" style="width:90px"></label>
+    <label class="f">Posterolateral (cm)<input id="ybPL" type="number" inputmode="decimal" style="width:90px"></label>
+    <label class="f">Largo de pierna (cm)<input id="ybLL" type="number" inputmode="decimal" style="width:90px"></label>
   </div>
   <div id="optDist" class="row" style="margin-top:10px">
     <span class="note" id="distLbl">Distancia (m)</span><input id="dist" type="number" value="10" style="width:90px">
@@ -277,7 +287,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v1.0 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v1.1 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -1023,6 +1033,216 @@ function analyzeIso(S, fr, a, b) {
   return res;
 }
 
+// ======================= Tests clínicos v1.1 =======================
+const swayStats = (AP, ML) => {
+  const n = AP.length, mA = mean(AP), mM = mean(ML), a = AP.map(v => v - mA), m = ML.map(v => v - mM);
+  let sxx = 0, syy = 0, sxy = 0; for (let k = 0; k < n; k++) { sxx += m[k] ** 2; syy += a[k] ** 2; sxy += m[k] * a[k]; }
+  sxx /= n; syy /= n; sxy /= n;
+  const tr = sxx + syy, det = sxx * syy - sxy * sxy, l1 = tr / 2 + Math.sqrt(Math.max(0, tr * tr / 4 - det)), l2 = tr / 2 - Math.sqrt(Math.max(0, tr * tr / 4 - det));
+  return { area: Math.PI * 5.991 * Math.sqrt(Math.max(0, l1 * l2)), rmsAP: Math.sqrt(syy), rmsML: Math.sqrt(sxx) };
+};
+const newRes = () => { const res = { tiles: [], tiles2: [], warn: [], m: {} }; res.T = (l, v, u, d, main, sec, cls) => { if (fin(v)) { (sec ? res.tiles2 : res.tiles).push([l, r(v, d), u, main, cls]); res.m[l + ' (' + u + ')'] = r(v, d); } }; return res; };
+const tiltDeg = (sig, a, b) => { const ax = gaussSmooth(sig.AP, 0.1), ay = gaussSmooth(sig.ML, 0.1), AP = [], ML = []; for (let i = a; i < b; i++) { AP.push(Math.asin(Math.max(-1, Math.min(1, ax[i]))) * R2D); ML.push(Math.asin(Math.max(-1, Math.min(1, ay[i]))) * R2D); } return { AP, ML }; };
+
+// ---------- mBESS (SCAT6): errores de equilibrio con ojos cerrados ----------
+function analyzeBESS(S, fr, sig, a, b) {
+  if (b - a < 3 * FS) return { error: 'Registro demasiado corto.' };
+  const g = gaussSmooth(sig.GM, 0.05), { AP, ML } = tiltDeg(sig, a, b);
+  const b0 = Math.round(FS), mA = mean(AP.slice(0, b0)), mM = mean(ML.slice(0, b0));
+  const errs = []; let last = -1e9;
+  for (let k = 0; k < AP.length; k++) {
+    const i = a + k, bad = Math.abs(sig.MAG[i] - 1) > 0.3 || g[i] > 60 || Math.hypot(AP[k] - mA, ML[k] - mM) > 12;
+    if (bad) { if (i - last > FS) errs.push(i); last = i; }
+  }
+  const nErr = Math.min(10, errs.length), sw = swayStats(AP, ML);
+  let gh = 0; for (let i = a; i < b; i++) gh += Math.hypot(sig.wAP[i], sig.wML[i]); gh /= (b - a);
+  const res = newRes(), T = res.T;
+  T('Errores', nErr, '', 0, true, false, nErr <= 2 ? 'good' : nErr <= 5 ? 'mid' : 'bad');
+  T('Área de oscilación (95%)', sw.area, '°²', 2, true);
+  T('Oscilación RMS AP', sw.rmsAP, '°', 2); T('Oscilación RMS ML', sw.rmsML, '°', 2);
+  T('Velocidad angular media', gh, '°/s', 1, false, true);
+  res.warn.push('Errores detectados por el sensor: movimientos bruscos, pasos o inclinaciones >12°. Abrir los ojos o sacar las manos de la cintura no se detecta: sumalo a mano. Máximo 10 por postura.');
+  const dev = new Float64Array(S.length); AP.forEach((v, k) => { dev[a + k] = Math.hypot(v - mA, ML[k] - mM); });
+  res.chart = { type: 'lines', from: Math.max(0, a - FS / 2), to: Math.min(S.length - 1, b), lines: [{ arr: g, color: '#4c9ef5', lo: 0, hi: Math.max(40, Math.max(...Array.from(g.slice(a, b))) * 1.1), label: 'Velocidad angular (°/s)' }, { arr: dev, color: '#18c29c', lo: 0, hi: 20, label: 'Inclinación respecto del inicio (°)' }], spans: [], marks: errs.slice(0, 10).map((i, k) => [k + 1, i, 'Error ' + (k + 1), 0]) };
+  res.main = ['Errores', nErr, ''];
+  return res;
+}
+
+// ---------- Tareas cronometradas: marcha en tándem, Four Square, ocho, escaleras ----------
+function analyzeTimed(S, fr, sig, a, b, opts = {}) {
+  const act = activity(sig), sp = activeSpan(act, a, b);
+  if (!sp) return { error: 'No se detectó movimiento.' };
+  const [t0, t1] = sp, total = (t1 - t0) / FS;
+  const s = gaussSmooth(sig.AV, 0.04); let m = 0, sd = 0; for (let i = t0; i < t1; i++) m += s[i]; m /= (t1 - t0); for (let i = t0; i < t1; i++) sd += (s[i] - m) ** 2; sd = Math.sqrt(sd / (t1 - t0));
+  const ics = localMax(s, t0, t1, Math.round((opts.minStep || 0.25) * FS), m + 0.4 * sd);
+  const turns = detectTurns(sig.wV, t0, t1, opts.turnMin || 120);
+  const res = newRes(), T = res.T;
+  T(opts.timeLabel || 'Tiempo', total, 's', 2, true);
+  T(opts.stepLabel || 'Pasos', ics.length, '', 0);
+  if (ics.length > 2) T('Cadencia', ics.length / total * 60, opts.stairs ? 'escalones/min' : 'pasos/min', 0);
+  if (opts.turn && turns.length) {
+    const tu = turns[0]; T('Ida', (tu.s - t0) / FS, 's', 2, false, true); T('Giro', (tu.e - tu.s) / FS, 's', 2, false, true); T('Vuelta', (t1 - tu.e) / FS, 's', 2, false, true);
+  }
+  if (opts.turns) T('Giros detectados', turns.length, '', 0, false, true);
+  let q = 0; for (let i = t0; i < t1; i++) q += sig.wAP[i] ** 2; T('Balanceo lateral del tronco (RMS)', Math.sqrt(q / (t1 - t0)), '°/s', 1, false, true);
+  if (fr.f) { const { ML } = tiltDeg(sig, t0, t1); T('Rango de inclinación lateral', Math.max(...ML) - Math.min(...ML), '°', 1, false, true); }
+  const yaw = cumint(sig.wV, t0, Math.min(S.length, t1 + FS));
+  res.chart = { type: 'lines', from: Math.max(0, t0 - FS / 2), to: Math.min(S.length - 1, t1 + FS / 2), lines: [{ arr: yaw, color: '#4c9ef5', label: 'Giro acumulado (°)' }, { arr: sig.F, color: '#e8ecf1', lo: 0, hi: 3, label: 'Aceleración vertical (g)' }], spans: turns.map((tu, k) => ['Giro', tu.s, tu.e, 'brk']), marks: [] };
+  res.main = [opts.timeLabel || 'Tiempo', r(total, 2), 's'];
+  return res;
+}
+
+// ---------- Test de Fukuda (marcha en el lugar con ojos cerrados) ----------
+function analyzeFukuda(S, fr, sig, a, b) {
+  const act = activity(sig), sp = activeSpan(act, a, b);
+  if (!sp) return { error: 'No se detectó movimiento.' };
+  const [t0, t1] = sp, s = gaussSmooth(sig.AV, 0.05);
+  let m = 0, sd = 0; for (let i = t0; i < t1; i++) m += s[i]; m /= (t1 - t0); for (let i = t0; i < t1; i++) sd += (s[i] - m) ** 2; sd = Math.sqrt(sd / (t1 - t0));
+  const ics = localMax(s, t0, t1, Math.round(0.3 * FS), m + 0.4 * sd), nSt = ics.length;
+  const end = nSt >= 50 ? ics[49] : t1, yaw = cumint(sig.wV, t0, Math.min(S.length, t1 + FS)), rot = yaw[end] - yaw[t0];
+  const res = newRes(), T = res.T, ab = Math.abs(rot);
+  T('Rotación', ab, '°', 0, true, false, ab <= 30 ? 'good' : ab <= 45 ? 'mid' : 'bad');
+  res.tiles.push(['Hacia', ab < 5 ? '—' : rot > 0 ? 'izquierda' : 'derecha', '', true]);
+  T('Pasos analizados', Math.min(50, nSt), '', 0); T('Duración', (end - t0) / FS, 's', 1); T('Cadencia', Math.min(50, nSt) / ((end - t0) / FS) * 60, 'pasos/min', 0);
+  let q = 0; for (let i = t0; i < end; i++) q += sig.wAP[i] ** 2; T('Balanceo lateral (RMS)', Math.sqrt(q / (end - t0)), '°/s', 1, false, true);
+  res.m['Dirección'] = ab < 5 ? '—' : rot > 0 ? 'izquierda' : 'derecha';
+  if (nSt < 50) res.warn.push(`Se detectaron ${nSt} pasos (el protocolo pide 50): la rotación se calculó con todos los pasos.`);
+  res.warn.push('Referencia: hasta 30° normal; más de 45° sugiere asimetría vestibular (girás hacia el lado afectado). Sin desplazamiento: solo se mide la rotación.');
+  res.chart = { type: 'lines', from: Math.max(0, t0 - FS / 2), to: Math.min(S.length - 1, end + FS / 2), lines: [{ arr: yaw, color: '#4c9ef5', label: 'Rotación acumulada (°)' }], spans: [], marks: [] };
+  res.main = ['Rotación', r(ab, 0), '°'];
+  return res;
+}
+
+// ---------- Error de reposición articular (cervical y rodilla) ----------
+function analyzeJPE(S, fr, a, b, mode) {
+  const n = S.length, gb = fr.gb, u0 = fr.u, ang = new Float64Array(n), yawS = new Float64Array(n);
+  if (mode === 'center') {
+    // orientación por giroscopio (rotación total respecto de la posición neutra)
+    let q = [1, 0, 0, 0], yw = 0;
+    for (let i = a; i < n; i++) {
+      const w = [(S[i][3] - gb[0]) * D2R, (S[i][4] - gb[1]) * D2R, (S[i][5] - gb[2]) * D2R], h = DT / 2;
+      q = [q[0] - h * (q[1] * w[0] + q[2] * w[1] + q[3] * w[2]), q[1] + h * (q[0] * w[0] + q[2] * w[2] - q[3] * w[1]), q[2] + h * (q[0] * w[1] - q[1] * w[2] + q[3] * w[0]), q[3] + h * (q[0] * w[2] + q[1] * w[1] - q[2] * w[0])];
+      const nq = Math.hypot(...q); q = q.map(v => v / nq);
+      ang[i] = 2 * Math.acos(Math.min(1, Math.abs(q[0]))) * R2D;
+      yw += dot(w, u0) * R2D * DT; yawS[i] = yw;
+    }
+  } else {
+    const ax = gaussSmooth(S.map(x => x[0]), 0.1), ay = gaussSmooth(S.map(x => x[1]), 0.1), az = gaussSmooth(S.map(x => x[2]), 0.1);
+    for (let i = a; i < n; i++) ang[i] = Math.acos(Math.max(-1, Math.min(1, dot(nrm([ax[i], ay[i], az[i]]), u0)))) * R2D;
+  }
+  // tramos quietos (≥ 0,8 s)
+  const gm = gaussSmooth(S.map(x => Math.hypot(x[3] - gb[0], x[4] - gb[1], x[5] - gb[2])), 0.1), holds = [];
+  let st = -1;
+  for (let i = a; i <= n; i++) {
+    const still = i < n && gm[i] < 6;
+    if (still && st < 0) st = i;
+    else if (!still && st >= 0) { if (i - st >= 0.8 * FS) holds.push({ s: st, e: i, ang: mean(Array.from(ang.slice(st + Math.round(0.2 * FS), i))), yaw: mean(Array.from(yawS.slice(st, i))) }); st = -1; }
+  }
+  const res = newRes(), T = res.T, rows = [];
+  if (mode === 'center') {
+    let exc = 0, excYaw = 0; const reps = [];
+    for (let k = 0; k < holds.length; k++) {
+      const h = holds[k], prevEnd = k ? holds[k - 1].e : a;
+      let mx = 0, my = 0; for (let i = prevEnd; i < h.s; i++) if (ang[i] > mx) { mx = ang[i]; my = yawS[i]; }
+      exc = Math.max(exc, mx); if (mx > Math.abs(excYaw)) excYaw = my;
+      if (h.ang < 25 && exc > 25) { reps.push({ err: h.ang, side: excYaw > 0 ? 'izquierda' : 'derecha', exc, at: h.s }); exc = 0; excYaw = 0; }
+      else if (h.ang >= 25) { exc = Math.max(exc, h.ang); excYaw = h.yaw; }
+    }
+    if (!reps.length) return { error: 'No se detectaron repeticiones: girá la cabeza, volvé al centro y quedate quieto 2 s.' };
+    reps.forEach((x, k) => rows.push([k + 1, 'Hacia ' + x.side, r(x.exc, 0) + '°', r(x.err, 1) + '°']));
+    const me = mean(reps.map(x => x.err));
+    T('Error medio de reposición', me, '°', 1, true, false, me <= 4.5 ? 'good' : me <= 7 ? 'mid' : 'bad');
+    ['izquierda', 'derecha'].forEach(sd => { const v = reps.filter(x => x.side === sd).map(x => x.err); if (v.length) T('Error tras girar a la ' + sd, mean(v), '°', 1); });
+    T('Repeticiones', reps.length, '', 0); T('Error máximo', Math.max(...reps.map(x => x.err)), '°', 1, false, true);
+    res.table = { head: ['#', 'Giro', 'Rotación', 'Error al volver'], rows };
+    res.warn.push('Referencia: error medio de más de 4,5° indica alteración de la propiocepción cervical (conmoción, latigazo cervical, cervicalgia).');
+    res.main = ['Error medio de reposición', r(me, 1), '°'];
+  } else {
+    const away = holds.filter(h => h.ang > 10);
+    if (away.length < 2) return { error: 'Se necesitan al menos 2 posiciones sostenidas: el ángulo objetivo y una reproducción.' };
+    const target = away[0].ang, reps = away.slice(1).map(h => h.ang - target);
+    rows.push(['Objetivo', r(target, 1) + '°', '–']);
+    reps.forEach((e, k) => rows.push([k + 1, r(target + e, 1) + '°', (e > 0 ? '+' : '') + r(e, 1) + '°']));
+    const ae = mean(reps.map(Math.abs)), ce = mean(reps), ve = reps.length > 1 ? sdv(reps) : 0;
+    T('Error absoluto medio', ae, '°', 1, true, false, ae <= 5 ? 'good' : ae <= 8 ? 'mid' : 'bad');
+    T('Ángulo objetivo', target, '°', 1); T('Error constante', ce, '°', 1); T('Error variable', ve, '°', 1, false, true); T('Repeticiones', reps.length, '', 0, false, true);
+    res.table = { head: ['#', 'Ángulo', 'Error'], rows };
+    res.warn.push('Error constante positivo = pasaste el objetivo (más extensión); negativo = te quedaste corto. Referencia orientativa: hasta 5° normal.');
+    res.main = ['Error absoluto medio', r(ae, 1), '°'];
+  }
+  res.chart = { type: 'lines', from: a, to: n - 1, lines: [{ arr: ang, color: '#18c29c', lo: 0, hi: Math.max(30, Math.max(...Array.from(ang.slice(a))) * 1.1), label: 'Ángulo respecto de la posición inicial (°)' }], spans: holds.map(h => ['', h.s, h.e, 'unw']), marks: [] };
+  return res;
+}
+
+// ---------- Saltos unipodales: side hop (30 s) y 6 m cronometrado ----------
+function analyzeHops(S, a, b, mode) {
+  const n = S.length, mag = new Float64Array(n); for (let i = 0; i < n; i++) mag[i] = Math.hypot(S[i][0], S[i][1], S[i][2]);
+  const segs = freefalls(mag, a).filter(s => s.to < b);
+  if (segs.length < 2) return { error: 'No se detectaron saltos.' };
+  const cts = []; for (let k = 1; k < segs.length; k++) { const c = (segs[k].to - segs[k - 1].ld) / FS; if (c < 1.0) cts.push(c); }
+  const res = newRes(), T = res.T;
+  if (mode === 'side') {
+    const t0 = segs[0].to, lim = t0 + 30 * FS, inT = segs.filter(s => s.to < lim), thirds = [0, 1, 2].map(k => inT.filter(s => s.to >= t0 + k * 10 * FS && s.to < t0 + (k + 1) * 10 * FS).length);
+    T('Saltos en 30 s', inT.length, '', 0, true);
+    T('Contacto medio', mean(cts) * 1000, 'ms', 0); T('Vuelo medio', mean(inT.map(s => s.dur)) * 1000, 'ms', 0);
+    T('Ritmo', inT.length / 30, 'saltos/s', 2);
+    if (thirds[0]) T('Cambio últimos 10 s vs primeros 10 s', (thirds[2] / thirds[0] - 1) * 100, '%', 0, false, true);
+    res.table = { head: ['Tramo', '0–10 s', '10–20 s', '20–30 s'], rows: [['Saltos'].concat(thirds)] };
+    res.warn.push('Cada salto cuenta un pasaje sobre las dos líneas (30 cm). Si pisás una línea, restalo a mano.');
+    res.main = ['Saltos en 30 s', inT.length, ''];
+  } else {
+    const tt = (segs[segs.length - 1].ld - segs[0].to) / FS;
+    T('Tiempo 6 m', tt, 's', 2, true); T('Saltos', segs.length, '', 0); T('Contacto medio', mean(cts) * 1000, 'ms', 0); T('Vuelo medio', mean(segs.map(s => s.dur)) * 1000, 'ms', 0);
+    res.warn.push('El tiempo va del primer despegue al último aterrizaje.');
+    res.main = ['Tiempo 6 m', r(tt, 2), 's'];
+  }
+  res.chart = { type: 'lines', from: Math.max(0, Math.floor(segs[0].to) - FS / 2), to: Math.min(n - 1, Math.ceil(segs[segs.length - 1].ld) + FS / 2), lines: [{ arr: mag, color: '#e8ecf1', lo: 0, hi: 6, label: '|a| (g)' }], spans: segs.map(s => ['', s.to, s.ld, 'fly']), marks: [] };
+  return res;
+}
+
+// ---------- CKCUEST (estabilidad de tren superior en cadena cerrada) ----------
+function analyzeCKC(S, sig, a, b, mass) {
+  const g = gaussSmooth(sig.GM, 0.06), end = Math.min(S.length, a + 15 * FS);
+  let mx = 0; for (let i = a; i < end; i++) mx = Math.max(mx, g[i]);
+  const pk = localMax(g, a, end, Math.round(0.25 * FS), Math.max(40, 0.35 * mx));
+  if (pk.length < 2) return { error: 'No se detectaron toques. El sensor va en una muñeca.' };
+  const touches = pk.length * 2, res = newRes(), T = res.T;
+  T('Toques estimados (15 s)', touches, '', 0, true, false, touches >= 21 ? 'good' : touches >= 18 ? 'mid' : 'bad');
+  T('Toques de la mano con sensor', pk.length, '', 0); T('Ritmo', touches / 15, 'toques/s', 2);
+  if (mass) T('Índice de potencia', touches * 0.68 * mass / 15, '', 1, false, true);
+  res.warn.push('El sensor mide la mano en la que está: los toques totales se estiman como el doble. Referencia: ~21 toques o más en deportistas.');
+  res.chart = { type: 'lines', from: a, to: end, lines: [{ arr: g, color: '#4c9ef5', lo: 0, hi: mx * 1.1, label: 'Velocidad angular de la muñeca (°/s)' }], spans: [], marks: pk.map((i, k) => [k + 1, i, 'Toque', 0]) };
+  res.main = ['Toques estimados (15 s)', touches, ''];
+  return res;
+}
+
+// ---------- Y-Balance ----------
+function analyzeYBal(S, fr, sig, a, b, inp) {
+  if (b - a < 3 * FS) return { error: 'Registro demasiado corto.' };
+  const { AP, ML } = tiltDeg(sig, a, b), b0 = Math.round(0.5 * FS), mA = mean(AP.slice(0, b0)), mM = mean(ML.slice(0, b0));
+  const dev = AP.map((v, k) => Math.hypot(v - mA, ML[k] - mM)), evs = []; let st = -1;
+  for (let k = 0; k <= dev.length; k++) {
+    const on = k < dev.length && dev[k] > 6;
+    if (on && st < 0) st = k; else if (!on && st >= 0) { if (k - st > 0.4 * FS) { let pk = st; for (let j = st; j < k; j++) if (dev[j] > dev[pk]) pk = j; evs.push({ s: st, e: k, pk, dev: dev[pk], ap: AP[pk] - mA, ml: ML[pk] - mM }); } st = -1; }
+  }
+  let losses = 0, last = -1e9; for (let i = a; i < b; i++) if (Math.abs(sig.MAG[i] - 1) > 0.6) { if (i - last > FS) losses++; last = i; }
+  const res = newRes(), T = res.T, names = ['Anterior', 'Posteromedial', 'Posterolateral'];
+  const [A, PM, PL, LL] = inp;
+  if (A > 0 && PM > 0 && PL > 0 && LL > 0) {
+    const comp = (A + PM + PL) / (3 * LL) * 100;
+    T('Puntaje compuesto', comp, '%', 1, true, false, comp >= 94 ? 'good' : comp >= 89 ? 'mid' : 'bad');
+    T('Anterior', A / LL * 100, '%', 1); T('Posteromedial', PM / LL * 100, '%', 1); T('Posterolateral', PL / LL * 100, '%', 1);
+    res.main = ['Puntaje compuesto', r(comp, 1), '%'];
+  } else res.warn.push('Cargá las tres distancias y el largo de pierna (EIAS–maléolo interno) para el puntaje compuesto.');
+  T('Alcances detectados', evs.length, '', 0, !res.main); T('Pérdidas de equilibrio', losses, '', 0, false, false, losses ? 'bad' : 'good');
+  let gh = 0; for (let i = a; i < b; i++) gh += Math.hypot(sig.wAP[i], sig.wML[i]); T('Velocidad angular media del tronco', gh / (b - a), '°/s', 1, false, true);
+  res.table = { head: ['Alcance', 'Inclinación máx. tronco', 'Duración'], rows: evs.slice(0, 6).map((e, k) => [names[k % 3] || '#' + (k + 1), r(e.dev, 1) + '°', r((e.e - e.s) / FS, 1) + ' s']) };
+  if (!res.main) res.main = ['Alcances detectados', evs.length, ''];
+  const d = new Float64Array(S.length); dev.forEach((v, k) => { d[a + k] = v; });
+  res.chart = { type: 'lines', from: a, to: b - 1, lines: [{ arr: d, color: '#18c29c', lo: 0, hi: Math.max(15, Math.max(...dev) * 1.1), label: 'Inclinación del tronco (°)' }], spans: evs.map((e, k) => [names[k % 3] || '', a + e.s, a + e.e, 'con']), marks: [] };
+  return res;
+}
+
 // ---------- ROM ----------
 function analyzeROM(S, calStart, calEnd, opts) {
   const c = calibrate(S, calStart, calEnd), ref = c.u.slice(), gb = [0, 0, 0];
@@ -1636,6 +1856,93 @@ const AN = (() => {
   Object.assign(ANIMS.TURN, { thumbT: 2.0 }); Object.assign(ANIMS.RUN, { thumbT: 0.35 }); Object.assign(ANIMS.WALK, { thumbT: 0.3 });
   ANIMS.ROM = ROMA['Flexión de hombro'];
 
+  // ---------- v1.1: conmoción, retorno al deporte, equilibrio, core, marcha, tren superior ----------
+  const swayP = (p, t, k = 1) => Object.assign({}, p, { tr: (p.tr || 0) + k * 2.2 * Math.sin(t * 1.7), px: (p.px || 160) + k * 1.5 * Math.sin(t * 1.3) });
+  const EC = { eyesClosed: true };
+  ANIMS['MBESS:BIP'] = { thumbT: 1, draw: (t) => groundLine(GROUND) + drawFigure(swayP(P({ hands: 'hips', hL: 0, hR: 0 }), t), EC) + label('Pies juntos · ojos cerrados · 20 s') };
+  ANIMS['MBESS:UNI'] = { thumbT: 1, draw: (t) => groundLine(GROUND) + drawFigure(swayP(P({ hands: 'hips', hR: 40, kR: 85, g: 'L' }), t, 1.4), EC) + label('Una pierna (no dominante) · 20 s') };
+  ANIMS['MBESS:TAN'] = { thumbT: 1, draw: (t) => groundLine(GROUND) + drawFigure(swayP(P({ hands: 'hips', hL: 7, hR: -7, aL: 7, aR: -7 }), t, 1.2), EC) + label('Tándem: talón con punta · 20 s') };
+  ANIMS.MBESS = ANIMS['MBESS:BIP'];
+  const lineMark = (x1, x2) => `<line x1="${x1}" y1="${GROUND + 3}" x2="${x2}" y2="${GROUND + 3}" stroke="#18c29c" stroke-width="3" stroke-dasharray="6 4"/>`;
+  ANIMS.TANDG = { thumbT: 2, draw: (t) => lineMark(40, 290) + ANIMS.W10.draw(t * 0.7).replace(/<text[^>]*>(salida|10 m)<\/text>/g, '') + label('Talón con punta · 3 m ida y vuelta') };
+  ANIMS.TANDGDT = { thumbT: 2, draw: (t) => ANIMS.TANDG.draw(t).replace('Talón con punta · 3 m ida y vuelta', 'Tándem + restar de 7 en 7 en voz alta') + (noLabel ? '' : `<text x="210" y="70" fill="#4c9ef5" font-size="15" font-family="sans-serif">100… 93… 86…</text>`) };
+  ANIMS.CRP = { thumbT: 2.5, draw: (t) => ROMA['Rotación cervical'].draw(t).replace('Girá la cabeza hacia un lado', 'Ojos cerrados: girá y volvé al centro') };
+  ANIMS.KJPE = { thumbT: 2.5, draw: (t) => ROMA['Extensión de rodilla'].draw(t * 0.9).replace('Sentado · extendé la rodilla', 'Ojos cerrados: reproducí el ángulo') };
+  // side hop: de frente, saltando entre dos líneas
+  ANIMS.SIDEHOP = { thumbT: 0.2, draw: (t) => {
+    const k = Math.floor(t * 2.4), f = t * 2.4 - k, x = k % 2 ? 182 - 44 * f : 138 + 44 * f, dy = -16 * Math.sin(Math.PI * f);
+    return groundLine(GROUND) + `<line x1="146" y1="${GROUND - 1}" x2="146" y2="${GROUND + 8}" stroke="#18c29c" stroke-width="4"/><line x1="174" y1="${GROUND - 1}" x2="174" y2="${GROUND + 8}" stroke="#18c29c" stroke-width="4"/>` +
+      `<g transform="translate(0 ${dy.toFixed(1)})">${drawFront({ cx: x, legRShort: 0.55, aL: 14, aR: 14, hipL: 2 }, { sensor: 'L5' })}</g>` + label('Saltos laterales en una pierna · 30 s');
+  } };
+  // 6 m en una pierna
+  const HOPC = P({ tr: 22, hL: 42, kL: 62, aL: -16, hR: 25, kR: 95, aR: 10, g: 'L', hands: 'free', sL: -30, eL: 30, sR: -30, eR: 30 });
+  const HOPF = P({ tr: 12, hL: 10, kL: 25, aL: 25, hR: 35, kR: 95, aR: 10, g: null, py: GROUND - (LT + LS + 16) - 14, hands: 'free', sL: 40, eL: 30, sR: 40, eR: 30 });
+  ANIMS.HOP6 = { thumbT: 0.5, draw: (t) => {
+    const T6 = (t % 4.8), ph = (T6 * 1.4) % 1, hop = Math.floor(T6 * 1.4), dx = Math.min(5, hop + ph) * 34 - 80;
+    const p = ph < 0.35 ? HOPC : lerpPose(HOPC, HOPF, Math.sin(Math.PI * (ph - 0.35) / 0.65));
+    return groundLine(GROUND) + `<line x1="70" y1="186" x2="70" y2="214" stroke="#18c29c" stroke-width="3"/><line x1="270" y1="186" x2="270" y2="214" stroke="#f0a63a" stroke-width="3"/>` + tag(284, 182, '6 m') +
+      `<g transform="translate(${dx.toFixed(1)} 0)">${drawFigure(Object.assign({}, p, { px: 150 }), {})}</g>` + label('Lo más rápido posible en una pierna');
+  } };
+  const oneLegSit = (keys) => keys.map(([t, p]) => [t, Object.assign({}, p, { hR: Math.max(p.hL || 0, 40), kR: 8, aR: 0 }, p.g === 'B' ? { g: 'L' } : {})]);
+  ANIMS.SLSTS = { thumbT: 1.4, draw: (t) => groundLine(GROUND) + chair(110) + drawFigure(tween(oneLegSit(stsKeys), t), {}) + label('Una pierna · repeticiones en 30 s') };
+  // Fukuda: marcha en el lugar con ojos cerrados (gira de a poco)
+  ANIMS.FUKUDA = { thumbT: 0.3, draw: (t) => {
+    const ph = (t * 1.2) % 1, up = Math.sin(ph * Math.PI * 2), yaw = 50 * ((t % 9) / 9);
+    const p = P({ hL: Math.max(0, up) * 55, kL: Math.max(0, up) * 70, hR: Math.max(0, -up) * 55, kR: Math.max(0, -up) * 70, hands: 'free', sL: 88, eL: 0, sR: 88, eR: 0, g: up >= 0 ? 'R' : 'L', yaw });
+    return groundLine(GROUND) + drawFigure(p, EC) + label('Ojos cerrados · 50 pasos en el lugar');
+  } };
+  // Four Square Step Test (vista desde arriba)
+  ANIMS.FSST = { thumbT: 1.2, draw: (t) => {
+    const C = [[125, 85], [195, 85], [195, 155], [125, 155]], seq = [0, 1, 2, 3, 0, 3, 2, 1, 0], d = 0.55, k = Math.floor(t / d) % 8, f = Math.min(1, (t % d) / (d * 0.6));
+    const a = C[seq[k]], b = C[seq[k + 1]], x = a[0] + (b[0] - a[0]) * ease(f), y = a[1] + (b[1] - a[1]) * ease(f);
+    let g = `<rect x="80" y="40" width="160" height="160" rx="10" fill="#1d232c"/><line x1="160" y1="48" x2="160" y2="192" stroke="#c3cad4" stroke-width="5" stroke-linecap="round"/><line x1="88" y1="120" x2="232" y2="120" stroke="#c3cad4" stroke-width="5" stroke-linecap="round"/>`;
+    C.forEach((c, i) => { if (!noLabel) g += `<text x="${c[0] - 28}" y="${c[1] - 22}" fill="#6b7685" font-size="13" font-family="sans-serif">${i + 1}</text>`; });
+    g += `<ellipse cx="${(x - 7).toFixed(1)}" cy="${y.toFixed(1)}" rx="6" ry="11" fill="${NEAR}"/><ellipse cx="${(x + 7).toFixed(1)}" cy="${y.toFixed(1)}" rx="6" ry="11" fill="${NEAR}"/>`;
+    return g + label('Cuadrados 1→2→3→4 y vuelta (desde arriba)');
+  } };
+  // Y-Balance
+  const YB0 = P({ tr: 8, hL: 18, kL: 30, aL: -12, hR: 10, kR: 30, g: 'L', hands: 'hips' });
+  const YBA = P({ tr: -2, hL: 28, kL: 52, aL: -24, hR: 72, kR: 2, aR: 0, g: 'L', hands: 'hips' });
+  const YBP = P({ tr: 32, hL: 45, kL: 52, aL: -10, hR: -38, kR: 4, aR: 20, g: 'L', hands: 'hips' });
+  ANIMS.YBAL = { thumbT: 1.2, draw: (t) => {
+    const T = t % 6, p = T < 1 ? YB0 : T < 2 ? lerpPose(YB0, YBA, ease(T - 1)) : T < 2.6 ? YBA : T < 3.4 ? lerpPose(YBA, YB0, ease((T - 2.6) / 0.8)) : T < 4.2 ? lerpPose(YB0, YBP, ease((T - 3.4) / 0.8)) : T < 4.8 ? YBP : lerpPose(YBP, YB0, ease((T - 4.8) / 1.2));
+    return groundLine(GROUND) + drawFigure(p, {}) + label(T > 1.2 && T < 3.2 ? 'Alcance anterior' : T > 3.6 && T < 5.4 ? 'Alcance posterior' : 'En una pierna, en el centro');
+  } };
+  // Marcha con doble tarea, en ocho, escaleras, 2 minutos
+  ANIMS.DTG = { thumbT: 3.2, draw: (t) => ANIMS.W10.draw(t).replace(/<text[^>]*>(salida|10 m)<\/text>/g, '') + (noLabel ? '' : `<text x="200" y="70" fill="#4c9ef5" font-size="15" font-family="sans-serif">100… 93… 86…</text>`) + label('Caminá restando de 7 en 7 en voz alta') };
+  ANIMS.FIG8 = { thumbT: 1, draw: (t) => {
+    const th = t * 0.9, cx = 160, cy = 120, A = 95, B = 50, x = cx + A * Math.sin(th), y = cy + B * Math.sin(th) * Math.cos(th);
+    let path = ''; for (let k = 0; k <= 64; k++) { const a = k / 64 * 2 * Math.PI; path += (k ? 'L' : 'M') + (cx + A * Math.sin(a)).toFixed(1) + ' ' + (cy + B * Math.sin(a) * Math.cos(a)).toFixed(1); }
+    return `<rect x="40" y="50" width="240" height="140" rx="12" fill="#1d232c"/><path d="${path}" stroke="#3a4352" stroke-width="3" fill="none" stroke-dasharray="6 5"/>` +
+      `<path d="M${cx - 55} 131 l7 -20 l7 20 Z" fill="#f0a63a"/><path d="M${cx + 41} 131 l7 -20 l7 20 Z" fill="#f0a63a"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="9" fill="${NEAR}"/>` + label('En ocho alrededor de los conos (desde arriba)');
+  } };
+  ANIMS.STAIR = { thumbT: 1, draw: (t) => {
+    const st = 18, sh = 16; let stairs = `M30 ${GROUND}`; for (let k = 0; k < 7; k++) stairs += ` H${80 + k * st * 1.6} V${GROUND - (k + 1) * sh}`; stairs += ' H300';
+    const ph = (t * 1.1) % 7, k = Math.floor(ph), f = ph - k, alt = k % 2;
+    const A = P({ tr: 10, hL: alt ? 5 : 55, kL: alt ? 8 : 70, aL: alt ? 0 : -15, hR: alt ? 55 : 5, kR: alt ? 70 : 8, aR: alt ? -15 : 0, g: null, py: GROUND - (LT + LS + 3), hands: 'free', sL: alt ? 20 : -20, eL: 20, sR: alt ? -20 : 20, eR: 20 });
+    const dx = (k + f) * st * 1.6, dy = -(k + f) * sh;
+    return `<path d="${stairs}" stroke="#3a4352" stroke-width="4" fill="none"/>` + `<g transform="translate(${dx.toFixed(1)} ${dy.toFixed(1)})">${drawFigure(Object.assign({}, A, { px: 70 }), {})}</g>` + label('Subí el tramo lo más rápido posible con seguridad');
+  } };
+  ANIMS.W2 = { thumbT: 1.3, draw: (t) => ANIMS.W6.draw(t).replace('Ida y vuelta durante 6 min', 'Ida y vuelta durante 2 min') };
+  // CKCUEST
+  const CKCP = { px: 150, py: 173.8, g: null, tr: 67, hL: -67, kL: 0, aL: 0, hR: -67, kR: 0, aR: 0, hands: 'free', sL: -33.5, eL: 0, sR: -33.5, eR: 0 };
+  ANIMS.CKC = { thumbT: 0.4, draw: (t) => {
+    const f = Math.max(0, Math.sin(t * 5.5)), p = P(Object.assign({}, CKCP, { sL: -33.5 + 40 * f, eL: 25 * f }));
+    return groundLine(GROUND) + drawFigure(p, { sensor: 'wrist' }) + label('Tocá la otra mano en forma alternada · 15 s');
+  } };
+  // Core: Biering-Sørensen y flexores de McGill
+  ISOA['Biering-Sørensen (extensores)'] = { thumbT: 1, draw: (t) => groundLine(GROUND) + `<rect x="40" y="${GROUND - 58}" width="140" height="58" rx="4" fill="#2a313c" stroke="#3a4352" stroke-width="2"/><line x1="70" y1="${GROUND - 64}" x2="120" y2="${GROUND - 64}" stroke="#f0a63a" stroke-width="5" stroke-linecap="round"/>` +
+    drawFigure(P({ px: 172, py: GROUND - 66 + trem(t) * 0.5, g: null, tr: 90 + trem(t) * 0.8, hL: -90, kL: 0, aL: 0, hR: -90, kR: 0, aR: 0, hands: 'cross' }), {}) + label('Tronco horizontal en el aire · hasta el fallo') };
+  ISOA['Flexores de McGill (60°)'] = { thumbT: 1, draw: (t) => groundLine(GROUND) + `<path d="M118 ${GROUND} L92 ${GROUND - 46}" stroke="#3a4352" stroke-width="6" stroke-linecap="round" stroke-dasharray="5 5"/>` +
+    drawFigure(P({ px: 140, py: GROUND - 8, g: null, tr: -30 + trem(t) * 0.5, hL: 135, kL: 135, aL: 0, hR: 135, kR: 135, aR: 0, hands: 'cross' }), {}) + label('Tronco a 60°, sin apoyo · hasta el fallo') };
+  ANIMS['ISO:Biering-Sørensen (extensores)'] = ISOA['Biering-Sørensen (extensores)'];
+  ANIMS['ISO:Flexores de McGill (60°)'] = ISOA['Flexores de McGill (60°)'];
+  // ROM nuevos: elevación de pierna recta, extensión activa de rodilla, Thomas
+  ROMA['Elevación de pierna recta (SLR)'] = sag(SUP, Object.assign({}, SUP, { hL: 168, kL: 0, aL: 0 }), { sensor: 'shin', lbl: 'Boca arriba · pierna recta hacia arriba' });
+  ROMA['Extensión activa de rodilla (AKE)'] = sag(Object.assign({}, SUP, { hL: 180, kL: 90, aL: 0 }), Object.assign({}, SUP, { hL: 180, kL: 22, aL: 0 }), { sensor: 'shin', lbl: 'Cadera a 90° · extendé la rodilla' });
+  ROMA['Test de Thomas'] = sag(Object.assign({}, SUP, { px: 186, py: GROUND - 22, hL: 90, kL: 85, aL: 0, hR: 228, kR: 135, aR: 0 }), Object.assign({}, SUP, { px: 186, py: GROUND - 22, hL: 106, kL: 85, aL: 0, hR: 228, kR: 135, aR: 0 }),
+    { sensor: 'thigh', lbl: '¿El muslo evaluado sube de la camilla?', bg: () => `<rect x="30" y="${GROUND - 15}" width="160" height="15" rx="3" fill="#2a313c"/>` });
+  ['Elevación de pierna recta (SLR)', 'Extensión activa de rodilla (AKE)', 'Test de Thomas'].forEach(k => { ANIMS['ROM:' + k] = ROMA[k]; });
   let raf = 0, t0 = 0, cur = null, el = null;
   function frame(ts) {
     if (!cur || !el) return;
@@ -1690,6 +1997,38 @@ const GUIDE = {
            errors: ['Pararse a medias.', 'Usar los brazos.'] },
   ISO: { steps: ['Colocá el sensor: en L5 con el cinturón (en "Libre", firme en el segmento a evaluar).', 'Elegí el ejercicio y la duración (o "Hasta el fallo").', 'Adoptá la posición y quedate quieto hasta que aparezca "¡Ya!".', 'Mantené la posición lo más estable posible.', 'Si no podés seguir, salí de la posición: la app detecta el final y termina sola.'],
          errors: ['Moverse durante la calibración.', 'Cinturón flojo (el sensor oscila solo).', 'Acomodarse o cambiar la posición durante el test.'] },
+  W2: { steps: ['Pasillo de 20–30 m con conos en los extremos.', 'Caminá ida y vuelta lo más rápido posible sin correr.', 'La app cuenta los 2 minutos sola.', 'Para un informe clínico, cargá la distancia real antes de que termine.'],
+        errors: ['Correr.', 'Hablar durante la prueba.'] },
+  DTG: { steps: ['Primero hacé el test de 10 m simple (el mismo día).', 'Marcá 10 m. Parado quieto en la salida.', 'Al "¡Ya!" caminá a velocidad habitual restando de 7 en 7 en voz alta desde un número al azar (ej. 100, 93, 86…).', 'Al llegar, quieto: termina solo.'],
+         errors: ['Dejar de restar o frenar para pensar (anotalo).', 'Hacer el test simple otro día.'] },
+  FIG8: { steps: ['Dos conos a 1,5 m entre sí.', 'Parado quieto entre los conos.', 'Al "¡Ya!", caminá en forma de ocho alrededor de los dos conos a ritmo habitual.', 'Volvé a la salida y quedate quieto: termina solo.'],
+          errors: ['Cortar camino por dentro.', 'Tocar los conos.'] },
+  STAIR: { steps: ['Tramo de 10–12 escalones con baranda.', 'Parado quieto al pie de la escalera.', 'Al "¡Ya!", subí lo más rápido posible con seguridad (de a un escalón).', 'Arriba (o al volver abajo), quieto: termina solo.'],
+           errors: ['Subir de a dos escalones.', 'Apoyarse en la baranda si el protocolo no lo permite.'] },
+  MBESS: { steps: ['Sensor en L5 con el cinturón. Descalzo, en superficie firme.', 'Elegí la postura: dos pies, una pierna (no dominante) o tándem (no dominante atrás).', 'Manos en la cintura, ojos cerrados, quieto hasta el "¡Ya!".', '20 s sin moverse. Si pierde la postura, vuelve a ella lo antes posible.', 'Hacé las 3 posturas: la suma de errores es el puntaje mBESS (programa Conmoción).'],
+           errors: ['Abrir los ojos o sacar las manos de la cintura (sumalo a mano: el sensor no lo ve).', 'Levantar el antepié o el talón.', 'Quedarse fuera de la postura más de 5 s.'] },
+  TANDG: { steps: ['Línea de 3 m con cinta en el piso.', 'Parado al inicio con los pies juntos, quieto.', 'Al "¡Ya!" caminá talón con punta lo más rápido posible hasta el final.', 'Girá 180° y volvé de la misma forma. Quieto al final: termina solo.', 'Hacé 3 intentos: vale el mejor tiempo.'],
+           errors: ['Separar los pies de la línea.', 'Dejar espacio entre talón y punta.', 'Agarrarse.'] },
+  TANDGDT: { steps: ['Hacé antes la marcha en tándem simple.', 'Igual que la marcha en tándem, pero restando de 7 en 7 en voz alta (o meses del año al revés).', 'La app compara con el tiempo simple: costo de la doble tarea.'],
+             errors: ['Frenar para pensar.', 'Hacer el test simple otro día.'] },
+  CRP: { steps: ['Sensor firme en la frente (banda elástica). Sentado, espalda apoyada.', 'Ojos cerrados, cabeza en posición neutra, quieto hasta el "¡Ya!".', 'Girá la cabeza al máximo hacia un lado y volvé al centro donde creas que estaba.', 'Quedate quieto 2 s en el centro. Repetí 3 veces hacia cada lado y tocá Stop.'],
+         errors: ['Abrir los ojos.', 'Mover el tronco.', 'No quedarse quieto en el centro.'] },
+  SIDEHOP: { steps: ['Dos líneas paralelas en el piso separadas 30 cm.', 'Parado en una pierna al costado de las líneas, quieto.', 'Al "¡Ya!" saltá de lado a lado por encima de las dos líneas lo más rápido posible durante 30 s.', 'Repetí con la otra pierna: la app calcula el LSI.'],
+             errors: ['Pisar las líneas (restá esos saltos).', 'Apoyar el otro pie.', 'Saltos muy cortos que no pasan las líneas.'] },
+  HOP6: { steps: ['Marcá 6 m en el piso.', 'Parado en una pierna en la salida, quieto.', 'Al "¡Ya!" recorré los 6 m saltando en esa pierna lo más rápido posible.', 'Al final quedate quieto: termina solo. Repetí con la otra pierna.'],
+          errors: ['Apoyar el otro pie.', 'Frenar en el medio.'] },
+  SLSTS: { steps: ['Silla de ~46 cm sin apoyabrazos contra la pared.', 'Sentado con un solo pie apoyado, el otro adelante sin tocar el piso, brazos cruzados.', 'Al "¡Ya!" pararse y sentarse con esa pierna la mayor cantidad de veces en 30 s.', 'Repetí con la otra pierna: la app calcula el LSI.'],
+           errors: ['Apoyar el otro pie.', 'No pararse del todo.', 'Dejarse caer en la silla.'] },
+  KJPE: { steps: ['Sensor firme en la espinilla. Sentado en camilla, rodilla a 90°, ojos cerrados.', 'Quieto hasta el "¡Ya!".', 'El evaluador lleva la pierna al ángulo objetivo (ej. 45° de extensión) y la sostiene 3 s.', 'Volvé a 90° y reproducí ese ángulo por tu cuenta: quieto 3 s. Hacelo 3 veces y tocá Stop.', 'Repetí con la otra pierna.'],
+          errors: ['Abrir los ojos.', 'No quedarse quieto en cada posición.'] },
+  CKC: { steps: ['Dos cintas en el piso separadas 91 cm.', 'Posición de flexión de brazos (mujeres pueden apoyar rodillas) con una mano en cada cinta.', 'Sensor firme en una muñeca. Quieto hasta el "¡Ya!".', 'Tocá con una mano la mano de apoyo, volvé, y alterná con la otra, lo más rápido posible durante 15 s.', 'Hacé 3 intentos con 45 s de pausa.'],
+         errors: ['Perder la posición de plancha.', 'No tocar la mano.'] },
+  FUKUDA: { steps: ['Marcá tu posición inicial en el piso (cruz).', 'Ojos cerrados, brazos extendidos al frente.', 'Al "¡Ya!" marchá en el lugar levantando los muslos, 50 pasos a ~1 por segundo.', 'Tocá Stop. La app mide cuánto giraste y hacia qué lado.'],
+            errors: ['Abrir los ojos.', 'Marchar muy rápido.', 'Sonidos o luces que orienten (hacelo en silencio).'] },
+  FSST: { steps: ['Cuatro bastones en el piso formando una cruz (4 cuadrados).', 'Parado en el cuadrado 1, mirando al frente, quieto.', 'Al "¡Ya!" pasá por los cuadrados 2, 3, 4 y volvé 1… luego 4, 3, 2 y 1, sin tocar los bastones.', 'Al terminar, quieto: termina solo.'],
+          errors: ['Tocar los bastones.', 'No apoyar los dos pies en cada cuadrado.', 'Girarse en lugar de mirar al frente.'] },
+  YBAL: { steps: ['Cinta en Y en el piso: anterior, posteromedial y posterolateral (135° entre las de atrás).', 'Medí el largo de pierna (espina ilíaca anterosuperior al maléolo interno) y cargalo.', 'Parado en una pierna en el centro, manos en la cintura. Quieto hasta el "¡Ya!".', 'Alcanzá lo más lejos posible con la otra pierna en cada dirección y volvé al centro.', 'Cargá las 3 distancias y tocá Stop. Repetí con la otra pierna.'],
+          errors: ['Apoyar el pie que alcanza.', 'Levantar el talón de apoyo.', 'Perder el equilibrio.'] },
   BAL: { steps: ['Elegí postura, visión, superficie y duración.', 'Brazos cruzados sobre el pecho.', 'Adoptá la postura antes de iniciar y quedate quieto hasta el "¡Ya!".', 'Mantenela sin moverte. Si apoya el otro pie o da un paso, la app marca la pérdida.', 'Hacé ojos abiertos y cerrados (Romberg) y ambos lados en unipodal.'],
          errors: ['Mover los brazos para equilibrarse.', 'Hablar durante la prueba.'] },
   ROM: { steps: ['Elegí el movimiento: la app indica dónde va el sensor.', 'Sujetá el sensor con una banda elástica firme en ese segmento.', 'Posición inicial, quieto 2 s.', 'Hacé el movimiento hasta el máximo, lento y controlado, y volvé. Repetí 3 veces.', 'Tocá Stop y repetí del otro lado para comparar.'],
@@ -1714,7 +2053,7 @@ const rawDB = {
   async get(k) { try { const db = await this.open(); return await new Promise((ok, ko) => { const q = db.transaction('raw').objectStore('raw').get(k); q.onsuccess = () => ok(q.result || null); q.onerror = () => ko(q.error); }); } catch (e) { return null; } },
   async del(k) { try { const db = await this.open(); db.transaction('raw', 'readwrite').objectStore('raw').delete(k); } catch (e) {} },
 };
-const UI_KEYS = ['boxH', 'romMove', 'isoEx', 'isoDur', 'balStance', 'balEyes', 'balSurf', 'balDur', 'tmSpeed', 'dist', 'invLR', 'scBeep'];
+const UI_KEYS = ['boxH', 'romMove', 'isoEx', 'isoDur', 'bessStance', 'ybA', 'ybPM', 'ybPL', 'ybLL', 'balStance', 'balEyes', 'balSurf', 'balDur', 'tmSpeed', 'dist', 'invLR', 'scBeep'];
 function uiSnap() { const o = {}; UI_KEYS.forEach(k => { const el = $(k); if (el) o[k] = el.type === 'checkbox' ? el.checked : el.value; }); return { ui: o, testId, side, orient }; }
 function uiApply(sn) { UI_KEYS.forEach(k => { const el = $(k); if (el && sn.ui[k] !== undefined) { if (el.type === 'checkbox') el.checked = sn.ui[k]; else el.value = sn.ui[k]; } }); testId = sn.testId; side = sn.side; orient = sn.orient; }
 function packS(S) { const a = new Int16Array(S.length * 6); for (let i = 0; i < S.length; i++) for (let j = 0; j < 6; j++) a[i * 6 + j] = Math.round(S[i][j] * (j < 3 ? ACC_LSB : GYR_LSB)); return a; }
@@ -1777,6 +2116,38 @@ const TESTS = {
            help: 'Sujetá el sensor firme en el segmento que se mueve. Quieto 2 s en la posición inicial, hacé el movimiento (podés repetirlo) y tocá Stop.' },
   ISO:   { cat: 'Isométricos', name: 'Isométrico', kind: 'iso', calib: 'pos', stop: 'time', iso: true,
            help: 'Adoptá la posición con el sensor firme. Quedate quieto hasta el "¡Ya!" y mantené la posición lo más estable posible. Si no podés seguir, salí de la posición: el registro termina solo.' },
+  W2:    { cat: 'Clínicos', name: 'Test de 2 minutos', kind: 'w6', calib: 'stand', stop: 'time', secs: 120, orient: true, dist: 0,
+           help: 'Caminá ida y vuelta lo más rápido posible sin correr durante 2 minutos.' },
+  DTG:   { cat: 'Clínicos', name: 'Marcha con doble tarea (10 m)', kind: 'w10', calib: 'stand', stop: 'still', orient: true, dist: 10, dual: 'W10',
+           help: 'Igual que el test de 10 m, pero restando de 7 en 7 en voz alta desde un número al azar. Hacé antes el test de 10 m simple para calcular el costo de la doble tarea.' },
+  FIG8:  { cat: 'Clínicos', name: 'Marcha en ocho', kind: 'timed', calib: 'stand', stop: 'still', timed: { turns: true, turnMin: 90 },
+           help: 'Dos conos a 1,5 m. Caminá en forma de ocho alrededor de los conos a ritmo habitual y volvé a la salida. Quieto al final: termina solo.' },
+  STAIR: { cat: 'Clínicos', name: 'Test de escaleras', kind: 'timed', calib: 'stand', stop: 'still', timed: { stairs: true, stepLabel: 'Escalones (pasos)' },
+           help: 'Subí un tramo de 10–12 escalones lo más rápido posible con seguridad (podés bajar también). Quieto al final: termina solo.' },
+  MBESS: { cat: 'Conmoción', name: 'mBESS (SCAT6)', kind: 'bess', calib: 'pos', stop: 'time', secs: 20, bess: true,
+           help: 'Ojos cerrados, manos en la cintura, 20 s en la postura elegida. La app cuenta los errores de equilibrio.' },
+  TANDG: { cat: 'Conmoción', name: 'Marcha en tándem (SCAT6)', kind: 'timed', calib: 'stand', stop: 'still', timed: { turn: true, minStep: 0.3, timeLabel: 'Tiempo' },
+           help: 'Línea de 3 m. Talón con punta lo más rápido posible hasta el final, girá 180° y volvé. Quieto al final: termina solo. Hacé 3 intentos y quedate con el mejor.' },
+  TANDGDT: { cat: 'Conmoción', name: 'Marcha en tándem con doble tarea', kind: 'timed', calib: 'stand', stop: 'still', dual: 'TANDG', timed: { turn: true, minStep: 0.3, timeLabel: 'Tiempo' },
+           help: 'Igual que la marcha en tándem, restando de 7 en 7 en voz alta (o deletreando una palabra al revés). La app calcula el costo de la doble tarea.' },
+  CRP:   { cat: 'Conmoción', name: 'Reposición cervical (JPE)', kind: 'jpe', jpe: 'center', calib: 'pos', stop: 'manual',
+           help: 'Sensor en la frente, sentado, ojos cerrados, cabeza en posición neutra. Girá la cabeza al máximo hacia un lado, volvé al centro y quedate quieto 2 s. Repetí 3 veces por lado y tocá Stop.' },
+  SIDEHOP: { cat: 'Retorno al deporte', name: 'Side hop test', kind: 'sidehop', calib: 'stand', stop: 'time', secs: 30, side: true,
+           help: 'En una pierna, saltá lateralmente por encima de dos líneas separadas 30 cm, lo más rápido posible durante 30 s.' },
+  HOP6:  { cat: 'Retorno al deporte', name: 'Salto unipodal cronometrado 6 m', kind: 'hop6', calib: 'stand', stop: 'still', side: true,
+           help: 'En una pierna, recorré 6 m saltando lo más rápido posible. Quedate quieto al final: termina solo.' },
+  SLSTS: { cat: 'Retorno al deporte', name: 'Sentarse y pararse a una pierna (30 s)', kind: 'sts', stsMode: 'STS30', calib: 'sit', stop: 'time', secs: 30, orient: true, side: true,
+           help: 'Silla de ~46 cm, sentado con un solo pie apoyado y brazos cruzados. Al "¡Ya!" pararse y sentarse con esa pierna la mayor cantidad de veces en 30 s.' },
+  KJPE:  { cat: 'Retorno al deporte', name: 'Reposición de rodilla (JPE)', kind: 'jpe', jpe: 'target', calib: 'pos', stop: 'manual', side: true,
+           help: 'Sentado, rodilla a 90°, sensor en la espinilla, ojos cerrados. El evaluador lleva la pierna al ángulo objetivo y la sostiene 3 s; volvés a 90° y reproducís el ángulo 3 veces (3 s quieto cada vez). Tocá Stop.' },
+  CKC:   { cat: 'Retorno al deporte', name: 'CKCUEST (tren superior)', kind: 'ckc', calib: 'pos', stop: 'time', secs: 15,
+           help: 'Posición de flexión de brazos con las manos separadas 91 cm. Sensor firme en una muñeca. Tocá con una mano la otra en forma alternada lo más rápido posible durante 15 s.' },
+  FUKUDA: { cat: 'Equilibrio', name: 'Test de Fukuda', kind: 'fukuda', calib: 'stand', stop: 'manual',
+           help: 'Ojos cerrados, brazos extendidos al frente. Marchá en el lugar levantando los muslos 50 pasos (~1 por segundo) y tocá Stop.' },
+  FSST:  { cat: 'Equilibrio', name: 'Four Square Step Test', kind: 'timed', calib: 'stand', stop: 'still', timed: { minStep: 0.3, turnMin: 400 },
+           help: 'Cuatro bastones en cruz en el piso. Pasá por los 4 cuadrados en orden (1→2→3→4) y volvé (4→3→2→1) lo más rápido posible, mirando al frente. Quieto al final.' },
+  YBAL:  { cat: 'Equilibrio', name: 'Y-Balance (tren inferior)', kind: 'ybal', calib: 'pos', stop: 'manual', side: true, ybal: true,
+           help: 'Parado en una pierna en el centro. Alcanzá lo más lejos posible con la otra pierna hacia adelante, posteromedial y posterolateral, volviendo al centro cada vez. Cargá las distancias y tocá Stop.' },
   SCRUM: { cat: 'Scrum', name: 'Scrum contra máquina (empuje)', kind: 'scrum', calib: 'stand', stop: 'scrum', mode: true, orient: true, scrum: true,
            help: 'Parado quieto 2 s. Engancharse en la máquina y quedarse quieto en isometría; al pitido (o cuando quiera): carga y empuje. Al terminar cada empuje, quieto en posición.' },
   FREE:  { cat: 'Otros', name: 'Registro libre (datos crudos)', kind: 'free', calib: 'stand', stop: 'manual',
@@ -1808,8 +2179,11 @@ const ROM_DB = [
   { j: 'Cadera', n: 'Aducción de cadera', z: 'Boca arriba, la otra pierna levantada para dejar espacio.', m: 'Llevá la pierna hacia adentro cruzando la línea media.', s: 'Muslo', r: [10, 20], rot: true },
   { j: 'Cadera', n: 'Rotación externa de cadera (prono)', z: 'Boca abajo, rodilla a 90°, espinilla vertical.', m: 'Dejá caer el pie hacia adentro, sobre el cuerpo.', s: 'Empeine', r: [30, 45] },
   { j: 'Cadera', n: 'Rotación interna de cadera (prono)', z: 'Boca abajo, rodilla a 90°, espinilla vertical.', m: 'Dejá caer el pie hacia afuera, lejos del cuerpo.', s: 'Empeine', r: [30, 45] },
+  { j: 'Cadera', n: 'Elevación de pierna recta (SLR)', z: 'Boca arriba, piernas extendidas, pelvis fija.', m: 'Levantá la pierna estirada lo más alto posible sin flexionar la rodilla.', s: 'Espinilla', r: [70, 90] },
+  { j: 'Cadera', n: 'Test de Thomas', z: 'Boca arriba en el borde de la camilla, pierna evaluada recta apoyada (cero).', m: 'Abrazá la otra rodilla al pecho y dejá caer la pierna evaluada: el ángulo que sube el muslo es el acortamiento.', s: 'Muslo', r: [0, 10], cmp: false },
   { j: 'Rodilla', n: 'Flexión de rodilla', z: 'Boca abajo, pierna extendida.', m: 'Flexioná la rodilla llevando el talón hacia el glúteo.', s: 'Espinilla', r: [120, 140] },
   { j: 'Rodilla', n: 'Extensión de rodilla', z: 'Sentado, rodilla a 90°, espinilla vertical.', m: 'Extendé la rodilla y levantá la pierna (incluida la hiperextensión).', s: 'Espinilla', r: [0, 10], cmp: false },
+  { j: 'Rodilla', n: 'Extensión activa de rodilla (AKE)', z: 'Boca arriba, cadera y rodilla a 90° (muslo vertical).', m: 'Extendé la rodilla lo más posible manteniendo el muslo vertical.', s: 'Espinilla', r: [70, 90] },
   { j: 'Tobillo', n: 'Flexión dorsal de tobillo', z: 'Sentado, tobillo en posición neutra.', m: 'Llevá el empeine hacia la espinilla.', s: 'Empeine', r: [10, 20] },
   { j: 'Tobillo', n: 'Flexión plantar de tobillo', z: 'Sentado, tobillo en posición neutra.', m: 'Apuntá los dedos del pie hacia abajo.', s: 'Empeine', r: [25, 50] },
   { j: 'Tobillo', n: 'Eversión de tobillo', z: 'Sentado, tobillo en posición neutra.', m: 'Girá la planta del pie hacia afuera.', s: 'Empeine', r: [8, 15] },
@@ -1840,6 +2214,8 @@ const ISO_EX = [
   ['Puente de glúteo unipodal', 'sensor en L5 con el cinturón', true, 'Pelvis nivelada, sin rotar. El lado es la pierna de apoyo.'],
   ['Dead bug', 'sensor en L5 con el cinturón', false, 'Boca arriba, brazos hacia arriba, cadera y rodillas a 90°; zona lumbar pegada al piso.'],
   ['Bird dog', 'sensor en L5 con el cinturón', true, 'En cuadrupedia, extendé el brazo y la pierna opuestos y sostené sin rotar la pelvis. El lado es la pierna extendida.'],
+  ['Biering-Sørensen (extensores)', 'sensor en L5 con el cinturón', false, 'Boca abajo con la pelvis en el borde de la camilla y las piernas sujetas; tronco horizontal en el aire y brazos cruzados. Usá "Hasta el fallo". Referencia: ~140–180 s.'],
+  ['Flexores de McGill (60°)', 'sensor en L5 con el cinturón', false, 'Sentado, tronco a 60° apoyado en una cuña, rodillas y caderas a 90°, brazos cruzados. Se retira la cuña y se sostiene hasta el fallo.'],
   ['Posición de scrum (isométrico)', 'sensor en L5 con el cinturón', false, 'Contra la máquina, espalda plana y quieto: mide la estabilidad del tronco en la posición.'],
   ['Libre', 'sensor firme en el segmento a evaluar', false, 'Sujetá el sensor con una banda elástica firme en el segmento que querés evaluar.'],
 ];
@@ -1860,12 +2236,32 @@ const PROGRAMS = [
     { t: 'CMJ', n: 3 }, { t: 'SJ', n: 3 }, { t: 'CMJU', n: 3, side: 'L' }, { t: 'CMJU', n: 3, side: 'R' }] },
   { id: 'rsi', name: 'Evaluación de RSI (reactividad)', desc: 'Capacidad reactiva: saltos continuos y drop jump, bipodal y de cada pierna.', steps: [
     { t: 'RJ', n: 10 }, { t: 'DJ', n: 3 }, { t: 'DJU', n: 3, side: 'L' }, { t: 'DJU', n: 3, side: 'R' }, { t: 'RJU', n: 10, side: 'L' }, { t: 'RJU', n: 10, side: 'R' }] },
+  { id: 'conmocion', name: 'Conmoción (SCAT6)', desc: 'Evaluación de equilibrio, marcha y propiocepción cervical tras un golpe en la cabeza (HIA y retorno al juego): mBESS, marcha en tándem simple y con doble tarea, reposición cervical.', steps: [
+    { t: 'MBESS', stance: 'BIP' }, { t: 'MBESS', stance: 'UNI' }, { t: 'MBESS', stance: 'TAN' }, { t: 'TANDG' }, { t: 'TANDGDT' }, { t: 'CRP' }],
+    sum: { label: 'Puntaje mBESS (errores totales, 0–30)', steps: [0, 1, 2] } },
+  { id: 'rts-rodilla', name: 'Retorno al deporte · rodilla', desc: 'Batería de vuelta al deporte (LCA, menisco, tobillo): saltos unipodales, side hop, salto de 6 m, fuerza unipodal y propiocepción, con asimetría izquierda/derecha.', steps: [
+    { t: 'CMJU', n: 3, side: 'L' }, { t: 'CMJU', n: 3, side: 'R' }, { t: 'DJU', n: 3, side: 'L' }, { t: 'DJU', n: 3, side: 'R' }, { t: 'SIDEHOP', side: 'L' }, { t: 'SIDEHOP', side: 'R' },
+    { t: 'HOP6', side: 'L' }, { t: 'HOP6', side: 'R' }, { t: 'SLSTS', side: 'L' }, { t: 'SLSTS', side: 'R' }, { t: 'KJPE', side: 'L' }, { t: 'KJPE', side: 'R' }] },
+  { id: 'rts-hombro', name: 'Retorno al deporte · hombro', desc: 'Estabilidad en cadena cerrada (CKCUEST) y movilidad de hombro.', steps: [
+    { t: 'CKC' }, { t: 'ROM', mv: 'Flexión de hombro' }, { t: 'ROM', mv: 'Abducción de hombro' }, { t: 'ROM', mv: 'Rotación externa de hombro (supino)' }, { t: 'ROM', mv: 'Rotación interna de hombro (supino)' }] },
+  { id: 'mcgill', name: 'Batería de McGill (core)', desc: 'Resistencia de flexores, extensores y laterales del tronco hasta el fallo, con las relaciones de McGill.', steps: [
+    { t: 'ISO', ex: 'Flexores de McGill (60°)', dur: 0 }, { t: 'ISO', ex: 'Biering-Sørensen (extensores)', dur: 0 }, { t: 'ISO', ex: 'Plancha lateral', dur: 0, side: 'R' }, { t: 'ISO', ex: 'Plancha lateral', dur: 0, side: 'L' }],
+    ratios: [['Flexores / extensores', 0, 1, 'ideal < 1,0'], ['Plancha lateral der / izq', 2, 3, 'ideal 0,95–1,05'], ['Plancha lateral der / extensores', 2, 1, 'ideal < 0,75'], ['Plancha lateral izq / extensores', 3, 1, 'ideal < 0,75']] },
+  { id: 'ctsib', name: 'CTSIB-m (integración sensorial)', desc: 'Equilibrio en 4 condiciones: piso firme y goma espuma, con ojos abiertos y cerrados. Muestra qué sistema (visual, somatosensorial, vestibular) compensa.', steps: [
+    { t: 'BAL', stance: 'BIP', eyes: 'OA', surf: 'F', dur: 30, name: 'Firme · ojos abiertos' }, { t: 'BAL', stance: 'BIP', eyes: 'OC', surf: 'F', dur: 30, name: 'Firme · ojos cerrados' },
+    { t: 'BAL', stance: 'BIP', eyes: 'OA', surf: 'E', dur: 30, name: 'Espuma · ojos abiertos' }, { t: 'BAL', stance: 'BIP', eyes: 'OC', surf: 'E', dur: 30, name: 'Espuma · ojos cerrados' }],
+    ratios: [['Visual (espuma OC / espuma OA)', 3, 2, 'mayor = más dependencia visual'], ['Somatosensorial (firme OC / firme OA)', 1, 0, ''], ['Vestibular (espuma OC / firme OA)', 3, 0, '']] },
+  { id: 'vestibular', name: 'Vestibular y equilibrio dinámico', desc: 'Fukuda, Four Square Step Test y Y-Balance de cada pierna.', steps: [
+    { t: 'FUKUDA' }, { t: 'FSST' }, { t: 'YBAL', side: 'L' }, { t: 'YBAL', side: 'R' }] },
+  { id: 'marcha-func', name: 'Marcha y función', desc: 'Velocidad de marcha simple y con doble tarea, TUG, marcha en ocho, escaleras y sentarse-pararse.', steps: [
+    { t: 'W10' }, { t: 'DTG' }, { t: 'TUG' }, { t: 'FIG8' }, { t: 'STAIR' }, { t: 'STS5' }] },
   { id: 'equilibrio', name: 'Equilibrio y Romberg', desc: 'Control postural: bipodal con ojos abiertos y cerrados, y apoyo unipodal de cada lado.', steps: [
     { t: 'BAL', stance: 'BIP', eyes: 'OA', dur: 30, name: 'Bipodal ojos abiertos' }, { t: 'BAL', stance: 'BIP', eyes: 'OC', dur: 30, name: 'Bipodal ojos cerrados' },
     { t: 'BAL', stance: 'UNI_L', eyes: 'OA', dur: 30, name: 'Apoyo monopodal izquierdo' }, { t: 'BAL', stance: 'UNI_R', eyes: 'OA', dur: 30, name: 'Apoyo monopodal derecho' }] },
 ];
+const MBESS_ST = [['BIP', 'Dos pies'], ['UNI', 'Una pierna'], ['TAN', 'Tándem']];
 const isoUni = () => { const x = ISO_EX.find(e => e[0] === $('isoEx').value); return !!(x && x[2]); };
-function sideOf(id) { const t = TESTS[id]; if (id === 'BAL') return balSide(); if (t.iso) return isoUni() ? side : null; return t.side ? side : null; }
+function sideOf(id) { const t = TESTS[id]; if (id === 'BAL') return balSide(); if (t.bess) return $('bessStance').value === 'BIP' ? null : side; if (t.iso) return isoUni() ? side : null; return t.side ? side : null; }
 // Grupos de la pantalla inicial
 const GROUPS = [
   { id: 'programas', name: 'Programas', icon: 'ISO:Bird dog', items: [], label: () => PROGRAMS.length + ' evaluaciones' },
@@ -1874,9 +2270,11 @@ const GROUPS = [
   { id: 'sentadilla', name: 'Sentadillas', icon: 'SQ', items: ['SQ', 'SQU'] },
   { id: 'iso', name: 'Isométricos', icon: 'ISO:Plancha frontal', items: () => ISO_EX.map((x, k) => ['ISO', k]) },
   { id: 'rom', name: 'ROM / Movilidad', icon: 'ROM:Abducción de hombro', items: () => ROM_MOVES.map((x, k) => ['ROM', k]) },
-  { id: 'equilibrio', name: 'Equilibrio', icon: 'BAL', items: ['BAL'] },
+  { id: 'equilibrio', name: 'Equilibrio y vestibular', icon: 'BAL', items: ['BAL', 'FUKUDA', 'FSST', ['YBAL', null, 'L'], ['YBAL', null, 'R']] },
   { id: 'marcha', name: 'Marcha y carrera', icon: 'RUN', items: ['WALK', 'RUN'] },
-  { id: 'clinicos', name: 'Tests clínicos', icon: 'TUG', items: ['W10', 'TUG', 'W6', 'TURN', 'STS5', 'STS30'] },
+  { id: 'conmocion', name: 'Conmoción (SCAT6)', icon: 'MBESS:TAN', items: [['MBESS', 0], ['MBESS', 1], ['MBESS', 2], 'TANDG', 'TANDGDT', 'CRP'] },
+  { id: 'rts', name: 'Retorno al deporte', icon: 'SIDEHOP', items: [['SIDEHOP', null, 'L'], ['SIDEHOP', null, 'R'], ['HOP6', null, 'L'], ['HOP6', null, 'R'], ['SLSTS', null, 'L'], ['SLSTS', null, 'R'], ['KJPE', null, 'L'], ['KJPE', null, 'R'], 'CKC'] },
+  { id: 'clinicos', name: 'Tests clínicos', icon: 'TUG', items: ['W10', 'TUG', 'W6', 'W2', 'TURN', 'STS5', 'STS30', 'DTG', 'FIG8', 'STAIR'] },
   { id: 'scrum', name: 'Scrum', icon: 'SCRUM', items: ['SCRUM'] },
   { id: 'otros', name: 'Registro libre', icon: 'FREE', items: ['FREE'] },
 ];
@@ -1884,6 +2282,7 @@ const gItems = (g) => (typeof g.items === 'function' ? g.items() : g.items).map(
 const SIDE_TXT = { L: 'izquierda', R: 'derecha' };
 function itemInfo(it) {
   if (it.t === 'ROM' && it.s != null) { const m = ROM_MOVES[it.s]; return { name: m[0], desc: m[1][0].toUpperCase() + m[1].slice(1), anim: 'ROM:' + m[0] }; }
+  if (it.t === 'MBESS' && it.s != null) return { name: 'mBESS · ' + MBESS_ST[it.s][1], desc: 'Ojos cerrados, manos en la cintura, 20 s. Cuenta errores.', anim: 'MBESS:' + MBESS_ST[it.s][0] };
   if (it.t === 'ISO' && it.s != null) { const x = ISO_EX[it.s]; return { name: x[0], desc: x[1][0].toUpperCase() + x[1].slice(1) + (x[2] ? ' · por lado' : ''), anim: 'ISO:' + x[0] }; }
   const t = TESTS[it.t]; return { name: t.name + (it.side ? ' · ' + SIDE_TXT[it.side] : ''), desc: t.help.split('. ')[0].replace(/\.$/, '') + '.', anim: it.t };
 }
@@ -2131,10 +2530,20 @@ function finishRec(msg) {
 }
 
 function balSide() { const s = $('balStance').value; return s === 'UNI_L' ? 'L' : s === 'UNI_R' ? 'R' : null; }
+// costo de la doble tarea respecto del último registro simple del mismo atleta
+function dualCost(res, a, refTest, val, lowerBetter) {
+  const ref = results.filter(x => x.ath === a.id && x.test === refTest && x.main).sort((x, y) => (x.date < y.date ? 1 : -1))[0];
+  if (!ref) { res.warn.push(`Para el costo de la doble tarea, hacé antes "${TESTS[refTest].name}" con el mismo atleta.`); return; }
+  const st = +ref.main[1], dc = lowerBetter ? (val - st) / st * 100 : (st - val) / st * 100;
+  res.tiles.push(['Costo de la doble tarea', r(dc, 1), '%', true, dc <= 10 ? 'good' : dc <= 20 ? 'mid' : 'bad'], ['Simple (' + ref.main[0].toLowerCase() + ')', ref.main[1], ref.main[2]]);
+  res.m['Costo de la doble tarea (%)'] = r(dc, 1);
+  res.warn.push(`Costo de la doble tarea: cuánto empeora respecto del registro simple del ${new Date(ref.date).toLocaleDateString('es-AR')}. Más de 20 % es alto.`);
+}
 function condLabel(id) {
   const t = TESTS[id], p = [];
   if (t.side || (t.iso && isoUni())) p.push(side === 'L' ? 'izq' : 'der');
   if (t.iso) p.push($('isoEx').value, +$('isoDur').value ? $('isoDur').value + ' s' : 'hasta el fallo');
+  if (t.bess) { if ($('bessStance').value !== 'BIP' && !t.side) p.push(side === 'L' ? 'izq' : 'der'); p.push($('bessStance').selectedOptions[0].text); }
   if (t.box) p.push($('boxH').value + ' cm');
   if (t.bal) p.push($('balStance').selectedOptions[0].text, $('balEyes').value, $('balSurf').value === 'E' ? 'espuma' : '', $('balDur').value + ' s');
   if (t.rom) p.push($('romMove').value);
@@ -2185,6 +2594,7 @@ function analyzeTest(r0, a, t) {
       res.m['Tiempo (s)'] = r(tt, 2); res.m['Velocidad de marcha (m/s)'] = r(v, 2);
       res.tiles = res.tiles.filter(x => x[0] !== 'Velocidad');
       res.main = ['Velocidad de marcha', r(v, 2), 'm/s'];
+      if (t.dual) dualCost(res, a, t.dual, r(v, 2), false);
       res.warn.push(`Distancia usada: ${dist} m. El tiempo se mide del primer al último paso.`);
     }
     if (t.kind === 'w6') {
@@ -2193,19 +2603,29 @@ function analyzeTest(r0, a, t) {
       res.tiles.unshift(['Distancia ' + (real > 0 ? 'medida' : 'estimada'), r(dist, 0), 'm', true]);
       res.m['Distancia (m)'] = r(dist, 0); res.main = ['Distancia', r(dist, 0), 'm'];
       res.tiles2.push(['Pasos totales', pk.length, ''], ['Giros', res.g.turns.length, '']);
-      const t0 = sp[0], mins = [];
-      for (let k = 0; k < 6; k++) { const a0 = t0 + k * 60 * FS, a1 = a0 + 60 * FS; mins.push(pk.filter(i => i >= a0 && i < a1).length); }
-      res.table = { head: ['Minuto', '1', '2', '3', '4', '5', '6'], rows: [['Pasos'].concat(mins)] };
-      if (mins[0] > 0 && mins[5] > 0) { const fat = (mins[5] / mins[0] - 1) * 100; res.tiles2.push(['Cambio de cadencia min 6 vs 1', r(fat, 0), '%']); res.m['Cambio cadencia min6 vs min1 (%)'] = r(fat, 0); }
-      res.chart = { type: 'bars', labels: ['1', '2', '3', '4', '5', '6'], values: mins, title: 'Pasos por minuto' };
+      const t0 = sp[0], mins = [], nMin = Math.round((t.secs || 360) / 60);
+      for (let k = 0; k < nMin; k++) { const a0 = t0 + k * 60 * FS, a1 = a0 + 60 * FS; mins.push(pk.filter(i => i >= a0 && i < a1).length); }
+      const lbs = mins.map((_, k) => String(k + 1));
+      res.table = { head: ['Minuto'].concat(lbs), rows: [['Pasos'].concat(mins)] };
+      if (nMin > 1 && mins[0] > 0 && mins[nMin - 1] > 0) { const fat = (mins[nMin - 1] / mins[0] - 1) * 100; res.tiles2.push([`Cambio de cadencia min ${nMin} vs 1`, r(fat, 0), '%']); res.m[`Cambio cadencia min${nMin} vs min1 (%)`] = r(fat, 0); }
+      res.chart = { type: 'bars', labels: lbs, values: mins, title: 'Pasos por minuto' };
       if (!(real > 0)) res.warn.push('Distancia estimada con el modelo del péndulo invertido. Para un informe clínico, cargá la distancia medida (vueltas × largo del recorrido).');
     }
     return withTitle(res, t);
   }
+  if ((t.kind === 'bess' || t.kind === 'ybal') && !fr.f) { pcaForward(S, fr, calB, S.length); Object.assign(sig, signals(S, fr)); }
+  if (t.kind === 'bess') return withTitle(analyzeBESS(S, fr, sig, calB, Math.min(S.length, calB + 20 * FS)), t);
+  if (t.kind === 'timed') { const res = analyzeTimed(S, fr, sig, calB, S.length, t.timed || {}); if (!res.error && t.dual) dualCost(res, a, t.dual, res.main[1], true); return withTitle(res, t); }
+  if (t.kind === 'fukuda') return withTitle(analyzeFukuda(S, fr, sig, calB, S.length), t);
+  if (t.kind === 'jpe') return withTitle(analyzeJPE(S, fr, calB, S.length, t.jpe), t);
+  if (t.kind === 'sidehop') return withTitle(analyzeHops(S, calB, S.length, 'side'), t);
+  if (t.kind === 'hop6') return withTitle(analyzeHops(S, calB, S.length, 'six'), t);
+  if (t.kind === 'ckc') return withTitle(analyzeCKC(S, sig, calB, S.length, a.mass), t);
+  if (t.kind === 'ybal') return withTitle(analyzeYBal(S, fr, sig, calB, S.length, ['ybA', 'ybPM', 'ybPL', 'ybLL'].map(k => parseFloat(String($(k).value).replace(',', '.')))), t);
   if (t.kind === 'scrum') return withTitle(analyzeScrum(S, fr, sig, calB, r0.cueAt || [], {}), t);
   if (t.kind === 'tug') return withTitle(analyzeTUG(S, fr, sig, calB, opts), t);
   if (t.kind === 'turn') return withTitle(analyzeTurnTest(S, fr, sig, calB), t);
-  if (t.kind === 'sts') return withTitle(analyzeSTS(S, fr, sig, calB, { mode: r0.test, mass: a.mass }), t);
+  if (t.kind === 'sts') return withTitle(analyzeSTS(S, fr, sig, calB, { mode: t.stsMode || r0.test, mass: a.mass }), t);
   if (t.kind === 'squat') return withTitle(analyzeSquat(S, fr, sig, calB, { unipodal: !!t.side }), t);
   if (t.kind === 'bal') {
     const end = Math.min(S.length, calB + testSecs() * FS);
@@ -2326,7 +2746,7 @@ function renderLSI(entry, val, res) {
   if (entry.side && fin(val)) {
     const other = results.filter(x => x.ath === entry.ath && x.test === entry.test && x.side && x.side !== entry.side && sameDay(x) && x.main && (entry.test !== 'ROM' || (x.cond || '').split(' · ')[1] === (entry.cond || '').split(' · ')[1]) && (entry.test !== 'BAL' || (x.cond || '').replace(/Unipodal (izquierda|derecha)/, '') === (entry.cond || '').replace(/Unipodal (izquierda|derecha)/, '')) && (entry.test !== 'ISO' || ((x.cond || '').replace(/^(izq|der) · /, '') === (entry.cond || '').replace(/^(izq|der) · /, '') && x.main[0] === entry.main[0])));
     if (other.length) {
-      const lowBetter = entry.test === 'BAL' || (entry.test === 'ISO' && /^Área/.test(entry.main[0]));
+      const lowBetter = entry.test === 'BAL' || entry.test === 'MBESS' || entry.test === 'HOP6' || entry.test === 'KJPE' || (entry.test === 'ISO' && /^Área/.test(entry.main[0]));
       const ov = lowBetter ? Math.min(...other.map(x => x.main[1])) : Math.max(...other.map(x => x.main[1]));
       const L = entry.side === 'L' ? val : ov, R = entry.side === 'R' ? val : ov;
       let lsi;
@@ -2619,15 +3039,19 @@ function renderGuide() {
   if (AN.has(id)) AN.play(id, $('animBox')); else AN.stop();
 }
 // animación según el test y, en ROM / isométricos, según el movimiento elegido
-function animId() { return testId === 'ROM' ? 'ROM:' + $('romMove').value : testId === 'ISO' ? 'ISO:' + $('isoEx').value : testId; }
-function subIdx() { return testId === 'ROM' ? ROM_MOVES.findIndex(x => x[0] === $('romMove').value) : testId === 'ISO' ? ISO_EX.findIndex(x => x[0] === $('isoEx').value) : -1; }
+function animId() { return testId === 'ROM' ? 'ROM:' + $('romMove').value : testId === 'ISO' ? 'ISO:' + $('isoEx').value : testId === 'MBESS' ? 'MBESS:' + $('bessStance').value : testId; }
+function subIdx() { return testId === 'ROM' ? ROM_MOVES.findIndex(x => x[0] === $('romMove').value) : testId === 'ISO' ? ISO_EX.findIndex(x => x[0] === $('isoEx').value) : testId === 'MBESS' ? MBESS_ST.findIndex(x => x[0] === $('bessStance').value) : -1; }
 $('btnGuide').onclick = () => { guideOpen = !guideOpen; renderGuide(); };
 function renderTestOpts() {
   const t = T_();
   $('testHelp').textContent = t.help;
   $('optSide').classList.toggle('hide', !(t.side || (t.iso && isoUni())));
   $('optIso').classList.toggle('hide', !t.iso);
+  $('optBess').classList.toggle('hide', !t.bess); $('optYbal').classList.toggle('hide', !t.ybal);
+  if (t.bess) $('optSide').classList.toggle('hide', $('bessStance').value === 'BIP');
+  if (t.ybal && !$('ybLL').value) { const a = currentAthlete(); if (a && a.leg) $('ybLL').value = a.leg; }
   if (t.iso) { const x = ISO_EX.find(e => e[0] === $('isoEx').value); $('testHelp').textContent = t.help + (x ? ' (' + x[1] + ').' : ''); }
+  if (testId === 'MBESS') { $('testTitle').textContent = 'mBESS · ' + $('bessStance').selectedOptions[0].text; } else
   $('testTitle').textContent = testId === 'ROM' ? 'Medir ROM · ' + ((romOf($('romMove').value) || {}).j || '') : testId === 'ISO' ? 'Isométrico · ' + $('isoEx').value : t.name;
   const gr = groupOf(testId); $('btnBackGroup').textContent = '‹ ' + gr.name; $('btnBackGroup').dataset.g = gr.id;
   $('optBox').classList.toggle('hide', !t.box);
@@ -2668,6 +3092,7 @@ function onSubChange() {
 }
 $('romMove').onchange = onSubChange;
 $('isoEx').onchange = onSubChange;
+$('bessStance').onchange = onSubChange;
 
 // ---------- Navegación: inicio → grupo → test ----------
 function parseHash() {
@@ -2748,8 +3173,9 @@ const stepOf = () => prog ? progDef().steps[prog.k] : null;
 const STANCE_TXT = { BIP: 'Bipodal', TAN: 'Tándem', UNI_L: 'Unipodal izquierda', UNI_R: 'Unipodal derecha' };
 function stepInfo(st) {
   const sd = st.side ? ' · ' + SIDE_TXT[st.side] : '';
-  if (st.t === 'ISO') return { name: (st.name || st.ex) + sd, desc: `${st.name || st.ex} ${st.dur} s`, anim: 'ISO:' + st.ex };
-  if (st.t === 'BAL') return { name: st.name || STANCE_TXT[st.stance], desc: `${st.name || STANCE_TXT[st.stance]} ${st.dur} s · ${st.eyes === 'OC' ? 'ojos cerrados' : 'ojos abiertos'}`, anim: 'BAL' };
+  if (st.t === 'ISO') return { name: (st.name || st.ex) + sd, desc: `${st.name || st.ex} · ${st.dur ? st.dur + ' s' : 'hasta el fallo'}`, anim: 'ISO:' + st.ex };
+  if (st.t === 'MBESS') { const m = MBESS_ST.find(x => x[0] === st.stance); return { name: 'mBESS · ' + m[1], desc: 'Ojos cerrados · 20 s · errores', anim: 'MBESS:' + st.stance }; }
+  if (st.t === 'BAL') return { name: st.name || STANCE_TXT[st.stance], desc: `${STANCE_TXT[st.stance]} · ${st.dur} s · ${st.eyes === 'OC' ? 'ojos cerrados' : 'ojos abiertos'}${st.surf === 'E' ? ' · espuma' : ''}`, anim: 'BAL' };
   if (st.t === 'ROM') return { name: st.mv, desc: 'Medición del rango de movimiento articular', anim: 'ROM:' + st.mv };
   const t = TESTS[st.t]; return { name: t.name + sd, desc: st.n ? `${st.n} ${t.jump ? 'saltos' : 'repeticiones'}` : t.help.split('. ')[0], anim: st.t };
 }
@@ -2757,17 +3183,19 @@ function stepHash(st) {
   let h = '#t=' + st.t;
   if (st.t === 'ROM') h += '&s=' + ROM_MOVES.findIndex(x => x[0] === st.mv);
   if (st.t === 'ISO') h += '&s=' + ISO_EX.findIndex(x => x[0] === st.ex);
+  if (st.t === 'MBESS') h += '&s=' + MBESS_ST.findIndex(x => x[0] === st.stance);
   return h + (st.side ? '&side=' + st.side : '');
 }
 function stepMatches(st) {
   if (!st || st.t !== testId) return false;
   if (st.t === 'ROM') return $('romMove').value === st.mv;
   if (st.t === 'ISO') return $('isoEx').value === st.ex;
+  if (st.t === 'MBESS') return $('bessStance').value === st.stance;
   return true;
 }
 function applyStep(st) {
-  if (st.t === 'ISO' && st.dur) $('isoDur').value = st.dur;
-  if (st.t === 'BAL') { $('balStance').value = st.stance; $('balEyes').value = st.eyes || 'OA'; $('balSurf').value = 'F'; $('balDur').value = st.dur || 30; }
+  if (st.t === 'ISO' && st.dur != null) $('isoDur').value = st.dur;
+  if (st.t === 'BAL') { $('balStance').value = st.stance; $('balEyes').value = st.eyes || 'OA'; $('balSurf').value = st.surf || 'F'; $('balDur').value = st.dur || 30; }
   if (st.side) setSide(st.side);
   if (st.n) { mode = 'N'; document.querySelectorAll('#modes .seg').forEach(x => x.classList.toggle('on', x.dataset.m === 'N')); $('nBox').classList.remove('hide'); $('nJumps').value = st.n; }
   renderTestOpts();
@@ -2816,7 +3244,11 @@ function renderProg(id, sum) {
     if (prog.done[i] && prog.done[i].length && results.some(x => x.id === prog.done[i][0])) { prog.k = i; saveProg(); openHist(prog.done[i][0]); return; }
     goStep(i);
   });
-  const a = currentAthlete();
+  const a = currentAthlete(), val = (k) => { const m = active && prog.done[k] ? progMain(prog.done[k]) : null; return m ? +m[1] : null; }, ex = [];
+  if (active && P.sum) { const v = P.sum.steps.map(val); if (v.every(x => x != null)) ex.push(`<b>${esc(P.sum.label)}:</b> ${r(v.reduce((x, y) => x + y, 0), 1)}`); }
+  if (active && P.ratios) P.ratios.forEach(([l, i, j, ref]) => { const A = val(i), B = val(j); if (A != null && B) ex.push(`<b>${esc(l)}:</b> ${r(A / B, 2)}${ref ? ' <span class="note">(' + esc(ref) + ')</span>' : ''}`); });
+  if (active) P.steps.forEach((st, i) => { if (st.side !== 'L') return; const j = P.steps.findIndex((o, k) => k !== i && o.t === st.t && o.side === 'R' && o.ex === st.ex && o.mv === st.mv); const L = val(i), R = val(j); if (j >= 0 && L != null && R != null && Math.max(L, R) > 0) { const m = progMain(prog.done[i]); ex.push(`<b>${esc(stepInfo(Object.assign({}, st, { side: null })).name)}</b> (${esc(m[0].toLowerCase())}): izq ${L} · der ${R} ${esc(m[2])} · asimetría <b>${r(Math.abs(L - R) / Math.max(L, R) * 100, 1)} %</b>`); } });
+  $('pExtra').innerHTML = ex.length ? '<h3 class="ph" style="margin-top:16px">Resumen</h3>' + ex.map(x => `<p style="margin:6px 0;font-size:15px">${x}</p>`).join('') : '';
   $('pBtns').innerHTML = active
     ? (nDone < N ? `<button class="pri big" id="pGo">Continuar · paso ${Math.min(prog.k + 1, N)} de ${N}</button>` : `<p class="note" style="width:100%">✓ Programa completo${a ? ' · ' + esc(a.name) : ''} · ${new Date(prog.date).toLocaleDateString('es-AR')}. Tocá un ejercicio para ver su resultado completo.</p>`) +
       `<button id="pRestart">Empezar de nuevo</button><button id="pExit">Salir del programa</button>`
@@ -2840,6 +3272,7 @@ function openTest(id, s, sd) {
   if (isRJ && !wasRJ) $('nJumps').value = 10; else if (!isRJ && wasRJ) $('nJumps').value = 3; store.set('trs_lastTest', testId); $('selTest').value = id;
   if (id === 'ROM' && s != null && ROM_MOVES[s]) { $('romMove').value = ROM_MOVES[s][0]; store.set('trs_lastRom', ROM_MOVES[s][0]); }
   if (id === 'ISO' && s != null && ISO_EX[s]) { $('isoEx').value = ISO_EX[s][0]; store.set('trs_lastIso', ISO_EX[s][0]); }
+  if (id === 'MBESS' && s != null && MBESS_ST[s]) $('bessStance').value = MBESS_ST[s][0];
   if (before !== testId + '|' + animId()) $('resCard').classList.add('hide');
   renderTestOpts();
 }
