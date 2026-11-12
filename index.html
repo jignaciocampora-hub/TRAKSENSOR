@@ -48,7 +48,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
 th{color:var(--tx2);font-weight:600}
 td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
-#jumps tr.sel td{background:var(--card2)} #jumps tr[data-k]{cursor:pointer}
+#jumps tr.sel td{background:var(--card2)} #jumps tr.rep{cursor:pointer} #jumps tr.rep.off td{color:var(--tx2)} #jumps tr.rep.off td:not(:last-child){text-decoration:line-through} #jumps tr.rep.off .tog{text-decoration:none;color:var(--bad,#ff6b6b)} #jumps .tog{color:var(--acc);font-weight:600} #jumps tr[data-k]{cursor:pointer}
 #hist tr[data-id]{cursor:pointer} #hist tr[data-id]:hover td{background:var(--card2)} #hist tr.open td{background:var(--card2)} #hist td.go{color:var(--acc,#18c29c);text-align:right;white-space:nowrap}
 .best{color:var(--acc);font-weight:600}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
@@ -291,7 +291,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v1.3 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v1.3.1 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -1266,16 +1266,20 @@ function analyzeROM(S, calStart, calEnd, opts) {
   const minD = opts.minDeg || 5;
   if (mx < minD) return { error: `No se detectó movimiento suficiente (menos de ${minD}°).` };
   const pk = localMax(gaussSmooth(sig, 0.05), calEnd, n, Math.round(0.8 * FS), Math.max(Math.min(8, mx * 0.5), 0.4 * mx));
-  const vals = pk.map(i => sig[i]);
-  const res = { tiles: [], tiles2: [], warn: [], m: {}, table: { head: ['Rep', 'Ángulo'], rows: pk.map((i, k) => [k + 1, r(sig[i], 1) + '°']) } };
+  const ex = new Set((opts.excl || []).filter(k => k >= 1 && k <= pk.length));
+  if (ex.size >= pk.length) ex.clear();
+  const vals = pk.filter((_, k) => !ex.has(k + 1)).map(i => sig[i]);
+  const mxU = ex.size ? Math.max(...vals) : mx;
+  const res = { tiles: [], tiles2: [], warn: [], m: {}, repSel: pk.length > 1, excl: [...ex], table: { head: ['Rep', 'Ángulo'], rows: pk.map((i, k) => [k + 1, r(sig[i], 1) + '°']) } };
   const T = (l, v, u, d, main, sec) => { if (fin(v)) { (sec ? res.tiles2 : res.tiles).push([l, r(v, d), u, main]); res.m[l + ' (' + u + ')'] = r(v, d); } };
-  T('ROM máximo', mx, '°', 1, true); T('ROM promedio', vals.length ? mean(vals) : null, '°', 1); T('Repeticiones', vals.length, '', 0);
+  if (ex.size) res.warn.push(`Repeticiones descartadas: ${[...ex].sort((a, b) => a - b).join(', ')}. El máximo y el promedio se calculan con las ${vals.length} restantes.`);
+  T('ROM máximo', mxU, '°', 1, true); T('ROM promedio', vals.length ? mean(vals) : null, '°', 1); T('Repeticiones', vals.length, '', 0);
   let wpk = 0; for (let i = calEnd; i < n; i++) wpk = Math.max(wpk, wv[i]);
   T('Velocidad angular pico', wpk, '°/s', 0, false, true);
   if (!rotational) { let ym = 0; for (let i = calEnd; i < n; i++) ym = Math.max(ym, Math.abs(yw[i])); T('Rotación asociada', ym, '°', 1, false, true); }
   if (rotational) res.warn.push('Las rotaciones sobre el eje vertical se calculan solo con el giroscopio: en registros largos pueden tener algunos grados de deriva.');
-  res.chart = { type: 'lines', from: Math.max(0, calEnd - FS / 2), to: n - 1, lines: [{ arr: sig, color: '#18c29c', label: rotational ? 'Rotación (°)' : 'Ángulo respecto de la posición inicial (°)' }], spans: [], marks: pk.map((i, k) => [k + 1, i, 'Rep ' + (k + 1), 0]) };
-  res.main = ['ROM máximo', r(mx, 1), '°'];
+  res.chart = { type: 'lines', from: Math.max(0, calEnd - FS / 2), to: n - 1, lines: [{ arr: sig, color: '#18c29c', label: rotational ? 'Rotación (°)' : 'Ángulo respecto de la posición inicial (°)' }], spans: [], marks: pk.map((i, k) => [k + 1, i, 'Rep ' + (k + 1), 0, ex.has(k + 1)]) };
+  res.main = ['ROM máximo', r(mxU, 1), '°'];
   return res;
 }
 
@@ -2543,7 +2547,7 @@ function finishRec(msg) {
   const entry = { id: Date.now(), serie: Date.now(), n: 1, ath: a.id, test: r0.test, side: sideOf(r0.test), cond, date: new Date().toISOString(), main: res.main, m: res.m, extra: res.extra || null };
   entry.raw = true; saveRaw(entry.serie, r0);
   results.push(entry); store.set('trs_results', results);
-  current = { res, entry, t };
+  current = { res, entry, t, r0, snap: uiSnap() };
   status(msg || '¡Listo! Resultado guardado');
   if (progRecord([entry.id])) status((msg || '¡Listo! Resultado guardado') + ' · paso del programa completado');
   showGeneric(res, entry, t);
@@ -2578,7 +2582,7 @@ function analyzeTest(r0, a, t) {
   const opts = { invLR: $('invLR').checked, mass: a.mass };
   if (t.kind === 'rom') {
     const mv = ROM_MOVES.find(x => x[0] === $('romMove').value) || [], db = romOf(mv[0]);
-    const res = withTitle(analyzeROM(S, calA, calB, { rotational: !!mv[2], minDeg: db && db.r && db.r[1] <= 15 ? 2 : 5 }), t);
+    const res = withTitle(analyzeROM(S, calA, calB, { excl: r0.excl, rotational: !!mv[2], minDeg: db && db.r && db.r[1] <= 15 ? 2 : 5 }), t);
     if (!res.error && db && db.start != null) {
       // posición inicial conocida (ej. rodilla a 90°): el resultado clínico es el ángulo final, no el recorrido
       const mx = +res.m['ROM máximo (°)'], fe = mx - db.start, ok = !SHOW_REF ? null : fe >= db.r[0] ? 'good' : fe >= db.r[0] - 5 ? 'mid' : 'bad';
@@ -2766,14 +2770,34 @@ function showGeneric(res, entry, t) {
   renderLSI(entry, entry.main ? entry.main[1] : null, res);
   let html = '';
   if (res.rows && res.rows.length) html += sideTableHTML(res.rows, res.rowHead);
-  if (res.table) html += (html ? '<tr><td colspan="9" style="border:0;padding:8px 0"></td></tr>' : '') + `<tr>${res.table.head.map(h => `<th>${h}</th>`).join('')}</tr>` + res.table.rows.map(rw => `<tr>${rw.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+  const sel = res.repSel && current && current.r0, ex = new Set(res.excl || []);
+  if (res.table) html += (html ? '<tr><td colspan="9" style="border:0;padding:8px 0"></td></tr>' : '') + `<tr>${res.table.head.map(h => `<th>${h}</th>`).join('')}${sel ? '<th style="text-align:right">Incluir</th>' : ''}</tr>` +
+    res.table.rows.map((rw, k) => `<tr${sel ? ` data-rep="${k + 1}" class="rep${ex.has(k + 1) ? ' off' : ''}"` : ''}>${rw.map(c => `<td>${c}</td>`).join('')}${sel ? `<td style="text-align:right"><span class="tog">${ex.has(k + 1) ? 'Descartada' : '✓'}</span></td>` : ''}</tr>`).join('');
   $('jumps').innerHTML = html;
-  $('tblNote').textContent = res.rows && res.rows.length ? 'Asimetría: verde < 10 %, amarillo 10–15 %, rojo > 15 %.' : '';
+  if (sel) $('jumps').querySelectorAll('tr[data-rep]').forEach(tr => tr.onclick = () => toggleRep(+tr.dataset.rep));
+  $('tblNote').textContent = res.rows && res.rows.length ? 'Asimetría: verde < 10 %, amarillo 10–15 %, rojo > 15 %.' : sel ? 'Tocá una repetición para descartarla o volver a incluirla: el resultado se recalcula y se guarda.' : '';
   $('detTitle').classList.toggle('hide', !res.tiles2.length); $('detTitle').textContent = 'Más métricas';
   $('resGrid').innerHTML = res.tiles2.map(tile).join('');
   $('resWarn').textContent = res.warn.join(' ');
   $('resPlot').classList.toggle('hide', !res.chart);
   drawChart(res.chart);
+}
+
+// Descartar / incluir una repetición y recalcular
+function toggleRep(k) {
+  const c = current; if (!c || !c.r0) return;
+  const ex = new Set(c.entry.excl || []); ex.has(k) ? ex.delete(k) : ex.add(k);
+  if (ex.size >= c.res.table.rows.length) { alert('Tiene que quedar al menos una repetición.'); return; }
+  c.r0.excl = [...ex];
+  const keep = uiSnap(); let res;
+  try { if (c.snap) uiApply(c.snap); res = analyzeTest(c.r0, currentAthlete(), c.t); } finally { uiApply(keep); }
+  if (!res || res.error) return;
+  if (c.r0.lost > 0) res.warn.push(`Se perdieron ${c.r0.lost} paquetes de Bluetooth.`);
+  c.entry.excl = [...ex]; c.entry.main = res.main; c.entry.m = res.m; c.res = res;
+  store.set('trs_results', results);
+  const ttl = $('resTitle').textContent;
+  showGeneric(res, c.entry, c.t); $('resTitle').textContent = ttl;
+  renderHist();
 }
 
 // LSI con el otro lado (mismo día) y Romberg
@@ -2891,7 +2915,7 @@ function drawChart(ch) {
     });
     const l0 = ch.lines[0], Y0 = (v) => bot - (Math.min(Math.max(v, l0._lo), l0._hi) - l0._lo) / (l0._hi - l0._lo) * (bot - top);
     x.textAlign = 'center'; x.font = 'bold 11px sans-serif';
-    for (const [num, i] of ch.marks) { const px = Math.min(Math.max(X(i), lft + 8), rgt - 8), py = Math.min(Math.max(Y0(l0.arr[Math.round(i)]), top + 8), bot - 8); x.fillStyle = '#f0a63a'; x.fillRect(px - 8, py - 8, 16, 16); x.fillStyle = '#1a1205'; x.fillText(num, px, py + 4); }
+    for (const [num, i, , , off] of ch.marks) { const px = Math.min(Math.max(X(i), lft + 8), rgt - 8), py = Math.min(Math.max(Y0(l0.arr[Math.round(i)]), top + 8), bot - 8); x.fillStyle = off ? '#4a525e' : '#f0a63a'; x.fillRect(px - 8, py - 8, 16, 16); x.fillStyle = '#1a1205'; x.fillText(num, px, py + 4); }
     x.font = '11px sans-serif'; x.fillStyle = '#9aa4b2'; x.textAlign = 'left';
     const secs = span / FS, stepS = secs > 120 ? 30 : secs > 30 ? 10 : secs > 10 ? 2 : 1;
     for (let s = 0; s <= secs; s += stepS) { const px = X(ch.from + s * FS); x.fillText(s + 's', px - 6, h - 4); }
@@ -3106,7 +3130,7 @@ async function openHist(id) {
   renderHist();
   const raw = e.raw ? await rawDB.get(e.serie) : null;
   if (raw) {
-    const S = unpackS(raw.S), r0 = { S, test: raw.test, calStart: raw.calStart, calEnd: raw.calEnd, cueAt: raw.cueAt, lost: raw.lost };
+    const S = unpackS(raw.S), r0 = { S, test: raw.test, calStart: raw.calStart, calEnd: raw.calEnd, cueAt: raw.cueAt, lost: raw.lost, excl: e.excl || [] };
     const keep = uiSnap(); uiApply(raw.snap);
     try {
       const a = currentAthlete();
@@ -3124,7 +3148,7 @@ async function openHist(id) {
         const res = analyzeTest(r0, a, t);
         if (res.error) throw new Error(res.error);
         if (r0.lost > 0) res.warn.push(`Se perdieron ${r0.lost} paquetes de Bluetooth.`);
-        serie = null; current = { res, entry: e, t };
+        serie = null; current = { res, entry: e, t, r0, snap: raw.snap };
         showGeneric(res, e, t);
       }
       lastRaw = { S, test: e.test, athlete: currentAthlete().name }; $('btnRaw').disabled = false;
