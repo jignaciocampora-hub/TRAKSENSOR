@@ -56,6 +56,16 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 .tile:hover{border-color:var(--acc)}
 .tile .ti{aspect-ratio:320/170;border-radius:10px;background:rgba(14,17,22,.55);overflow:hidden}
 .tile b{font-size:15px;margin-top:4px}.tile small{color:var(--tx2);font-size:12px}
+.arow{display:flex;align-items:center;gap:12px;text-align:left;padding:10px 12px;width:100%}.arow:hover{border-color:var(--acc)}
+.av{flex:none;width:40px;height:40px;border-radius:50%;background:linear-gradient(150deg,#18c29c,#0f6f5a);color:#04241c;font-weight:700;display:inline-flex;align-items:center;justify-content:center}.av.big{width:58px;height:58px;font-size:20px}
+.ainf{flex:1;min-width:0;display:flex;flex-direction:column}.ainf small,.ast small{color:var(--tx2);font-size:12px}.ast{display:flex;flex-direction:column;align-items:flex-end;text-align:right}.arow .go{color:var(--tx2);font-size:20px}
+.aphead{display:flex;gap:12px;align-items:center}.apname{font-size:22px;font-weight:700;line-height:1.2}
+.pcard{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}.pcard:hover,.pcard.open{border-color:var(--acc)}
+.ptop{display:flex;gap:10px;align-items:center}.ptop small{display:block;color:var(--tx2);font-size:12px}.spark{width:120px;flex:none}
+.pvals{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:baseline;margin-top:6px}.pv b{font-size:20px}.pv small{color:var(--tx2)}.pv .sd{font-weight:700;font-size:12px;margin-right:4px}.pv .bst{margin-left:6px;font-size:11px}
+.dl{font-size:12px;font-weight:600;color:var(--tx2);margin-left:4px}.dl.up{color:var(--acc)}.dl.dn{color:var(--bad)}
+.asy{font-size:12px;font-weight:600;padding:2px 8px;border-radius:20px;background:#0e1116}.pn{font-size:11px;color:var(--tx2);margin-left:auto}
+.pbig{margin-top:10px;cursor:default}.ptab{width:100%;margin-top:8px;border-collapse:collapse;font-size:13px}.ptab td,.ptab th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}.ptab tr[data-id]{cursor:pointer}.ptab .go{color:var(--acc);text-align:right}
 .navrow{display:flex;align-items:center;gap:10px;margin-bottom:12px}.navrow h2{margin:0;flex:1}
 #testTitle,#gTitle,#pTitle{font-size:17px;text-transform:none;letter-spacing:0;color:var(--tx)}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.chips::-webkit-scrollbar{display:none}
@@ -138,6 +148,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
     <button id="btnEditAth">Editar</button>
     <button id="btnNewAth">+ Nuevo</button>
   </div>
+  <div class="row" style="margin-top:8px"><button class="sm" id="btnAthProfile">📈 Ver progreso</button><button class="sm" id="btnAths">👥 Listado de atletas</button></div>
   <p class="note" id="athInfo" style="margin-top:6px"></p>
   <div class="hide" id="athForm" style="margin-top:10px">
     <div class="row">
@@ -154,6 +165,23 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
     <p class="note" style="margin-top:6px">Largo de pierna: del trocánter mayor al piso. Si no lo cargás, se estima con la altura.</p>
   </div>
 </div>
+
+<div id="vAths" class="hide"><div class="card">
+  <div class="navrow"><button class="sm" id="btnBackHome2">‹ Inicio</button><h2>Atletas</h2><span class="note" id="athCount"></span></div>
+  <div class="row" style="margin-bottom:10px"><input id="athSearch" placeholder="Buscar atleta…" style="flex:1"><button class="pri" id="btnNewAth2">+ Nuevo</button></div>
+  <div id="athList" class="tlist"></div>
+</div></div>
+
+<div id="vAth" class="hide"><div class="card">
+  <div class="navrow"><button class="sm" id="btnBackAths">‹ Atletas</button><h2>Perfil y progreso</h2></div>
+  <div id="apHead" class="aphead"></div>
+  <div class="row" style="margin:10px 0"><button class="pri" id="btnApEval">Evaluar ›</button><button id="btnApEdit">Editar datos</button><button id="btnApCsv">Exportar CSV</button></div>
+  <div class="grid" id="apSum"></div>
+  <h3 class="ph" style="margin-top:16px">Progreso por test</h3>
+  <div class="chips" id="apCats" style="margin-bottom:8px"></div>
+  <div id="apList" class="tlist"></div>
+  <p class="note" style="margin-top:8px">Cada punto es la mejor marca de cada sesión. Tocá un test para ver la evolución completa; tocá una fecha para abrir el registro. ▲▼ = cambio respecto de la sesión anterior (verde mejora, rojo empeora).</p>
+</div></div>
 
 <div id="vHome">
   <div class="card"><h2>Elegí un test</h2><div class="tiles" id="tiles"></div></div>
@@ -282,7 +310,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 </div>
 </div><!-- /vTest -->
 
-<div class="card">
+<div class="card histCard">
   <h2>Historial del atleta</h2>
   <div class="scroll"><table id="hist"></table></div>
   <div class="row" style="margin-top:10px">
@@ -291,7 +319,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v1.3.1 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v1.4 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -3103,11 +3131,107 @@ $('btnSaveAth').onclick = () => {
   if (editing) Object.assign(athletes.find(a => a.id === editing), data);
   else { const a = { id: 'a' + Date.now(), ...data }; athletes.push(a); store.set('trs_lastAth', a.id); }
   store.set('trs_athletes', athletes); $('athForm').classList.add('hide'); renderAth();
+  const rr = parseHash(); if (rr.v === 'aths') renderAths(); else if (rr.v === 'ath') nav('#a=' + (editing || store.get('trs_lastAth', '')));
 };
 $('btnNewAth').onclick = () => openAthForm(null);
 $('btnEditAth').onclick = () => openAthForm(currentAthlete());
 $('btnCancelAth').onclick = () => $('athForm').classList.add('hide');
-$('selAth').onchange = () => { store.set('trs_lastAth', $('selAth').value); renderAth(); };
+$('selAth').onchange = () => { store.set('trs_lastAth', $('selAth').value); renderAth(); if (parseHash().v === 'ath') nav('#a=' + $('selAth').value); };
+
+// ---------- Atletas y progreso ----------
+function lowBetter(main) { const l = (main && main[0]) || ''; return /^(Área|Error|Errores|Rotación|Duración media)/.test(l) || (/^Tiempo/.test(l) && !/sostenido/.test(l)); }
+function legacyMain(x) { return x.main || (x.m && x.m['Altura (t. vuelo) (cm)'] != null ? ['Altura (t. vuelo)', x.m['Altura (t. vuelo) (cm)'], 'cm'] : x.m && x.m['RSI (m/s)'] != null ? ['RSI', x.m['RSI (m/s)'], 'm/s'] : null); }
+const initials = (n) => n.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+const fmtD = (d) => new Date(d).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+// agrupa los registros de un atleta en series por test + condición (sin lado); una sesión = la mejor de cada serie
+function athProgress(aid) {
+  const groups = {};
+  results.filter(x => x.ath === aid).forEach(x => {
+    const mn = legacyMain(x); if (!mn || !fin(+mn[1])) return;
+    const cond = (x.cond || '').split(' · ').filter(p => p !== 'izq' && p !== 'der').join(' · ');
+    const key = x.test + '|' + cond + '|' + mn[0];
+    const g = groups[key] || (groups[key] = { key, test: x.test, cond, label: mn[0], unit: mn[2], low: lowBetter(mn), pts: {} });
+    const sk = x.serie + '|' + (x.side || ''), v = +mn[1], p = g.pts[sk];
+    if (!p || (g.low ? v < p.v : v > p.v)) g.pts[sk] = { v, date: x.date, side: x.side || null, id: x.id };
+  });
+  return Object.values(groups).map(g => { g.pts = Object.values(g.pts).sort((a, b) => a.date < b.date ? -1 : 1); g.last = g.pts[g.pts.length - 1].date; g.sided = g.pts.some(p => p.side); return g; })
+    .sort((a, b) => a.last < b.last ? 1 : -1);
+}
+function sparkSVG(g, W, H, big) {
+  const series = g.sided ? [['L', '#4c9ef5'], ['R', '#18c29c']] : [[null, '#18c29c']];
+  const all = g.pts.map(p => p.v), t0 = +new Date(g.pts[0].date), t1 = +new Date(g.last);
+  let lo = Math.min(...all), hi = Math.max(...all); if (hi - lo < 1e-9) { lo -= 1; hi += 1; } const pad = (hi - lo) * 0.15; lo -= pad; hi += pad;
+  const L = big ? 42 : 4, R = W - (big ? 12 : 4), T = big ? 10 : 4, B = H - (big ? 24 : 4);
+  const X = (d) => t1 > t0 ? L + (+new Date(d) - t0) / (t1 - t0) * (R - L) : (L + R) / 2, Y = (v) => B - (v - lo) / (hi - lo) * (B - T);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" style="display:block">`;
+  if (big) {
+    for (let k = 0; k <= 3; k++) { const v = lo + (hi - lo) * k / 3, y = Y(v); s += `<line x1="${L}" x2="${R}" y1="${y}" y2="${y}" stroke="#2a313c" stroke-width="1"/><text x="${L - 6}" y="${y + 4}" fill="#9aa4b2" font-size="11" text-anchor="end">${r(v, Math.abs(hi - lo) < 5 ? 1 : 0)}</text>`; }
+    const ds = [...new Set(g.pts.map(p => fmtD(p.date)))]; const step = Math.ceil(ds.length / 6);
+    g.pts.forEach((p, k, A) => { const d = fmtD(p.date); if (k === A.findIndex(q => fmtD(q.date) === d) && ds.indexOf(d) % step === 0) s += `<text x="${X(p.date)}" y="${H - 6}" fill="#9aa4b2" font-size="11" text-anchor="middle">${d}</text>`; });
+  }
+  series.forEach(([sd, col]) => {
+    const P = g.pts.filter(p => !g.sided || p.side === sd); if (!P.length) return;
+    s += `<polyline fill="none" stroke="${col}" stroke-width="${big ? 2.5 : 2}" stroke-linejoin="round" vector-effect="non-scaling-stroke" points="${P.map(p => X(p.date).toFixed(1) + ',' + Y(p.v).toFixed(1)).join(' ')}"/>`;
+    P.forEach((p, k) => { if (big || k === P.length - 1) s += `<circle cx="${X(p.date)}" cy="${Y(p.v)}" r="${big ? 4 : 3}" fill="${col}"${big ? ` data-id="${p.id}" style="cursor:pointer"` : ''}/>`; });
+  });
+  return s + '</svg>';
+}
+function deltaHTML(g, P) {
+  if (P.length < 2) return '<span class="dl">1 sesión</span>';
+  const a = P[P.length - 2].v, b = P[P.length - 1].v, d = b - a, pct = a ? d / Math.abs(a) * 100 : 0, good = g.low ? d < 0 : d > 0;
+  if (Math.abs(pct) < 0.5) return '<span class="dl">= sin cambios</span>';
+  return `<span class="dl ${good ? 'up' : 'dn'}">${d > 0 ? '▲' : '▼'} ${r(Math.abs(pct), 1)} %</span>`;
+}
+function renderAths() {
+  const q = ($('athSearch').value || '').toLowerCase();
+  const list = athletes.filter(a => a.name.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  $('athList').innerHTML = list.length ? list.map(a => {
+    const R = results.filter(x => x.ath === a.id), last = R.length ? R.reduce((m, x) => x.date > m ? x.date : m, '') : null;
+    const ses = new Set(R.map(x => x.serie)).size;
+    return `<button class="arow" data-a="${a.id}"><span class="av">${esc(initials(a.name))}</span><span class="ainf"><b>${esc(a.name)}</b><small>${[a.mass + ' kg', a.height ? a.height + ' cm' : '', a.side ? 'lesión ' + (a.side === 'L' ? 'izq' : 'der') : '', a.note || ''].filter(Boolean).map(esc).join(' · ')}</small></span><span class="ast"><b>${ses}</b><small>${ses === 1 ? 'evaluación' : 'evaluaciones'}</small>${last ? `<small>últ. ${fmtD(last)}</small>` : ''}</span><span class="go">›</span></button>`;
+  }).join('') : `<p class="note">${athletes.length ? 'Ningún atleta coincide con la búsqueda.' : 'Todavía no hay atletas. Creá el primero con "+ Nuevo".'}</p>`;
+  $('athList').querySelectorAll('.arow').forEach(b => b.onclick = () => nav('#a=' + b.dataset.a));
+  $('athCount').textContent = athletes.length ? `${athletes.length} atleta${athletes.length > 1 ? 's' : ''}` : '';
+}
+let athOpenKey = null, athFilter = '';
+function renderAthProfile(id) {
+  const a = athletes.find(x => x.id === id); if (!a) { nav('#a'); return; }
+  if ($('selAth').value !== id) { $('selAth').value = id; store.set('trs_lastAth', id); renderAth(); }
+  const R = results.filter(x => x.ath === id), G = athProgress(id);
+  const ses = new Set(R.map(x => x.serie)).size, days = new Set(R.map(x => new Date(x.date).toDateString())).size;
+  const first = R.length ? R.reduce((m, x) => x.date < m ? x.date : m, R[0].date) : null, last = R.length ? R.reduce((m, x) => x.date > m ? x.date : m, '') : null;
+  $('apHead').innerHTML = `<span class="av big">${esc(initials(a.name))}</span><div style="flex:1;min-width:0"><div class="apname">${esc(a.name)}</div><p class="note">${[a.mass + ' kg', a.height ? a.height + ' cm' : '', a.leg ? 'pierna ' + a.leg + ' cm' : '', a.side ? 'lado lesionado: ' + (a.side === 'L' ? 'izquierdo' : 'derecho') : ''].filter(Boolean).join(' · ')}</p>${a.note ? `<p class="note">${esc(a.note)}</p>` : ''}</div>`;
+  $('apSum').innerHTML = [['Evaluaciones', ses, ''], ['Días evaluados', days, ''], ['Tests distintos', new Set(G.map(g => g.test)).size, ''], ['Período', first ? fmtD(first) + ' – ' + fmtD(last) : '–', '']].map(tile).join('');
+  const cats = [...new Set(G.map(g => (TESTS[g.test] || {}).cat || 'Otros'))];
+  $('apCats').innerHTML = cats.length > 1 ? [''].concat(cats).map(c => `<button class="chip${c === athFilter ? ' on' : ''}" data-c="${esc(c)}">${c ? esc(c) : 'Todos'}</button>`).join('') : '';
+  $('apCats').querySelectorAll('.chip').forEach(b => b.onclick = () => { athFilter = b.dataset.c; renderAthProfile(id); });
+  const GG = G.filter(g => !athFilter || ((TESTS[g.test] || {}).cat || 'Otros') === athFilter);
+  $('apList').innerHTML = GG.length ? GG.map(g => {
+    const t = TESTS[g.test], name = (t ? t.name : g.test), open = athOpenKey === g.key;
+    const sides = g.sided ? [['L', 'Izq', '#4c9ef5'], ['R', 'Der', '#18c29c']] : [[null, '', '#18c29c']];
+    const vals = sides.map(([sd, lb, col]) => { const P = g.pts.filter(p => !g.sided || p.side === sd); if (!P.length) return ''; const best = g.low ? Math.min(...P.map(p => p.v)) : Math.max(...P.map(p => p.v));
+      return `<div class="pv">${lb ? `<span class="sd" style="color:${col}">${lb}</span>` : ''}<b>${P[P.length - 1].v}</b> <small>${esc(g.unit)}</small> ${deltaHTML(g, P)}<small class="bst">mejor ${r(best, 2)}</small></div>`; }).join('');
+    let asy = '';
+    if (g.sided) { const lL = g.pts.filter(p => p.side === 'L').pop(), lR = g.pts.filter(p => p.side === 'R').pop(); if (lL && lR && lL.v && lR.v) { const as = asymPct(Math.abs(lL.v), Math.abs(lR.v)); asy = `<span class="asy ${asymClass(as)}">Asimetría ${r(as, 1)} %</span>`; } }
+    return `<div class="pcard${open ? ' open' : ''}" data-k="${esc(g.key)}"><div class="ptop"><div style="flex:1;min-width:0"><b>${esc(name)}</b><small>${esc([g.cond, g.label].filter(Boolean).join(' · '))}</small></div><div class="spark">${sparkSVG(g, 120, 36, false)}</div></div>
+      <div class="pvals">${vals}${asy}<span class="pn">${g.pts.length} ${g.pts.length > 1 ? 'sesiones' : 'sesión'} · últ. ${fmtD(g.last)}</span></div>
+      ${open ? `<div class="pbig">${sparkSVG(g, Math.max(260, ($('apList').clientWidth || 360) - 26), 210, true)}${g.sided ? '<div class="note"><span style="color:#4c9ef5">● Izquierda</span> &nbsp; <span style="color:#18c29c">● Derecha</span></div>' : ''}
+      <table class="ptab"><tr><th>Fecha</th>${g.sided ? '<th>Lado</th>' : ''}<th>${esc(g.label)}</th><th></th></tr>${g.pts.slice().reverse().map(p => `<tr data-id="${p.id}"><td>${new Date(p.date).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>${g.sided ? `<td>${p.side === 'L' ? 'Izq' : 'Der'}</td>` : ''}<td><b>${p.v}</b> ${esc(g.unit)}</td><td class="go">Ver ›</td></tr>`).join('')}</table></div>` : ''}</div>`;
+  }).join('') : `<p class="note">${R.length ? 'No hay registros en esta categoría.' : 'Todavía no tiene evaluaciones. Tocá "Evaluar" para empezar.'}</p>`;
+  $('apList').querySelectorAll('.pcard').forEach(c => c.onclick = (ev) => {
+    const row = ev.target.closest('[data-id]'); if (row) { ev.stopPropagation(); openHist(+row.dataset.id); return; }
+    athOpenKey = athOpenKey === c.dataset.k ? null : c.dataset.k; renderAthProfile(id);
+  });
+}
+$('btnAths').onclick = () => nav('#a');
+$('btnAthProfile').onclick = () => { const a = currentAthlete(); if (a) nav('#a=' + a.id); };
+$('btnBackAths').onclick = () => nav('#a');
+$('btnBackHome2').onclick = () => nav('');
+$('athSearch').oninput = renderAths;
+$('btnNewAth2').onclick = () => { openAthForm(null); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+$('btnApEdit').onclick = () => { openAthForm(currentAthlete()); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+$('btnApEval').onclick = () => nav('');
+$('btnApCsv').onclick = () => $('btnCsv').click();
 
 // ---------- Historial ----------
 function renderHist() {
@@ -3272,6 +3396,7 @@ function parseHash() {
   if (q.t && TESTS[q.t]) return { v: 'test', t: q.t, s: q.s !== undefined && q.s !== '' ? +q.s : null, side: q.side === 'L' || q.side === 'R' ? q.side : null };
   if (q.p && PROGRAMS.some(x => x.id === q.p)) return { v: 'prog', p: q.p, sum: q.sum === '1' };
   if (q.g && GROUPS.some(g => g.id === q.g)) return { v: 'group', g: q.g };
+  if ('a' in q) return q.a ? { v: 'ath', a: q.a } : { v: 'aths' };
   return { v: 'home' };
 }
 let curHash = location.hash;
@@ -3287,14 +3412,18 @@ window.addEventListener('popstate', () => {
 function renderRoute() {
   const r = parseHash(); curHash = location.hash;
   $('vHome').classList.toggle('hide', r.v !== 'home'); $('vGroup').classList.toggle('hide', r.v !== 'group'); $('vTest').classList.toggle('hide', r.v !== 'test'); $('vProg').classList.toggle('hide', r.v !== 'prog');
+  $('vAths').classList.toggle('hide', r.v !== 'aths'); $('vAth').classList.toggle('hide', r.v !== 'ath');
+  document.querySelectorAll('.histCard').forEach(c => c.classList.toggle('hide', r.v === 'aths' || r.v === 'ath'));
   if (r.v !== 'test') AN.stop();
   if (r.v === 'home') renderHome();
   else if (r.v === 'group') renderGroup(r.g);
   else if (r.v === 'prog') renderProg(r.p, r.sum);
+  else if (r.v === 'aths') renderAths();
+  else if (r.v === 'ath') { if (curAthView !== r.a) { athOpenKey = null; athFilter = ''; curAthView = r.a; } renderAthProfile(r.a); }
   else openTest(r.t, r.s, r.side);
   window.scrollTo(0, 0);
 }
-let homeBuilt = false;
+let homeBuilt = false, curAthView = null;
 function renderHome() {
   if (homeBuilt) return; homeBuilt = true;
   $('tiles').innerHTML = GROUPS.map(g => { const n = gItems(g).length; return `<button class="tile${g.id === 'programas' ? ' prog' : ''}" data-g="${g.id}"><div class="ti">${AN.thumb(g.icon, g.vb || '0 38 320 184')}</div><b>${esc(g.name)}</b><small>${g.label ? g.label() : n + ' ' + (n > 1 ? 'tests' : 'test')}</small></button>`; }).join('');
