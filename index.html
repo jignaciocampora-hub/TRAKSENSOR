@@ -66,6 +66,9 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 .dl{font-size:12px;font-weight:600;color:var(--tx2);margin-left:4px}.dl.up{color:var(--acc)}.dl.dn{color:var(--bad)}
 .asy{font-size:12px;font-weight:600;padding:2px 8px;border-radius:20px;background:#0e1116}.pn{font-size:11px;color:var(--tx2);margin-left:auto}
 .pbig{margin-top:10px;cursor:default}.ptab{width:100%;margin-top:8px;border-collapse:collapse;font-size:13px}.ptab td,.ptab th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}.ptab tr[data-id]{cursor:pointer}.ptab .go{color:var(--acc);text-align:right}.del{background:transparent;border-color:#3a2a2c;color:#ff8a84}.del:hover{border-color:var(--bad);background:#2a1719}
+#romDial{width:100%;max-width:360px;height:340px;display:block;margin:4px auto 0}
+.romMini{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:10px}.romMini .md{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:6px 4px 4px;text-align:center;cursor:pointer}
+.romMini .md canvas{width:84px;height:84px;display:block;margin:0 auto}.romMini .md small{display:block;font-size:11px;color:var(--tx2)}.romMini .md.off{opacity:.45}.romMini .md.off small{color:var(--bad)}.romMini .md.best{border-color:#ff6b9a}
 #stabPlot{width:100%;max-width:380px;height:380px;display:block;margin:4px auto 0}
 .stabLeg{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:6px}.stabLeg>span{font-size:13px;padding:4px 10px;border-radius:20px;background:var(--card2);border:1px solid var(--line)}.stabLeg b{font-size:15px}
 .navrow{display:flex;align-items:center;gap:10px;margin-bottom:12px}.navrow h2{margin:0;flex:1}
@@ -302,6 +305,8 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   <h2 style="margin-top:14px" id="detTitle">Detalle</h2>
   <div class="grid" id="resGrid"></div>
   <p class="note warn" id="resWarn" style="margin-top:8px"></p>
+  <div id="romBox" class="hide"><h3 class="ph" style="margin-top:14px">Ángulo alcanzado</h3><canvas id="romDial"></canvas>
+    <div id="romMini" class="romMini"></div><div class="row" style="justify-content:center;margin-top:8px"><button class="sm" id="btnRomCurve">📈 Ver curva en el tiempo</button></div></div>
   <div id="stabBox" class="hide"><h3 class="ph" style="margin-top:14px">Control del centro</h3><canvas id="stabPlot"></canvas><div id="stabLeg" class="stabLeg"></div></div>
   <canvas id="resPlot" style="margin-top:10px;height:240px"></canvas>
   <div class="note" id="phaseLegend" style="margin-top:8px"></div>
@@ -322,7 +327,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v1.5 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v1.5.1 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -1324,6 +1329,7 @@ function analyzeROM(S, calStart, calEnd, opts) {
   if (!rotational) { let ym = 0; for (let i = calEnd; i < n; i++) ym = Math.max(ym, Math.abs(yw[i])); T('Rotación asociada', ym, '°', 1, false, true); }
   if (rotational) res.warn.push('Las rotaciones sobre el eje vertical se calculan solo con el giroscopio: en registros largos pueden tener algunos grados de deriva.');
   res.chart = { type: 'lines', from: Math.max(0, calEnd - FS / 2), to: n - 1, lines: [{ arr: sig, color: '#18c29c', label: rotational ? 'Rotación (°)' : 'Ángulo respecto de la posición inicial (°)' }], spans: [], marks: pk.map((i, k) => [k + 1, i, 'Rep ' + (k + 1), 0, ex.has(k + 1)]) };
+  res.romDial = { vals: pk.map(i => sig[i]), ex: [...ex], max: mxU, mean: mean(vals), rot: !!opts.rotational };
   res.main = ['ROM máximo', r(mxU, 1), '°'];
   return res;
 }
@@ -2827,6 +2833,51 @@ function showGeneric(res, entry, t) {
   $('resPlot').classList.toggle('hide', !res.chart);
   drawChart(res.chart);
   $('stabBox').classList.toggle('hide', !res.stab); if (res.stab) requestAnimationFrame(() => drawStab(res.stab));
+  $('romBox').classList.toggle('hide', !res.romDial);
+  if (res.romDial) { romCurve = false; $('resPlot').classList.add('hide'); $('phaseLegend').classList.add('hide'); $('btnRomCurve').textContent = '📈 Ver curva en el tiempo'; requestAnimationFrame(() => drawRomDial(res.romDial)); }
+  else $('phaseLegend').classList.remove('hide');
+}
+let romCurve = false;
+$('btnRomCurve').onclick = () => {
+  romCurve = !romCurve; $('resPlot').classList.toggle('hide', !romCurve); $('phaseLegend').classList.toggle('hide', !romCurve);
+  $('btnRomCurve').textContent = romCurve ? 'Ocultar curva' : '📈 Ver curva en el tiempo';
+  if (romCurve && current && current.res) drawChart(current.res.chart);
+};
+function dialRing(x, cx, cy, R, lw, frac, col) {
+  x.beginPath(); x.strokeStyle = '#232a35'; x.lineWidth = lw; x.arc(cx, cy, R, 0, 2 * Math.PI); x.stroke();
+  if (frac > 0) { x.beginPath(); x.strokeStyle = col; x.lineCap = 'round'; x.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.min(1, frac) * 2 * Math.PI); x.stroke(); x.lineCap = 'butt'; }
+}
+function drawRomDial(d) {
+  const all = d.vals, ex = new Set(d.ex), inc = all.filter((_, k) => !ex.has(k + 1)), top = Math.max(...all);
+  const sc = top <= 85 ? 90 : top <= 175 ? 180 : 360, best = all.indexOf(Math.max(...inc));
+  const { x, w, h } = setupCanvas($('romDial')); x.clearRect(0, 0, w, h);
+  const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.38, lw = Math.max(14, R * 0.14);
+  dialRing(x, cx, cy, R, lw, d.max / sc, '#18c29c');
+  // escala
+  x.fillStyle = '#5b6574'; x.font = `${Math.round(R * 0.085)}px system-ui`; x.textAlign = 'center';
+  const stp = sc === 90 ? 15 : 30;
+  for (let v = 0; v < sc; v += stp) { const a = -Math.PI / 2 + v / sc * 2 * Math.PI, rr = R - lw * 1.35; x.fillText(v + '°', cx + Math.cos(a) * rr, cy + Math.sin(a) * rr + 4); }
+  // marca por repetición
+  all.forEach((v, k) => {
+    const a = -Math.PI / 2 + Math.min(1, v / sc) * 2 * Math.PI, r1 = R - lw * 0.75, r2 = R + lw * 0.75, off = ex.has(k + 1), isB = k === best;
+    x.strokeStyle = off ? '#4a525e' : isB ? '#ff6b9a' : '#f0a63a'; x.lineWidth = isB ? 4 : 3;
+    x.beginPath(); x.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); x.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); x.stroke();
+    const rl = r2 + 13 + (k % 2) * 13; x.fillStyle = x.strokeStyle; x.font = `600 ${Math.round(R * 0.09)}px system-ui`;
+    x.fillText(k + 1, cx + Math.cos(a) * rl, cy + Math.sin(a) * rl + 4);
+  });
+  x.fillStyle = '#e8ecf1'; x.font = `700 ${Math.round(R * 0.4)}px system-ui`; x.textAlign = 'center'; x.fillText(r(d.max, 1) + '°', cx, cy + R * 0.1);
+  x.fillStyle = '#9aa4b2'; x.font = `500 ${Math.round(R * 0.11)}px system-ui`;
+  x.fillText('máximo', cx, cy + R * 0.3); x.fillText(`prom. ${r(d.mean, 1)}°`, cx, cy + R * 0.46); x.fillText(`${inc.length} rep.`, cx, cy + R * 0.6);
+  // mini diales por repetición
+  const sel = current && current.r0 && current.res && current.res.repSel;
+  $('romMini').innerHTML = all.map((v, k) => `<div class="md${ex.has(k + 1) ? ' off' : ''}${k === best ? ' best' : ''}" data-rep="${k + 1}"><canvas></canvas><small>${ex.has(k + 1) ? 'Descartada' : k === best ? 'Mejor' : 'Rep ' + (k + 1)}</small></div>`).join('');
+  $('romMini').querySelectorAll('.md').forEach((el, k) => {
+    const c = setupCanvas(el.querySelector('canvas')), q = c.x, v = all[k], R2 = c.w * 0.38;
+    dialRing(q, c.w / 2, c.h / 2, R2, 7, v / sc, ex.has(k + 1) ? '#4a525e' : k === best ? '#ff6b9a' : '#18c29c');
+    q.fillStyle = '#e8ecf1'; q.textAlign = 'center'; q.font = '700 15px system-ui'; q.fillText(r(v, 0) + '°', c.w / 2, c.h / 2 + 1);
+    q.fillStyle = '#9aa4b2'; q.font = '10px system-ui'; q.fillText('#' + (k + 1), c.w / 2, c.h / 2 + 15);
+    if (sel) el.onclick = () => toggleRep(k + 1);
+  });
 }
 function drawStab(st) {
   const { x, w, h } = setupCanvas($('stabPlot')); x.clearRect(0, 0, w, h);
