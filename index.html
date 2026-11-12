@@ -327,7 +327,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v1.5.1 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v1.5.2 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -2826,7 +2826,7 @@ function showGeneric(res, entry, t) {
     res.table.rows.map((rw, k) => `<tr${sel ? ` data-rep="${k + 1}" class="rep${ex.has(k + 1) ? ' off' : ''}"` : ''}>${rw.map(c => `<td>${c}</td>`).join('')}${sel ? `<td style="text-align:right"><span class="tog">${ex.has(k + 1) ? 'Descartada' : '✓'}</span></td>` : ''}</tr>`).join('');
   $('jumps').innerHTML = html;
   if (sel) $('jumps').querySelectorAll('tr[data-rep]').forEach(tr => tr.onclick = () => toggleRep(+tr.dataset.rep));
-  $('tblNote').textContent = res.rows && res.rows.length ? 'Asimetría: verde < 10 %, amarillo 10–15 %, rojo > 15 %.' : sel ? 'Tocá una repetición para descartarla o volver a incluirla: el resultado se recalcula y se guarda.' : '';
+  $('tblNote').textContent = res.rows && res.rows.length ? 'Asimetría: verde < 10 %, amarillo 10–15 %, rojo > 15 %.' : sel ? 'Tocá una repetición para descartarla o volver a incluirla: el resultado se recalcula y se guarda. Las descartadas no se muestran en los gráficos.' : '';
   $('detTitle').classList.toggle('hide', !res.tiles2.length); $('detTitle').textContent = 'Más métricas';
   $('resGrid').innerHTML = res.tiles2.map(tile).join('');
   $('resWarn').textContent = res.warn.join(' ');
@@ -2848,7 +2848,7 @@ function dialRing(x, cx, cy, R, lw, frac, col) {
   if (frac > 0) { x.beginPath(); x.strokeStyle = col; x.lineCap = 'round'; x.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.min(1, frac) * 2 * Math.PI); x.stroke(); x.lineCap = 'butt'; }
 }
 function drawRomDial(d) {
-  const all = d.vals, ex = new Set(d.ex), inc = all.filter((_, k) => !ex.has(k + 1)), top = Math.max(...all);
+  const all = d.vals, ex = new Set(d.ex), inc = all.filter((_, k) => !ex.has(k + 1)), top = Math.max(...inc);
   const sc = top <= 85 ? 90 : top <= 175 ? 180 : 360, best = all.indexOf(Math.max(...inc));
   const { x, w, h } = setupCanvas($('romDial')); x.clearRect(0, 0, w, h);
   const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.38, lw = Math.max(14, R * 0.14);
@@ -2859,6 +2859,7 @@ function drawRomDial(d) {
   for (let v = 0; v < sc; v += stp) { const a = -Math.PI / 2 + v / sc * 2 * Math.PI, rr = R - lw * 1.35; x.fillText(v + '°', cx + Math.cos(a) * rr, cy + Math.sin(a) * rr + 4); }
   // marca por repetición
   all.forEach((v, k) => {
+    if (ex.has(k + 1)) return;
     const a = -Math.PI / 2 + Math.min(1, v / sc) * 2 * Math.PI, r1 = R - lw * 0.75, r2 = R + lw * 0.75, off = ex.has(k + 1), isB = k === best;
     x.strokeStyle = off ? '#4a525e' : isB ? '#ff6b9a' : '#f0a63a'; x.lineWidth = isB ? 4 : 3;
     x.beginPath(); x.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); x.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); x.stroke();
@@ -2870,9 +2871,10 @@ function drawRomDial(d) {
   x.fillText('máximo', cx, cy + R * 0.3); x.fillText(`prom. ${r(d.mean, 1)}°`, cx, cy + R * 0.46); x.fillText(`${inc.length} rep.`, cx, cy + R * 0.6);
   // mini diales por repetición
   const sel = current && current.r0 && current.res && current.res.repSel;
-  $('romMini').innerHTML = all.map((v, k) => `<div class="md${ex.has(k + 1) ? ' off' : ''}${k === best ? ' best' : ''}" data-rep="${k + 1}"><canvas></canvas><small>${ex.has(k + 1) ? 'Descartada' : k === best ? 'Mejor' : 'Rep ' + (k + 1)}</small></div>`).join('');
-  $('romMini').querySelectorAll('.md').forEach((el, k) => {
-    const c = setupCanvas(el.querySelector('canvas')), q = c.x, v = all[k], R2 = c.w * 0.38;
+  const shown = all.map((v, k) => k).filter(k => !ex.has(k + 1));
+  $('romMini').innerHTML = shown.map(k => `<div class="md${ex.has(k + 1) ? ' off' : ''}${k === best ? ' best' : ''}" data-rep="${k + 1}"><canvas></canvas><small>${ex.has(k + 1) ? 'Descartada' : k === best ? 'Mejor' : 'Rep ' + (k + 1)}</small></div>`).join('');
+  $('romMini').querySelectorAll('.md').forEach((el, j) => {
+    const k = shown[j], c = setupCanvas(el.querySelector('canvas')), q = c.x, v = all[k], R2 = c.w * 0.38;
     dialRing(q, c.w / 2, c.h / 2, R2, 7, v / sc, ex.has(k + 1) ? '#4a525e' : k === best ? '#ff6b9a' : '#18c29c');
     q.fillStyle = '#e8ecf1'; q.textAlign = 'center'; q.font = '700 15px system-ui'; q.fillText(r(v, 0) + '°', c.w / 2, c.h / 2 + 1);
     q.fillStyle = '#9aa4b2'; q.font = '10px system-ui'; q.fillText('#' + (k + 1), c.w / 2, c.h / 2 + 15);
