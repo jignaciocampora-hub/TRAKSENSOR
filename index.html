@@ -65,7 +65,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 .pvals{display:flex;flex-wrap:wrap;gap:4px 16px;align-items:baseline;margin-top:6px}.pv b{font-size:20px}.pv small{color:var(--tx2)}.pv .sd{font-weight:700;font-size:12px;margin-right:4px}.pv .bst{margin-left:6px;font-size:11px}
 .dl{font-size:12px;font-weight:600;color:var(--tx2);margin-left:4px}.dl.up{color:var(--acc)}.dl.dn{color:var(--bad)}
 .asy{font-size:12px;font-weight:600;padding:2px 8px;border-radius:20px;background:#0e1116}.pn{font-size:11px;color:var(--tx2);margin-left:auto}
-.pbig{margin-top:10px;cursor:default}.ptab{width:100%;margin-top:8px;border-collapse:collapse;font-size:13px}.ptab td,.ptab th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}.ptab tr[data-id]{cursor:pointer}.ptab .go{color:var(--acc);text-align:right}
+.pbig{margin-top:10px;cursor:default}.ptab{width:100%;margin-top:8px;border-collapse:collapse;font-size:13px}.ptab td,.ptab th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}.ptab tr[data-id]{cursor:pointer}.ptab .go{color:var(--acc);text-align:right}.del{background:transparent;border-color:#3a2a2c;color:#ff8a84}.del:hover{border-color:var(--bad);background:#2a1719}
 .navrow{display:flex;align-items:center;gap:10px;margin-bottom:12px}.navrow h2{margin:0;flex:1}
 #testTitle,#gTitle,#pTitle{font-size:17px;text-transform:none;letter-spacing:0;color:var(--tx)}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.chips::-webkit-scrollbar{display:none}
@@ -319,7 +319,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v1.4 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v1.4.1 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -3152,7 +3152,7 @@ function athProgress(aid) {
     const key = x.test + '|' + cond + '|' + mn[0];
     const g = groups[key] || (groups[key] = { key, test: x.test, cond, label: mn[0], unit: mn[2], low: lowBetter(mn), pts: {} });
     const sk = x.serie + '|' + (x.side || ''), v = +mn[1], p = g.pts[sk];
-    if (!p || (g.low ? v < p.v : v > p.v)) g.pts[sk] = { v, date: x.date, side: x.side || null, id: x.id };
+    if (!p || (g.low ? v < p.v : v > p.v)) g.pts[sk] = { v, date: x.date, side: x.side || null, id: x.id, serie: x.serie };
   });
   return Object.values(groups).map(g => { g.pts = Object.values(g.pts).sort((a, b) => a.date < b.date ? -1 : 1); g.last = g.pts[g.pts.length - 1].date; g.sided = g.pts.some(p => p.side); return g; })
     .sort((a, b) => a.last < b.last ? 1 : -1);
@@ -3167,7 +3167,7 @@ function sparkSVG(g, W, H, big) {
   if (big) {
     for (let k = 0; k <= 3; k++) { const v = lo + (hi - lo) * k / 3, y = Y(v); s += `<line x1="${L}" x2="${R}" y1="${y}" y2="${y}" stroke="#2a313c" stroke-width="1"/><text x="${L - 6}" y="${y + 4}" fill="#9aa4b2" font-size="11" text-anchor="end">${r(v, Math.abs(hi - lo) < 5 ? 1 : 0)}</text>`; }
     const ds = [...new Set(g.pts.map(p => fmtD(p.date)))]; const step = Math.ceil(ds.length / 6);
-    g.pts.forEach((p, k, A) => { const d = fmtD(p.date); if (k === A.findIndex(q => fmtD(q.date) === d) && ds.indexOf(d) % step === 0) s += `<text x="${X(p.date)}" y="${H - 6}" fill="#9aa4b2" font-size="11" text-anchor="middle">${d}</text>`; });
+    g.pts.forEach((p, k, A) => { const d = fmtD(p.date); if (k === A.findIndex(q => fmtD(q.date) === d) && ds.indexOf(d) % step === 0) { const xx = X(p.date); s += `<text x="${xx}" y="${H - 6}" fill="#9aa4b2" font-size="11" text-anchor="${xx > R - 30 ? 'end' : xx < L + 30 ? 'start' : 'middle'}">${d}</text>`; } });
   }
   series.forEach(([sd, col]) => {
     const P = g.pts.filter(p => !g.sided || p.side === sd); if (!P.length) return;
@@ -3216,9 +3216,26 @@ function renderAthProfile(id) {
     return `<div class="pcard${open ? ' open' : ''}" data-k="${esc(g.key)}"><div class="ptop"><div style="flex:1;min-width:0"><b>${esc(name)}</b><small>${esc([g.cond, g.label].filter(Boolean).join(' · '))}</small></div><div class="spark">${sparkSVG(g, 120, 36, false)}</div></div>
       <div class="pvals">${vals}${asy}<span class="pn">${g.pts.length} ${g.pts.length > 1 ? 'sesiones' : 'sesión'} · últ. ${fmtD(g.last)}</span></div>
       ${open ? `<div class="pbig">${sparkSVG(g, Math.max(260, ($('apList').clientWidth || 360) - 26), 210, true)}${g.sided ? '<div class="note"><span style="color:#4c9ef5">● Izquierda</span> &nbsp; <span style="color:#18c29c">● Derecha</span></div>' : ''}
-      <table class="ptab"><tr><th>Fecha</th>${g.sided ? '<th>Lado</th>' : ''}<th>${esc(g.label)}</th><th></th></tr>${g.pts.slice().reverse().map(p => `<tr data-id="${p.id}"><td>${new Date(p.date).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>${g.sided ? `<td>${p.side === 'L' ? 'Izq' : 'Der'}</td>` : ''}<td><b>${p.v}</b> ${esc(g.unit)}</td><td class="go">Ver ›</td></tr>`).join('')}</table></div>` : ''}</div>`;
+      <table class="ptab"><tr><th>Fecha</th>${g.sided ? '<th>Lado</th>' : ''}<th>${esc(g.label)}</th><th></th><th></th></tr>${g.pts.slice().reverse().map(p => `<tr data-id="${p.id}"><td>${new Date(p.date).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>${g.sided ? `<td>${p.side === 'L' ? 'Izq' : 'Der'}</td>` : ''}<td><b>${p.v}</b> ${esc(g.unit)}</td><td class="go">Ver ›</td><td style="width:34px;text-align:right"><button class="sm del" data-del="${p.serie}|${p.side || ''}" title="Eliminar esta sesión">🗑</button></td></tr>`).join('')}</table>
+      <div class="row" style="margin-top:8px;justify-content:flex-end"><button class="sm del" data-delall="1">🗑 Eliminar todas las sesiones de este test</button></div></div>` : ''}</div>`;
   }).join('') : `<p class="note">${R.length ? 'No hay registros en esta categoría.' : 'Todavía no tiene evaluaciones. Tocá "Evaluar" para empezar.'}</p>`;
   $('apList').querySelectorAll('.pcard').forEach(c => c.onclick = (ev) => {
+    const del = ev.target.closest('[data-del],[data-delall]');
+    if (del) {
+      ev.stopPropagation();
+      const g = G.find(x => x.key === c.dataset.k); if (!g) return;
+      const pts = del.dataset.delall ? g.pts : g.pts.filter(p => p.serie + '|' + (p.side || '') === del.dataset.del);
+      const t = TESTS[g.test], nm = t ? t.name : g.test;
+      const msg = del.dataset.delall ? `¿Eliminar las ${pts.length} sesiones de "${nm}${g.cond ? ' · ' + g.cond : ''}"? No se puede deshacer.` : `¿Eliminar la sesión del ${new Date(pts[0].date).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}${pts[0].side ? ' (' + (pts[0].side === 'L' ? 'izq' : 'der') + ')' : ''} de "${nm}"? Se borran todas las repeticiones/saltos de esa sesión. No se puede deshacer.`;
+      if (!confirm(msg)) return;
+      const kill = new Set(pts.map(p => p.serie + '|' + (p.side || ''))), sids = new Set(pts.map(p => p.serie));
+      results = results.filter(x => !(x.ath === id && kill.has(x.serie + '|' + (x.side || ''))));
+      store.set('trs_results', results); sids.forEach(cleanRaw);
+      if (current && sids.has(current.entry.serie)) { current = null; $('resCard').classList.add('hide'); }
+      if (serie && sids.has(serie.sid)) { serie = null; $('resCard').classList.add('hide'); }
+      if (del.dataset.delall) athOpenKey = null;
+      renderAthProfile(id); renderHist(); return;
+    }
     const row = ev.target.closest('[data-id]'); if (row) { ev.stopPropagation(); openHist(+row.dataset.id); return; }
     athOpenKey = athOpenKey === c.dataset.k ? null : c.dataset.k; renderAthProfile(id);
   });
