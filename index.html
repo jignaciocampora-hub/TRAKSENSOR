@@ -33,6 +33,9 @@ select optgroup{color:var(--tx2)}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--bad);display:inline-block;margin-right:6px}
 .dot.ok{background:var(--acc)}
 #status{font-size:20px;font-weight:600;text-align:center;padding:12px 4px 4px;min-height:46px}
+#gaugeWrap{position:relative}#gauge{width:100%;height:300px;display:block;margin:4px 0 6px}
+#btnGaugeBig{position:absolute;right:0;top:0;display:none}#gauge:not(.hide)+#btnGaugeBig{display:inline-block}
+#gaugeWrap.big{position:fixed;inset:0;z-index:50;background:#0b0e13;padding:12px}#gaugeWrap.big #gauge{height:calc(100vh - 24px)}#gaugeWrap.big #btnGaugeBig{right:12px;top:12px}
 #counter{text-align:center;color:var(--tx2);min-height:22px;margin-bottom:8px;font-variant-numeric:tabular-nums}
 canvas{width:100%;height:160px;display:block;background:var(--card2);border-radius:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
@@ -255,6 +258,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   <button class="pri big" id="btnRec" disabled>Registrar</button>
   <div id="status">Conectá el sensor</div>
   <div id="counter"></div>
+  <div id="gaugeWrap"><canvas id="gauge" class="hide"></canvas><button class="sm" id="btnGaugeBig">⛶ Pantalla grande</button></div>
   <canvas id="live"></canvas>
 </div>
 
@@ -287,7 +291,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v1.2 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v1.3 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -2192,7 +2196,7 @@ const ROM_DB = [
   { j: 'Cadera', n: 'Elevación de pierna recta (SLR)', z: 'Boca arriba, piernas extendidas, pelvis fija.', m: 'Levantá la pierna estirada lo más alto posible sin flexionar la rodilla.', s: 'Espinilla', r: [70, 90] },
   { j: 'Cadera', n: 'Test de Thomas', z: 'Boca arriba en el borde de la camilla, pierna evaluada recta apoyada (cero).', m: 'Abrazá la otra rodilla al pecho y dejá caer la pierna evaluada: el ángulo que sube el muslo es el acortamiento.', s: 'Muslo', r: [0, 10], cmp: false },
   { j: 'Rodilla', n: 'Flexión de rodilla', z: 'Boca abajo, pierna extendida.', m: 'Flexioná la rodilla llevando el talón hacia el glúteo.', s: 'Espinilla', r: [120, 140] },
-  { j: 'Rodilla', n: 'Extensión de rodilla', z: 'Sentado, rodilla a 90°, espinilla vertical.', m: 'Extendé la rodilla y levantá la pierna (incluida la hiperextensión).', s: 'Espinilla', r: [0, 10], cmp: false },
+  { j: 'Rodilla', n: 'Extensión de rodilla', z: 'Sentado, rodilla a 90°, espinilla vertical.', m: 'Extendé la rodilla al máximo. La app mide el recorrido desde 90° y calcula la extensión final: 0° = rodilla recta, positivo = hiperextensión, negativo = déficit de extensión.', s: 'Espinilla', r: [0, 10], start: 90 },
   { j: 'Rodilla', n: 'Extensión activa de rodilla (AKE)', z: 'Boca arriba, cadera y rodilla a 90° (muslo vertical).', m: 'Extendé la rodilla lo más posible manteniendo el muslo vertical.', s: 'Espinilla', r: [70, 90] },
   { j: 'Tobillo', n: 'Flexión dorsal de tobillo', z: 'Sentado, tobillo en posición neutra.', m: 'Llevá el empeine hacia la espinilla.', s: 'Empeine', r: [10, 20] },
   { j: 'Tobillo', n: 'Flexión plantar de tobillo', z: 'Sentado, tobillo en posición neutra.', m: 'Apuntá los dedos del pie hacia abajo.', s: 'Empeine', r: [25, 50] },
@@ -2213,6 +2217,7 @@ const ROM_DB = [
 const ROM_SENS = { 'Muñeca': 'la muñeca', 'Dorso de la mano': 'el dorso de la mano', 'Muslo': 'el muslo', 'Empeine': 'el empeine', 'Espinilla': 'la espinilla', 'Torso': 'el esternón (torso)', 'Frente': 'la frente', 'Segmento que se mueve': 'el segmento que se mueve' };
 const ROM_MOVES = ROM_DB.map(m => [m.n, 'sensor en ' + (ROM_SENS[m.s] || m.s.toLowerCase()), !!m.rot]);
 const romOf = (name) => ROM_DB.find(m => m.n === name);
+const SHOW_REF = false;   // rangos de referencia de ROM: ocultos (poner true para mostrarlos)
 // [nombre, ubicación del sensor, unilateral, consejo]
 const ISO_EX = [
   ['Plancha frontal', 'sensor en L5 con el cinturón', false, 'Codos debajo de los hombros, cuerpo en línea recta de hombros a tobillos.'],
@@ -2449,6 +2454,7 @@ function onSample(s) {
       rec.gb = gb;
       status(goMsg());
       if (TESTS[rec.test].stop === 'scrum') scrumSetup(i);
+      if (rec.kind === 'test') { liveInit(); requestAnimationFrame(drawGauge); setTimeout(() => { try { $('gaugeWrap').scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {} }, 50); }
     }
     return;
   }
@@ -2457,12 +2463,15 @@ function onSample(s) {
   const w = [s[3] - rec.gb[0], s[4] - rec.gb[1], s[5] - rec.gb[2]], gm = Math.hypot(w[0], w[1], w[2]), wV = dot(w, u);
   const el = (i - rec.calEnd) / FS;
   if (gm > 20 || Math.abs(m / g0 - 1) > 0.08) { rec.lastMove = i; rec.moveN++; }
+  liveTick(s, w, m, i);
   // saltos
   if (t.stop === 'jumps') {
     if (rec.ff < 0 && m < FF_IN) rec.ff = i;
     else if (rec.ff >= 0 && m > FF_OUT) {
       if ((i - rec.ff) / FS >= MIN_FLIGHT) {
         const isJump = t.jump !== 'DJ' || (rec.lastEnd >= 0 && (rec.ff - rec.lastEnd) / FS < DJ_GAP);
+        const ctL = rec.lastEnd >= 0 && (rec.ff - rec.lastEnd) / FS < 0.6 ? (rec.ff - rec.lastEnd) / FS : null;
+        if (isJump) liveJump((i - rec.ff) / FS, ctL);
         rec.lastEnd = i;
         if (isJump) {
           rec.jumps++; rec.lastEvt = i;
@@ -2519,6 +2528,7 @@ function stopRec() {
 
 // ---------- Fin del registro y análisis ----------
 function finishRec(msg) {
+  if (gaugeBig) $('btnGaugeBig').click();
   send('P');
   const r0 = rec; rec = null; setRecBtn(); counter('');
   const a = currentAthlete(), t = TESTS[r0.test];
@@ -2569,7 +2579,19 @@ function analyzeTest(r0, a, t) {
   if (t.kind === 'rom') {
     const mv = ROM_MOVES.find(x => x[0] === $('romMove').value) || [], db = romOf(mv[0]);
     const res = withTitle(analyzeROM(S, calA, calB, { rotational: !!mv[2], minDeg: db && db.r && db.r[1] <= 15 ? 2 : 5 }), t);
-    if (!res.error && db && db.r) {
+    if (!res.error && db && db.start != null) {
+      // posición inicial conocida (ej. rodilla a 90°): el resultado clínico es el ángulo final, no el recorrido
+      const mx = +res.m['ROM máximo (°)'], fe = mx - db.start, ok = !SHOW_REF ? null : fe >= db.r[0] ? 'good' : fe >= db.r[0] - 5 ? 'mid' : 'bad';
+      res.tiles.unshift(['Extensión final', r(fe, 1), '°', true, ok]);
+      res.m['Extensión final (°)'] = r(fe, 1);
+      if (res.tiles[1]) res.tiles[1][3] = false;
+      if (SHOW_REF) res.tiles.push(['Referencia (extensión final)', db.r[0] + '–' + db.r[1], '°', false]);
+      res.warn.unshift(fe >= 0 ? `Extensión completa${fe > 0.5 ? ` con ${r(fe, 1)}° de hiperextensión` : ''}.` : `Déficit de extensión de ${r(-fe, 1)}°: la rodilla no llega a quedar recta.`);
+      res.warn.push(`El recorrido (${r(mx, 1)}°) se mide desde la posición inicial de ${db.start}°; extensión final = recorrido − ${db.start}°.`);
+      res.main = ['Extensión final', r(fe, 1), '°'];
+      return res;
+    }
+    if (SHOW_REF && !res.error && db && db.r) {
       const mx = +res.m['ROM máximo (°)'], ok = db.cmp === false ? null : mx >= db.r[0] ? 'good' : mx >= 0.8 * db.r[0] ? 'mid' : 'bad';
       res.tiles.push(['Rango de referencia', db.r[0] + '–' + db.r[1], '°', false]);
       if (ok) { res.tiles[0][4] = ok; res.warn.unshift(ok === 'good' ? 'Dentro del rango de referencia.' : ok === 'mid' ? 'Levemente por debajo del rango de referencia.' : 'Por debajo del rango de referencia.'); }
@@ -2920,6 +2942,117 @@ function drawLive() {
   requestAnimationFrame(drawLive);
 }
 
+// ---------- Indicador en vivo (dial grande, visible para el paciente) ----------
+function gaugeMode(t, id) {
+  if (t.kind === 'rom' || id === 'KJPE') return 'angle';
+  if (id === 'CRP' || id === 'FUKUDA' || t.kind === 'turn') return 'yaw';
+  if (t.kind === 'jump') return 'jump';
+  if (t.kind === 'iso' || t.kind === 'bal' || t.kind === 'bess' || t.kind === 'ybal') return 'sway';
+  if (t.kind === 'squat' || t.kind === 'sts') return 'reps';
+  if (t.kind === 'sidehop' || t.kind === 'hop6') return 'hops';
+  if (t.kind === 'scrum') return 'scrum';
+  return 'time';
+}
+function liveInit() {
+  const t = TESTS[rec.test], mv = t.kind === 'rom' ? ROM_MOVES.find(x => x[0] === $('romMove').value) : null;
+  const lv = rec.lv = { mode: gaugeMode(t, rec.test), rot: !!(mv && mv[2]), ang: 0, peak: 0, yaw: 0, ex: rec.cal.u.slice(), sx: 0, sy: 0, trail: [], jumps: [], hops: 0, ff: -1, lastLd: -1 };
+  const u = rec.cal.u, ref = Math.abs(u[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0];
+  lv.e1 = nrm(cross(u, ref)); lv.e2 = cross(u, lv.e1);
+  lv.scale = lv.mode === 'yaw' ? (rec.test === 'FUKUDA' ? 90 : 180) : 180;
+  if (lv.mode === 'angle' && mv) { const db = romOf(mv[0]); if (db && db.r && db.r[1] <= 45) lv.scale = 90; }
+  if (rec.test === 'KJPE') lv.scale = 90;
+}
+function liveTick(s, w, m, i) {
+  const lv = rec.lv; if (!lv) return;
+  const a = nrm(s), u = rec.cal.u;
+  for (let k = 0; k < 3; k++) lv.ex[k] = lv.ex[k] * 0.9 + a[k] * 0.1;
+  const ex = nrm(lv.ex);
+  lv.yaw += dot(w, u) * DT;
+  if (lv.mode === 'angle') {
+    lv.ang = lv.rot ? Math.abs(lv.yaw) : Math.acos(Math.max(-1, Math.min(1, dot(ex, u)))) * R2D;
+    if (lv.ang > lv.peak) lv.peak = lv.ang;
+  }
+  if (lv.mode === 'yaw') { lv.ang = lv.yaw; if (Math.abs(lv.yaw) > Math.abs(lv.peak)) lv.peak = lv.yaw; }
+  if (lv.mode === 'scrum' && rec.sc) lv.ang = Math.acos(Math.max(-1, Math.min(1, dot(nrm(rec.sc.ex), u)))) * R2D;
+  if (lv.mode === 'sway') {
+    lv.sx = Math.asin(Math.max(-1, Math.min(1, dot(ex, lv.e1)))) * R2D; lv.sy = Math.asin(Math.max(-1, Math.min(1, dot(ex, lv.e2)))) * R2D;
+    if (i % 4 === 0) { lv.trail.push([lv.sx, lv.sy]); if (lv.trail.length > 150) lv.trail.shift(); }
+  }
+  if (lv.mode === 'hops') {
+    if (lv.ff < 0 && m < FF_IN) lv.ff = i;
+    else if (lv.ff >= 0 && m > FF_OUT) { if ((i - lv.ff) / FS >= 0.08) lv.hops++; lv.ff = -1; }
+  }
+}
+// llamado desde la detección de saltos
+function liveJump(flight, ct) {
+  const lv = rec && rec.lv; if (!lv) return;
+  const h = G * flight * flight / 8 * 100, rsi = ct ? h / 100 / ct : null;
+  lv.jumps.push({ h, rsi, ct }); lv.flash = performance.now();
+}
+let gaugeBig = false;
+function drawGauge() {
+  const c = $('gauge');
+  if (!rec || !rec.lv || rec.kind !== 'test') { c.classList.add('hide'); $('gaugeWrap').classList.toggle('big', false); return; }
+  c.classList.remove('hide'); $('gaugeWrap').classList.toggle('big', gaugeBig);
+  const { x, w, h } = setupCanvas(c), lv = rec.lv, t = TESTS[rec.test];
+  x.clearRect(0, 0, w, h);
+  const cx = w / 2, cy = h / 2 + (gaugeBig ? 0 : 4), R = Math.min(w, h) * 0.38, lw = Math.max(10, R * 0.13);
+  const el = (rec.S.length - rec.calEnd) / FS, secs = testSecs();
+  const ring = (frac, col, start = -Math.PI / 2, dir = 1) => { x.beginPath(); x.strokeStyle = col; x.lineWidth = lw; x.lineCap = 'round'; x.arc(cx, cy, R, start, start + dir * Math.max(0.0001, Math.min(1, Math.abs(frac))) * 2 * Math.PI, dir < 0); x.stroke(); };
+  const base = () => { x.beginPath(); x.strokeStyle = '#232a35'; x.lineWidth = lw; x.arc(cx, cy, R, 0, 2 * Math.PI); x.stroke(); };
+  const big = (txt, sub, col = '#e8ecf1') => {
+    x.textAlign = 'center'; x.fillStyle = col; x.font = `700 ${Math.round(R * 0.42)}px system-ui, sans-serif`; x.fillText(txt, cx, cy + R * 0.12);
+    if (sub) { x.fillStyle = '#9aa4b2'; x.font = `500 ${Math.round(R * 0.13)}px system-ui, sans-serif`; x.fillText(sub, cx, cy + R * 0.38); }
+  };
+  const tick = (frac, col, lab) => { const a = -Math.PI / 2 + frac * 2 * Math.PI, r1 = R - lw * 0.9, r2 = R + lw * 0.9; x.strokeStyle = col; x.lineWidth = 4; x.beginPath(); x.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); x.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); x.stroke(); if (lab) { x.fillStyle = col; x.font = `600 ${Math.round(R * 0.11)}px system-ui`; x.textAlign = 'center'; x.fillText(lab, cx + Math.cos(a) * (r2 + R * 0.16), cy + Math.sin(a) * (r2 + R * 0.16) + 4); } };
+  const scaleTicks = (sc, step) => { x.fillStyle = '#5b6574'; x.font = `${Math.round(R * 0.09)}px system-ui`; x.textAlign = 'center'; for (let d = step; d < sc; d += step) { const a = -Math.PI / 2 + d / sc * 2 * Math.PI, rr = R - lw * 1.4; x.fillText(d + '°', cx + Math.cos(a) * rr, cy + Math.sin(a) * rr + 4); } };
+  const title = (s) => { x.textAlign = 'left'; x.fillStyle = '#9aa4b2'; x.font = `600 ${gaugeBig ? 18 : 13}px system-ui`; x.fillText(s, 12, gaugeBig ? 30 : 20); };
+  base();
+  if (rec.phase !== 'go') { big('…', 'Quieto: calibrando'); return requestAnimationFrame(drawGauge); }
+  if (lv.mode === 'angle') {
+    title(t.kind === 'rom' ? $('romMove').value : t.name);
+    scaleTicks(lv.scale, lv.scale > 90 ? 30 : 15);
+    ring(lv.ang / lv.scale, '#18c29c'); tick(lv.peak / lv.scale, '#ff6b9a', 'máx ' + lv.peak.toFixed(0) + '°');
+    big(lv.ang.toFixed(0) + '°', lv.rot ? 'rotación' : 'ángulo');
+  } else if (lv.mode === 'yaw') {
+    title(t.name);
+    ring(lv.ang / lv.scale, lv.ang >= 0 ? '#18c29c' : '#4c9ef5', -Math.PI / 2, lv.ang >= 0 ? -1 : 1);
+    big(Math.abs(lv.ang).toFixed(0) + '°', Math.abs(lv.ang) < 2 ? 'centro' : lv.ang > 0 ? 'hacia la izquierda' : 'hacia la derecha');
+  } else if (lv.mode === 'jump') {
+    title(t.name);
+    const J = lv.jumps, last = J[J.length - 1], isR = t.jump === 'DJ' || t.jump === 'RJ', key = (j) => isR && j.rsi != null ? j.rsi : j.h;
+    const best = J.length ? Math.max(...J.map(key)) : 0, fl = lv.flash && performance.now() - lv.flash < 700;
+    ring(last ? key(last) / (best || 1) : 0, fl ? '#7dffd9' : '#18c29c');
+    if (last) big(isR && last.rsi != null ? last.rsi.toFixed(2) : last.h.toFixed(1), (isR && last.rsi != null ? 'RSI · ' + last.h.toFixed(1) + ' cm' : 'cm') + ` · mejor ${isR && last.rsi != null ? best.toFixed(2) : best.toFixed(1)}`, fl ? '#7dffd9' : '#e8ecf1');
+    else big('—', 'Esperando el salto');
+    x.textAlign = 'center'; x.fillStyle = '#9aa4b2'; x.font = `600 ${Math.round(R * 0.12)}px system-ui`; x.fillText(`${J.length} salto${J.length === 1 ? '' : 's'}`, cx, cy - R * 0.45);
+  } else if (lv.mode === 'sway') {
+    title(t.name + (rec.test === 'ISO' ? ' · ' + $('isoEx').value : ''));
+    if (isFinite(secs)) ring(el / secs, '#4c9ef5'); else ring((el % 60) / 60, '#4c9ef5');
+    const Rr = R - lw * 1.2, sc = Rr / 10; // 10° al borde
+    x.strokeStyle = '#2d3542'; x.lineWidth = 1.5; [0.33, 0.66].forEach(f => { x.beginPath(); x.arc(cx, cy, Rr * f, 0, 2 * Math.PI); x.stroke(); });
+    x.beginPath(); x.moveTo(cx - Rr, cy); x.lineTo(cx + Rr, cy); x.moveTo(cx, cy - Rr); x.lineTo(cx, cy + Rr); x.stroke();
+    const P = (p) => [cx + Math.max(-10, Math.min(10, p[0])) * sc, cy - Math.max(-10, Math.min(10, p[1])) * sc];
+    x.strokeStyle = 'rgba(24,194,156,.45)'; x.lineWidth = 2; x.beginPath(); lv.trail.forEach((p, k) => { const q = P(p); k ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1]); }); x.stroke();
+    const d = Math.hypot(lv.sx, lv.sy), q = P([lv.sx, lv.sy]);
+    x.fillStyle = d < 3 ? '#18c29c' : d < 6 ? '#f0a63a' : '#ff6b6b'; x.beginPath(); x.arc(q[0], q[1], Math.max(8, R * 0.09), 0, 2 * Math.PI); x.fill();
+    x.textAlign = 'center'; x.fillStyle = '#e8ecf1'; x.font = `700 ${Math.round(R * 0.2)}px system-ui`; x.fillText(isFinite(secs) ? fmtT(Math.max(0, secs - el)) : fmtT(el), cx, cy + R + lw + R * 0.22);
+  } else if (lv.mode === 'reps' || lv.mode === 'hops' || lv.mode === 'scrum') {
+    title(t.name);
+    const n = lv.mode === 'reps' ? rec.ups : lv.mode === 'hops' ? lv.hops : (rec.sc ? rec.sc.n : 0);
+    if (isFinite(secs) && t.stop === 'time') ring(el / secs, '#4c9ef5'); else if (isFinite(rec.target)) ring(n / rec.target, '#18c29c'); else ring((el % 60) / 60, '#4c9ef5');
+    big(String(n), lv.mode === 'reps' ? 'repeticiones' : lv.mode === 'hops' ? 'saltos' : 'empujes');
+    x.textAlign = 'center'; x.fillStyle = '#9aa4b2'; x.font = `600 ${Math.round(R * 0.13)}px system-ui`;
+    x.fillText(lv.mode === 'scrum' ? `tronco ${lv.ang.toFixed(0)}°` : isFinite(secs) && t.stop === 'time' ? fmtT(Math.max(0, secs - el)) : fmtT(el), cx, cy - R * 0.42);
+  } else {
+    title(t.name);
+    if (isFinite(secs) && t.stop === 'time') ring(el / secs, '#4c9ef5'); else ring((el % 60) / 60, '#18c29c');
+    big(isFinite(secs) && t.stop === 'time' ? fmtT(Math.max(0, secs - el)) : el.toFixed(1), isFinite(secs) && t.stop === 'time' ? 'restante' : 'segundos');
+  }
+  requestAnimationFrame(drawGauge);
+}
+$('btnGaugeBig').onclick = () => { gaugeBig = !gaugeBig; $('btnGaugeBig').textContent = gaugeBig ? '✕ Cerrar pantalla grande' : '⛶ Pantalla grande'; try { if (gaugeBig && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); else if (!gaugeBig && document.fullscreenElement) document.exitFullscreen(); } catch (e) {} };
+
 // ---------- Atletas ----------
 let editing = null;
 function currentAthlete() { return athletes.find(a => a.id === $('selAth').value); }
@@ -3154,7 +3287,7 @@ function romCardHTML(m, animEl) {
   <div class="rsec"><div class="rt">${RICON.pos} Posición inicial (cero)</div><p>${esc(m.z)}</p></div>
   <div class="rsec"><div class="rt">${RICON.mov} Movimiento</div><p>${esc(m.m)}</p></div>
   <div class="rsec"><div class="rt">${RICON.sen} Colocación del sensor</div><div class="srow"><span class="schip">${RICON.sen} ${esc(m.s)}</span><span>Colocá el sensor en el lado que vas a medir.</span></div></div>
-  ${m.r ? `<div class="rsec"><div class="rt">${RICON.rng} Rango de referencia</div><p class="rng">${m.r[0]}° – ${m.r[1]}°</p></div>` : ''}
+  ${SHOW_REF && m.r ? `<div class="rsec"><div class="rt">${RICON.rng} Rango de referencia</div><p class="rng">${m.r[0]}° – ${m.r[1]}°</p></div>` : ''}
   ${m.rot ? '<p class="note" style="margin-top:8px">Movimiento de rotación: se mide con el giroscopio. Hacelo sin mover el resto del cuerpo.</p>' : ''}
   </div></div>`;
 }
