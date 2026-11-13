@@ -73,6 +73,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 .stabLeg{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:6px}.stabLeg>span{font-size:13px;padding:4px 10px;border-radius:20px;background:var(--card2);border:1px solid var(--line)}.stabLeg b{font-size:15px}
 .tile.game{background:linear-gradient(165deg,#4a2a5e 0%,#141c24 70%);border-color:#5b3a73}.tile.game .ti{display:flex;align-items:center;justify-content:center;font-size:44px;min-height:70px}
 .gcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.gcard{display:flex;flex-direction:column;gap:4px;text-align:left;padding:12px;border-radius:14px}.gcard .gi{font-size:30px}.gcard small{color:var(--tx2);font-size:12px;line-height:1.3}.gcard.on{border-color:#c77dff;background:linear-gradient(165deg,#3a2450,#1a2029)}
+#gRecChips{flex-wrap:wrap;overflow:visible}.glab{width:100%;font-size:12px;color:var(--tx2);font-weight:600;text-transform:uppercase;letter-spacing:.04em}.chip.rec{border-color:#c77dff}.chip.rec.on{background:#c77dff;color:#1a1029}.gwarn{background:#2b2312;border:1px solid #6b5420;color:#f0c674;border-radius:10px;padding:8px 12px;font-size:13px;margin-top:8px}
 .gopt{display:flex;align-items:center;gap:10px;margin:6px 0}.gopt>span{width:78px;color:var(--tx2);font-size:14px}.gopt .row{flex:1;margin:0}
 .gl{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:13px;color:var(--tx2)}.gl b{color:var(--tx)}
 #gStage{position:fixed;inset:0;z-index:70;background:#000;display:flex;flex-direction:column}#gStage.hide{display:none}#gCanvas{flex:1;width:100%;min-height:0;display:block}
@@ -206,8 +207,9 @@ body.noscroll{overflow:hidden}
   <div class="chips" id="gCats"></div>
   <div class="gcards" id="gCards"></div>
   <h3 class="ph" style="margin-top:14px" id="gStep2">2 · Zona y movimiento a trabajar</h3>
-  <div id="gMvBox"><div class="chips" id="gjChips"></div><div class="chips" id="gmChips"></div><div class="romcard" id="gRomCard"></div></div>
+  <div id="gMvBox"><div class="chips" id="gRecChips"></div><div class="chips" id="gjChips"></div><div class="chips" id="gmChips"></div><div class="romcard" id="gRomCard"></div></div>
   <div id="gPlace" class="hide"></div>
+  <div id="gWarn"></div>
   <h3 class="ph" style="margin-top:14px">3 · Ajustes</h3>
   <div class="gopt"><span>Duración</span><div class="row" id="gDur"></div></div>
   <div class="gopt"><span>Dificultad</span><div class="row" id="gLvl"></div></div>
@@ -354,7 +356,7 @@ body.noscroll{overflow:hidden}
   </div>
 </div>
 
-<p class="note">TrakSensor v1.7 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v1.7.1 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -3389,27 +3391,30 @@ $('btnApCsv').onclick = () => $('btnCsv').click();
 const G_CATS = [['', 'Todos'], ['sup', 'Tren superior'], ['inf', 'Tren inferior'], ['tronco', 'Tronco y equilibrio'], ['pot', 'Potencia y reacción']];
 const LUMBAR = 'Sensor en la zona lumbar (L5), con el cinturón.';
 const GAMES = [
-  { id: 'vuelo', cat: 'sup', name: 'Vuelo', ico: '✈️', kind: '1d', main: ['Aros', 'aros'], desc: 'Subí y bajá el avión para pasar por los aros. Rango completo, repetición a repetición.' },
-  { id: 'frutas', cat: 'sup', name: 'Atrapá la fruta', ico: '🍎', kind: '1d', main: ['Frutas atrapadas', 'frutas'], desc: 'Mové la canasta de lado a lado para atrapar lo que cae. Rango, velocidad y reacción.' },
-  { id: 'zona', cat: 'sup', name: 'Seguí la zona', ico: '🎯', kind: '1d', main: ['Tiempo en la zona', '%'], desc: 'Mantené la bolita dentro del camino. Control motor y movimiento lento y preciso.' },
-  { id: 'pintar', cat: 'sup', name: 'Pintá la pared', ico: '🖌️', kind: '1d', main: ['Franjas pintadas', 'franjas'], desc: 'El rodillo pinta la franja donde está: hay que llegar a todas, también a las de arriba.' },
-  { id: 'volante', cat: 'sup', name: 'Volante', ico: '🏎️', kind: 'rot', main: ['Monedas', 'monedas'], desc: 'Girá para manejar el auto por la ruta y juntar monedas. Rotaciones de hombro y antebrazo.' },
-  { id: 'grua', cat: 'sup', name: 'Grúa', ico: '🏗️', kind: '1d', main: ['Cajas entregadas', 'cajas'], desc: 'Subí la caja, sostenela arriba y bajala despacio sin que se caiga. Control excéntrico.' },
-  { id: 'ritmo', cat: 'sup', name: 'Ritmo', ico: '🎵', kind: '1d', main: ['Notas', 'notas'], desc: 'Tocá cada nota justo cuando pasa por la línea: arriba, al medio o abajo.' },
-  { id: 'penal', cat: 'inf', name: 'Patada de penal', ico: '⚽', kind: '1d', main: ['Goles', 'goles'], desc: 'Extendé la rodilla con la fuerza justa para mandar la pelota al blanco del arco.' },
-  { id: 'inflador', cat: 'inf', name: 'Inflador', ico: '🎈', kind: '1d', main: ['Globos', 'globos'], desc: 'Cada repetición completa infla el globo hasta que explota. Repeticiones con rango completo.' },
-  { id: 'escalones', cat: 'inf', name: 'Escalones', ico: '🪜', kind: '1d', main: ['Escalones', 'escalones'], desc: 'Cada sentadilla (o repetición) sube un escalón de la torre; si vas más profundo, subís dos.' },
-  { id: 'pedal', cat: 'inf', name: 'Pedal del auto', ico: '🚗', kind: '1d', main: ['Tiempo en velocidad', '%'], desc: 'El tobillo acelera: mantené la aguja dentro de la velocidad pedida. Control fino.' },
-  { id: 'diana', cat: 'tronco', name: 'Diana 2D', ico: '⭕', kind: '2d', main: ['Blancos', 'blancos'], place: LUMBAR, desc: 'Inclinate en todas las direcciones para llevar la bola a cada blanco.' },
-  { id: 'bandeja', cat: 'tronco', name: 'Bandeja de bebidas', ico: '🍹', kind: '2dfix', main: ['Tiempo estable', '%'], place: LUMBAR + ' De pie en un pie, en plancha o en el ejercicio que elijas.', desc: 'Mantené la bandeja derecha: si te inclinás, se caen los vasos.' },
-  { id: 'esqui', cat: 'tronco', name: 'Esquí', ico: '⛷️', kind: '2d', main: ['Puertas', 'puertas'], place: LUMBAR + ' Inclinate hacia los costados (o pasá el peso de una pierna a la otra).', desc: 'Inclinate de lado a lado para pasar entre las banderas y esquivar los árboles.' },
-  { id: 'laberinto', cat: 'tronco', name: 'Laberinto', ico: '🌀', kind: '2d', main: ['Laberintos', 'laberintos'], place: LUMBAR + ' También sirve en el muslo o la pierna.', desc: 'Guiá la bolita hasta la salida inclinándote. Control fino en dos direcciones.' },
-  { id: 'estatua', cat: 'tronco', name: 'Estatua', ico: '🗿', kind: '2dfix', main: ['Tiempo quieto', '%'], place: LUMBAR + ' De pie, en un pie o en la posición que elijas.', desc: 'Quedate quieto mientras la pantalla intenta distraerte.' },
-  { id: 'valla', cat: 'pot', name: 'Saltá la valla', ico: '🏃', kind: 'jump', main: ['Vallas', 'vallas'], place: LUMBAR, desc: 'Saltá justo cuando llega cada valla. Mide la altura de cada salto.' },
-  { id: 'reaccion', cat: 'pot', name: 'Reacción por colores', ico: '🚦', kind: '2d', main: ['Tiempo de reacción', 'ms'], place: LUMBAR + ' Al encenderse un color, inclinate rápido hacia ese lado.', desc: 'Se enciende un color y te movés hacia ese lado lo más rápido posible.' },
-  { id: 'pisotones', cat: 'pot', name: 'Pisotones', ico: '🧱', kind: 'impact', main: ['Golpes', 'golpes'], place: LUMBAR + ' Saltitos, skipping o apoyos rápidos.', desc: 'Cada apoyo fuerte rompe un bloque. ¿Cuántos rompés en el tiempo?' },
+  { id: 'vuelo', rec: ["Flexión de hombro", "Abducción de hombro", "Flexión de cadera", "Flexión de rodilla"], cat: 'sup', name: 'Vuelo', ico: '✈️', kind: '1d', main: ['Aros', 'aros'], desc: 'Subí y bajá el avión para pasar por los aros. Rango completo, repetición a repetición.' },
+  { id: 'frutas', rec: ["Abducción de hombro", "Flexión de codo", "Abducción de cadera", "Inclinación lateral de tronco"], cat: 'sup', name: 'Atrapá la fruta', ico: '🍎', kind: '1d', main: ['Frutas atrapadas', 'frutas'], desc: 'Mové la canasta de lado a lado para atrapar lo que cae. Rango, velocidad y reacción.' },
+  { id: 'zona', rec: ["Flexión de hombro", "Extensión de rodilla", "Flexión dorsal de tobillo", "Flexión cervical"], cat: 'sup', name: 'Seguí la zona', ico: '🎯', kind: '1d', main: ['Tiempo en la zona', '%'], desc: 'Mantené la bolita dentro del camino. Control motor y movimiento lento y preciso.' },
+  { id: 'pintar', rec: ["Flexión de hombro", "Abducción de hombro", "Flexión de codo"], cat: 'sup', name: 'Pintá la pared', ico: '🖌️', kind: '1d', main: ['Franjas pintadas', 'franjas'], desc: 'El rodillo pinta la franja donde está: hay que llegar a todas, también a las de arriba.' },
+  { id: 'volante', rec: ["Rotación externa de hombro", "Rotación interna de hombro", "Supinación del antebrazo", "Pronación del antebrazo", "Rotación cervical"], cat: 'sup', name: 'Volante', ico: '🏎️', kind: 'rot', main: ['Monedas', 'monedas'], desc: 'Girá para manejar el auto por la ruta y juntar monedas. Rotaciones de hombro y antebrazo.' },
+  { id: 'grua', rec: ["Flexión de codo", "Flexión de hombro", "Extensión de rodilla"], cat: 'sup', name: 'Grúa', ico: '🏗️', kind: '1d', main: ['Cajas entregadas', 'cajas'], desc: 'Subí la caja, sostenela arriba y bajala despacio sin que se caiga. Control excéntrico.' },
+  { id: 'ritmo', rec: ["Flexión de hombro", "Abducción de hombro", "Flexión de muñeca", "Flexión de rodilla"], cat: 'sup', name: 'Ritmo', ico: '🎵', kind: '1d', main: ['Notas', 'notas'], desc: 'Tocá cada nota justo cuando pasa por la línea: arriba, al medio o abajo.' },
+  { id: 'penal', rec: ["Extensión de rodilla", "Extensión activa de rodilla (AKE)", "Flexión de cadera"], cat: 'inf', name: 'Patada de penal', ico: '⚽', kind: '1d', main: ['Goles', 'goles'], desc: 'Extendé la rodilla con la fuerza justa para mandar la pelota al blanco del arco.' },
+  { id: 'inflador', rec: ["Flexión dorsal de tobillo", "Flexión de rodilla", "Flexión de codo", "Flexión de muñeca"], cat: 'inf', name: 'Inflador', ico: '🎈', kind: '1d', main: ['Globos', 'globos'], desc: 'Cada repetición completa infla el globo hasta que explota. Repeticiones con rango completo.' },
+  { id: 'escalones', rec: ["Flexión de cadera", "Flexión de rodilla", "Flexión de tronco"], cat: 'inf', name: 'Escalones', ico: '🪜', kind: '1d', main: ['Escalones', 'escalones'], desc: 'Cada sentadilla (o repetición) sube un escalón de la torre; si vas más profundo, subís dos.' },
+  { id: 'pedal', rec: ["Flexión plantar de tobillo", "Flexión dorsal de tobillo", "Extensión de muñeca"], cat: 'inf', name: 'Pedal del auto', ico: '🚗', kind: '1d', main: ['Tiempo en velocidad', '%'], desc: 'El tobillo acelera: mantené la aguja dentro de la velocidad pedida. Control fino.' },
+  { id: 'diana', places: ["Lumbar", "Muslo", "Pierna", "Cabeza"], cat: 'tronco', name: 'Diana 2D', ico: '⭕', kind: '2d', main: ['Blancos', 'blancos'], place: LUMBAR, desc: 'Inclinate en todas las direcciones para llevar la bola a cada blanco.' },
+  { id: 'bandeja', places: ["Lumbar", "Muslo", "Pierna"], cat: 'tronco', name: 'Bandeja de bebidas', ico: '🍹', kind: '2dfix', main: ['Tiempo estable', '%'], place: LUMBAR + ' De pie en un pie, en plancha o en el ejercicio que elijas.', desc: 'Mantené la bandeja derecha: si te inclinás, se caen los vasos.' },
+  { id: 'esqui', places: ["Lumbar", "Muslo"], cat: 'tronco', name: 'Esquí', ico: '⛷️', kind: '2d', main: ['Puertas', 'puertas'], place: LUMBAR + ' Inclinate hacia los costados (o pasá el peso de una pierna a la otra).', desc: 'Inclinate de lado a lado para pasar entre las banderas y esquivar los árboles.' },
+  { id: 'laberinto', places: ["Lumbar", "Muslo", "Pierna", "Cabeza"], cat: 'tronco', name: 'Laberinto', ico: '🌀', kind: '2d', main: ['Laberintos', 'laberintos'], place: LUMBAR + ' También sirve en el muslo o la pierna.', desc: 'Guiá la bolita hasta la salida inclinándote. Control fino en dos direcciones.' },
+  { id: 'estatua', places: ["Lumbar", "Cabeza"], cat: 'tronco', name: 'Estatua', ico: '🗿', kind: '2dfix', main: ['Tiempo quieto', '%'], place: LUMBAR + ' De pie, en un pie o en la posición que elijas.', desc: 'Quedate quieto mientras la pantalla intenta distraerte.' },
+  { id: 'valla', places: ["Lumbar"], cat: 'pot', name: 'Saltá la valla', ico: '🏃', kind: 'jump', main: ['Vallas', 'vallas'], place: LUMBAR, desc: 'Saltá justo cuando llega cada valla. Mide la altura de cada salto.' },
+  { id: 'reaccion', places: ["Lumbar", "Cabeza"], cat: 'pot', name: 'Reacción por colores', ico: '🚦', kind: '2d', main: ['Tiempo de reacción', 'ms'], place: LUMBAR + ' Al encenderse un color, inclinate rápido hacia ese lado.', desc: 'Se enciende un color y te movés hacia ese lado lo más rápido posible.' },
+  { id: 'pisotones', places: ["Lumbar"], cat: 'pot', name: 'Pisotones', ico: '🧱', kind: 'impact', main: ['Golpes', 'golpes'], place: LUMBAR + ' Saltitos, skipping o apoyos rápidos.', desc: 'Cada apoyo fuerte rompe un bloque. ¿Cuántos rompés en el tiempo?' },
 ];
 const G_LVL = [['Fácil', 0.8], ['Media', 0.95], ['Difícil', 1.05]];
+const G_PLACE = { Lumbar: 'Zona lumbar (L5), con el cinturón.', Muslo: 'Cara anterior del muslo, a mitad de camino entre la cadera y la rodilla, con la cinta.', Pierna: 'Cara anterior de la tibia, debajo de la rodilla, con la cinta.', Cabeza: 'En la frente o en la nuca, con una vincha.' };
+const gPlaceOf = (d) => d.places ? ((gSet.placeBy || {})[d.id] && d.places.includes(gSet.placeBy[d.id]) ? gSet.placeBy[d.id] : d.places[0]) : null;
+function gMoveOf(d) { const mb = gSet.mvBy || {}; return mb[d.id] && romOf(mb[d.id]) ? mb[d.id] : (d.rec && d.rec[0]) || gSet.mv; }
 const gameOf = (id) => GAMES.find(g => g.id === id) || GAMES[0];
 const usesMove = (d) => d.kind === '1d' || d.kind === 'rot';
 const testMeta = (id) => TESTS[id] || (id === 'GAME' ? { name: 'Juego de rehabilitación', cat: 'Juegos' } : null);
@@ -3424,7 +3429,8 @@ function lastRomFor(mvName, sd) {
 }
 function renderGameSetup() {
   if (!GAMES.some(g => g.id === gSet.g)) gSet.g = 'vuelo';
-  const d = gameOf(gSet.g), cur = romOf(gSet.mv) || ROM_DB[0];
+  const d = gameOf(gSet.g); if (usesMove(d)) gSet.mv = gMoveOf(d);
+  const cur = romOf(gSet.mv) || ROM_DB[0], setMv = (n) => { gSet.mv = n; gSet.mvBy = Object.assign({}, gSet.mvBy, { [d.id]: n }); saveGSet(); renderGameSetup(); };
   $('gCats').innerHTML = G_CATS.map(([c, l]) => `<button class="chip${c === gSet.cat ? ' on' : ''}" data-c="${c}">${l}</button>`).join('');
   $('gCats').querySelectorAll('.chip').forEach(b => b.onclick = () => { gSet.cat = b.dataset.c; saveGSet(); renderGameSetup(); });
   $('gCards').innerHTML = GAMES.filter(g => !gSet.cat || g.cat === gSet.cat).map(g => `<button class="gcard${g.id === gSet.g ? ' on' : ''}" data-g="${g.id}"><span class="gi">${g.ico}</span><b>${esc(g.name)}</b><small>${esc(g.desc)}</small></button>`).join('');
@@ -3432,13 +3438,29 @@ function renderGameSetup() {
   $('gMvBox').classList.toggle('hide', !usesMove(d)); $('gPlace').classList.toggle('hide', usesMove(d));
   $('gStep2').textContent = usesMove(d) ? '2 · Zona y movimiento a trabajar' : '2 · Colocación del sensor';
   if (usesMove(d)) {
+    const rec = (d.rec || []).filter(n => romOf(n));
+    $('gRecChips').innerHTML = rec.length ? `<span class="glab">Recomendados para ${esc(d.name)}</span>` + rec.map(n => `<button class="chip rec${n === cur.n ? ' on' : ''}" data-n="${esc(n)}">★ ${esc(n)}</button>`).join('') + `<span class="glab" style="margin-top:6px">Todos los movimientos</span>` : '';
+    $('gRecChips').querySelectorAll('.chip').forEach(b => b.onclick = () => setMv(b.dataset.n));
     $('gjChips').innerHTML = ROM_JOINTS.filter(j => ROM_DB.some(m => m.j === j)).map(j => `<button class="chip${j === cur.j ? ' on' : ''}" data-j="${j}">${j}</button>`).join('');
     $('gmChips').innerHTML = ROM_DB.filter(m => m.j === cur.j).map(m => `<button class="chip mv${m.n === cur.n ? ' on' : ''}" data-n="${esc(m.n)}">${esc(m.n)}</button>`).join('');
     $('gRomCard').innerHTML = romCardHTML(cur, 'gAnim');
     AN.play('ROM:' + cur.n, $('gAnim'));
-    $('gjChips').querySelectorAll('.chip').forEach(b => b.onclick = () => { gSet.mv = ROM_DB.find(m => m.j === b.dataset.j).n; saveGSet(); renderGameSetup(); });
-    $('gmChips').querySelectorAll('.chip').forEach(b => b.onclick = () => { gSet.mv = b.dataset.n; saveGSet(); renderGameSetup(); });
-  } else { AN.stop(); $('gPlace').innerHTML = `<div class="srow"><span class="schip">${RICON.sen} Lumbar</span><span>${esc(d.place || LUMBAR)}</span></div>`; }
+    $('gjChips').querySelectorAll('.chip').forEach(b => b.onclick = () => setMv((ROM_DB.find(m => m.j === b.dataset.j && rec.includes(m.n)) || ROM_DB.find(m => m.j === b.dataset.j)).n));
+    $('gmChips').querySelectorAll('.chip').forEach(b => b.onclick = () => setMv(b.dataset.n));
+    $('gmChips').querySelectorAll('.chip').forEach(b => { if (rec.includes(b.dataset.n)) b.textContent = '★ ' + b.textContent; });
+    let warn = '';
+    if (d.kind === 'rot' && !cur.rot && !/Supinación|Pronación/.test(cur.n)) warn = `El Volante está pensado para rotaciones (interna/externa, pronación/supinación, rotación cervical o de tronco). Con "${cur.n}" va a funcionar solo si el segmento gira; para movimientos de subir y bajar conviene Vuelo, Ritmo o Seguí la zona.`;
+    else if (d.kind === '1d' && cur.n === 'Otro') warn = 'Con "Otro" el juego usa la inclinación del sensor respecto de la posición inicial: elegí un movimiento que suba y baje el segmento.';
+    else if (d.kind === '1d' && rec.length && !rec.includes(cur.n)) warn = `"${cur.n}" no es de los recomendados para ${d.name}, pero funciona igual: el juego se adapta al rango que calibres.`;
+    $('gWarn').innerHTML = warn ? `<div class="gwarn">⚠️ ${esc(warn)}</div>` : '';
+  } else {
+    AN.stop(); $('gWarn').innerHTML = '';
+    const pl = gPlaceOf(d), fixed = d.places.length === 1;
+    $('gPlace').innerHTML = (fixed ? '' : `<div class="chips">${d.places.map(x => `<button class="chip${x === pl ? ' on' : ''}" data-p="${x}">${x}</button>`).join('')}</div>`) +
+      `<div class="srow"><span class="schip">${RICON.sen} ${pl}</span><span>${esc(G_PLACE[pl])}${fixed ? ' En este juego el sensor va siempre en la zona lumbar: la altura del salto y los apoyos se calculan con el centro de masa.' : ''}</span></div>` +
+      `<p class="note" style="margin-top:6px">${esc((d.place || '').replace(LUMBAR, '').trim())}</p>`;
+    $('gPlace').querySelectorAll('.chip').forEach(b => b.onclick = () => { gSet.placeBy = Object.assign({}, gSet.placeBy, { [d.id]: b.dataset.p }); saveGSet(); renderGameSetup(); });
+  }
   const seg = (id, opts, val, key) => { $(id).innerHTML = opts.map(([v, l]) => `<button class="seg${String(v) === String(val) ? ' on' : ''}" data-v="${v}">${l}</button>`).join(''); $(id).querySelectorAll('.seg').forEach(b => b.onclick = () => { gSet[key] = isNaN(+b.dataset.v) || b.dataset.v === '' ? b.dataset.v : +b.dataset.v; saveGSet(); renderGameSetup(); }); };
   seg('gDur', [[30, '30 s'], [60, '1 min'], [90, '1,5 min'], [120, '2 min']], gSet.dur, 'dur');
   seg('gLvl', G_LVL.map((l, k) => [k, l[0]]), gSet.lvl, 'lvl');
@@ -3508,8 +3530,8 @@ function gameCalDone(useVal) {
 function startGame() {
   if (!connected() || rec) return;
   initAudio();
-  const d = gameOf(gSet.g), mv = romOf(gSet.mv) || ROM_DB[0];
-  gm = { def: d, mv, rot: usesMove(d) && !!mv.rot, lvl: gSet.lvl, dur: gSet.dur, side: gSet.side === 'N' ? null : gSet.side, phase: 'cal0', n: 0, cs: [0, 0, 0], cg: [0, 0, 0], cn: 0,
+  const d = gameOf(gSet.g), mv = romOf(usesMove(d) ? gMoveOf(d) : gSet.mv) || ROM_DB[0];
+  gm = { place: gPlaceOf(d), def: d, mv, rot: usesMove(d) && !!mv.rot, lvl: gSet.lvl, dur: gSet.dur, side: gSet.side === 'N' ? null : gSet.side, phase: 'cal0', n: 0, cs: [0, 0, 0], cg: [0, 0, 0], cn: 0,
     ang: 0, tilt: 0, x2: 0, y2: 0, gyr: 0, yawS: 0, maxAng: 0, score: 0, miss: 0, reps: 0, repUp: false, combo: 0, best: 0, fx: [], obj: [], ev: [], st: {}, reach: [], hts: [], zIn: 0, zT: 0, mirror: false,
     last: usesMove(d) ? lastRomFor(mv.n, gSet.side === 'N' ? null : gSet.side) : null };
   lastSeq = -1; gm.stream = true; send('S');
@@ -3544,7 +3566,7 @@ function gameResult(g) {
 function saveGame(g) {
   const a = currentAthlete(); if (!a || g.saved) return; g.saved = true;
   const { main, m } = gameResult(g);
-  const cond = [g.def.name, usesMove(g.def) ? g.mv.n : null, g.side ? (g.side === 'L' ? 'izq' : 'der') : null].filter(Boolean).join(' · ');
+  const cond = [g.def.name, usesMove(g.def) ? g.mv.n : 'sensor ' + (g.place || 'Lumbar').toLowerCase(), g.side ? (g.side === 'L' ? 'izq' : 'der') : null].filter(Boolean).join(' · ');
   results.push({ id: Date.now(), serie: Date.now(), n: 1, ath: a.id, test: 'GAME', side: g.side, cond, date: new Date().toISOString(), main, m });
   store.set('trs_results', results); renderHist();
 }
@@ -3572,7 +3594,7 @@ function gameFrame(now) {
     const cx = W / 2, cy = H * 0.55, R = big * 0.25, k2 = g.def.kind;
     if (g.phase === 'cal0') {
       gTxt(x, 'Posición inicial', cx, H * 0.16, big * 0.06);
-      gTxt(x, usesMove(g.def) ? g.mv.z : (g.def.place || LUMBAR), cx, H * 0.16 + big * 0.06, big * 0.03, '#9aa4b2', 'center', 500);
+      gTxt(x, usesMove(g.def) ? g.mv.z : 'Sensor: ' + (G_PLACE[g.place] || LUMBAR), cx, H * 0.16 + big * 0.06, big * 0.03, '#9aa4b2', 'center', 500);
       const f = g.cn / (FS * 2); x.lineWidth = big * 0.03; x.strokeStyle = '#232a35'; x.beginPath(); x.arc(cx, cy, R, 0, 6.29); x.stroke();
       x.strokeStyle = '#4c9ef5'; x.beginPath(); x.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + f * 6.283); x.stroke();
       gTxt(x, 'Quieto', cx, cy + big * 0.03, big * 0.09);
