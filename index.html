@@ -71,6 +71,13 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 .romMini .md canvas{width:84px;height:84px;display:block;margin:0 auto}.romMini .md small{display:block;font-size:11px;color:var(--tx2)}.romMini .md.off{opacity:.45}.romMini .md.off small{color:var(--bad)}.romMini .md.best{border-color:#ff6b9a}
 #stabPlot{width:100%;max-width:380px;height:380px;display:block;margin:4px auto 0}
 .stabLeg{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:6px}.stabLeg>span{font-size:13px;padding:4px 10px;border-radius:20px;background:var(--card2);border:1px solid var(--line)}.stabLeg b{font-size:15px}
+.tile.game{background:linear-gradient(165deg,#4a2a5e 0%,#141c24 70%);border-color:#5b3a73}.tile.game .ti{display:flex;align-items:center;justify-content:center;font-size:44px;min-height:70px}
+.gcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.gcard{display:flex;flex-direction:column;gap:4px;text-align:left;padding:12px;border-radius:14px}.gcard .gi{font-size:30px}.gcard small{color:var(--tx2);font-size:12px;line-height:1.3}.gcard.on{border-color:#c77dff;background:linear-gradient(165deg,#3a2450,#1a2029)}
+.gopt{display:flex;align-items:center;gap:10px;margin:6px 0}.gopt>span{width:78px;color:var(--tx2);font-size:14px}.gopt .row{flex:1;margin:0}
+.gl{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:13px;color:var(--tx2)}.gl b{color:var(--tx)}
+#gStage{position:fixed;inset:0;z-index:70;background:#000;display:flex;flex-direction:column}#gStage.hide{display:none}#gCanvas{flex:1;width:100%;min-height:0;display:block}
+.gbar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:8px;background:#0b0e13}.gbar button{padding:10px 16px}
+body.noscroll{overflow:hidden}
 .navrow{display:flex;align-items:center;gap:10px;margin-bottom:12px}.navrow h2{margin:0;flex:1}
 #testTitle,#gTitle,#pTitle{font-size:17px;text-transform:none;letter-spacing:0;color:var(--tx)}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.chips::-webkit-scrollbar{display:none}
@@ -190,6 +197,25 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 
 <div id="vHome">
   <div class="card"><h2>Elegí un test</h2><div class="tiles" id="tiles"></div></div>
+</div>
+
+<div id="vGame" class="hide"><div class="card">
+  <div class="navrow"><button class="sm" id="btnBackHome3">‹ Inicio</button><h2>Juegos de rehabilitación</h2></div>
+  <div id="gLast"></div>
+  <h3 class="ph">1 · Zona y movimiento a trabajar</h3>
+  <div class="chips" id="gjChips"></div><div class="chips" id="gmChips"></div>
+  <div class="romcard" id="gRomCard"></div>
+  <h3 class="ph" style="margin-top:14px">2 · Juego</h3>
+  <div class="gcards" id="gCards"></div>
+  <h3 class="ph" style="margin-top:14px">3 · Ajustes</h3>
+  <div class="gopt"><span>Duración</span><div class="row" id="gDur"></div></div>
+  <div class="gopt"><span>Dificultad</span><div class="row" id="gLvl"></div></div>
+  <div class="gopt"><span>Lado</span><div class="row" id="gSide"></div></div>
+  <p class="note" id="gNote"></p>
+  <button class="pri big" id="btnGamePlay" style="margin-top:10px">Calibrar y jugar ›</button>
+</div></div>
+<div id="gStage" class="hide"><canvas id="gCanvas"></canvas>
+  <div class="gbar"><button id="btnGameSkip" class="hide">Listo</button><button id="btnGameCenter">⟲ Recentrar</button><button id="btnGameMirror">⇆ Invertir</button><button id="btnGameAgain" class="pri hide">Jugar otra vez</button><button id="btnGameStop">Terminar</button></div>
 </div>
 
 <div id="vGroup" class="hide"><div class="card">
@@ -327,7 +353,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
   </div>
 </div>
 
-<p class="note">TrakSensor v1.5.2 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v1.6 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -2382,8 +2408,10 @@ function setConn(ok) {
   $('connLbl').textContent = ok ? 'Conectado' : 'Desconectado';
   $('btnConn').textContent = ok ? 'Desconectar' : 'Conectar';
   setRecBtn(); $('btnOrient').disabled = !ok;
+  if (parseHash().v === 'game' && !gm) renderGameSetup();
 }
 function onDisconnect() {
+  if (gm) { if (gm.phase === 'play') gameEnd(); gm.stream = false; }
   if (rec && rec.phase === 'go' && rec.S.length - rec.calEnd > 2 * FS) finishRec('Sensor desconectado: se analizó lo registrado');
   else { rec = null; status('Sensor desconectado'); counter(''); }
   setConn(false);
@@ -2391,6 +2419,7 @@ function onDisconnect() {
 async function send(c) { try { await cmdCh.writeValue(new TextEncoder().encode(c)); } catch (e) { console.error(e); } }
 
 function onData(e) {
+  if (gm && gm.stream) { gameData(e); return; }
   if (!rec) return;
   const dv = e.target.value, seq = dv.getUint16(0, true), k = (dv.byteLength - 2) / 12;
   if (lastSeq >= 0 && ((seq - lastSeq) & 0xffff) !== 1) rec.lost += ((seq - lastSeq - 1) & 0xffff);
@@ -3305,12 +3334,12 @@ function renderAthProfile(id) {
   const first = R.length ? R.reduce((m, x) => x.date < m ? x.date : m, R[0].date) : null, last = R.length ? R.reduce((m, x) => x.date > m ? x.date : m, '') : null;
   $('apHead').innerHTML = `<span class="av big">${esc(initials(a.name))}</span><div style="flex:1;min-width:0"><div class="apname">${esc(a.name)}</div><p class="note">${[a.mass + ' kg', a.height ? a.height + ' cm' : '', a.leg ? 'pierna ' + a.leg + ' cm' : '', a.side ? 'lado lesionado: ' + (a.side === 'L' ? 'izquierdo' : 'derecho') : ''].filter(Boolean).join(' · ')}</p>${a.note ? `<p class="note">${esc(a.note)}</p>` : ''}</div>`;
   $('apSum').innerHTML = [['Evaluaciones', ses, ''], ['Días evaluados', days, ''], ['Tests distintos', new Set(G.map(g => g.test)).size, ''], ['Período', first ? fmtD(first) + ' – ' + fmtD(last) : '–', '']].map(tile).join('');
-  const cats = [...new Set(G.map(g => (TESTS[g.test] || {}).cat || 'Otros'))];
+  const cats = [...new Set(G.map(g => (testMeta(g.test) || {}).cat || 'Otros'))];
   $('apCats').innerHTML = cats.length > 1 ? [''].concat(cats).map(c => `<button class="chip${c === athFilter ? ' on' : ''}" data-c="${esc(c)}">${c ? esc(c) : 'Todos'}</button>`).join('') : '';
   $('apCats').querySelectorAll('.chip').forEach(b => b.onclick = () => { athFilter = b.dataset.c; renderAthProfile(id); });
-  const GG = G.filter(g => !athFilter || ((TESTS[g.test] || {}).cat || 'Otros') === athFilter);
+  const GG = G.filter(g => !athFilter || ((testMeta(g.test) || {}).cat || 'Otros') === athFilter);
   $('apList').innerHTML = GG.length ? GG.map(g => {
-    const t = TESTS[g.test], name = (t ? t.name : g.test), open = athOpenKey === g.key;
+    const t = testMeta(g.test), name = (t ? t.name : g.test), open = athOpenKey === g.key;
     const sides = g.sided ? [['L', 'Izq', '#4c9ef5'], ['R', 'Der', '#18c29c']] : [[null, '', '#18c29c']];
     const vals = sides.map(([sd, lb, col]) => { const P = g.pts.filter(p => !g.sided || p.side === sd); if (!P.length) return ''; const best = g.low ? Math.min(...P.map(p => p.v)) : Math.max(...P.map(p => p.v));
       return `<div class="pv">${lb ? `<span class="sd" style="color:${col}">${lb}</span>` : ''}<b>${P[P.length - 1].v}</b> <small>${esc(g.unit)}</small> ${deltaHTML(g, P)}<small class="bst">mejor ${r(best, 2)}</small></div>`; }).join('');
@@ -3328,7 +3357,7 @@ function renderAthProfile(id) {
       ev.stopPropagation();
       const g = G.find(x => x.key === c.dataset.k); if (!g) return;
       const pts = del.dataset.delall ? g.pts : g.pts.filter(p => p.serie + '|' + (p.side || '') === del.dataset.del);
-      const t = TESTS[g.test], nm = t ? t.name : g.test;
+      const t = testMeta(g.test), nm = t ? t.name : g.test;
       const msg = del.dataset.delall ? `¿Eliminar las ${pts.length} sesiones de "${nm}${g.cond ? ' · ' + g.cond : ''}"? No se puede deshacer.` : `¿Eliminar la sesión del ${new Date(pts[0].date).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}${pts[0].side ? ' (' + (pts[0].side === 'L' ? 'izq' : 'der') + ')' : ''} de "${nm}"? Se borran todas las repeticiones/saltos de esa sesión. No se puede deshacer.`;
       if (!confirm(msg)) return;
       const kill = new Set(pts.map(p => p.serie + '|' + (p.side || ''))), sids = new Set(pts.map(p => p.serie));
@@ -3353,6 +3382,301 @@ $('btnApEdit').onclick = () => { openAthForm(currentAthlete()); window.scrollTo(
 $('btnApEval').onclick = () => nav('');
 $('btnApCsv').onclick = () => $('btnCsv').click();
 
+// ---------- Juegos de rehabilitación ----------
+const GAMES = [
+  { id: 'vuelo', name: 'Vuelo', ico: '✈️', kind: '1d', main: ['Aros', 'aros'], desc: 'Subí y bajá el avión para pasar por los aros. Trabaja el rango completo, repetición a repetición.' },
+  { id: 'frutas', name: 'Atrapá la fruta', ico: '🍎', kind: '1d', main: ['Frutas atrapadas', 'frutas'], desc: 'Mové la canasta de lado a lado para atrapar lo que cae. Rango, velocidad y reacción.' },
+  { id: 'zona', name: 'Seguí la zona', ico: '🎯', kind: '1d', main: ['Tiempo en la zona', '%'], desc: 'Mantené la bolita dentro del camino que se mueve. Control motor y movimiento lento y preciso.' },
+  { id: 'diana', name: 'Diana 2D', ico: '⭕', kind: '2d', main: ['Blancos', 'blancos'], desc: 'Inclinate en todas las direcciones para llevar la bola a cada blanco. Tronco, cadera, tobillo y equilibrio.' },
+];
+const G_LVL = [['Fácil', 0.8], ['Media', 0.95], ['Difícil', 1.05]];
+const gameOf = (id) => GAMES.find(g => g.id === id) || GAMES[0];
+const testMeta = (id) => TESTS[id] || (id === 'GAME' ? { name: 'Juego de rehabilitación', cat: 'Juegos' } : null);
+let gSet = Object.assign({ g: 'vuelo', mv: 'Abducción de hombro', dur: 60, lvl: 1, side: 'R' }, store.get('trs_game', {}));
+const saveGSet = () => store.set('trs_game', gSet);
+let gm = null;
+
+function lastRomFor(mvName, sd) {
+  const a = currentAthlete(); if (!a) return null;
+  const R = results.filter(x => x.ath === a.id && x.test === 'ROM' && (x.cond || '').split(' · ').includes(mvName) && (!sd || !x.side || x.side === sd));
+  const e = R[R.length - 1]; return e && e.main && +e.main[1] > 5 ? +e.main[1] : null;
+}
+function renderGameSetup() {
+  const cur = romOf(gSet.mv) || ROM_DB[0];
+  $('gjChips').innerHTML = ROM_JOINTS.filter(j => ROM_DB.some(m => m.j === j)).map(j => `<button class="chip${j === cur.j ? ' on' : ''}" data-j="${j}">${j}</button>`).join('');
+  $('gmChips').innerHTML = ROM_DB.filter(m => m.j === cur.j).map(m => `<button class="chip mv${m.n === cur.n ? ' on' : ''}" data-n="${esc(m.n)}">${esc(m.n)}</button>`).join('');
+  $('gRomCard').innerHTML = romCardHTML(cur, 'gAnim');
+  AN.play('ROM:' + cur.n, $('gAnim'));
+  $('gjChips').querySelectorAll('.chip').forEach(b => b.onclick = () => { gSet.mv = ROM_DB.find(m => m.j === b.dataset.j).n; saveGSet(); renderGameSetup(); });
+  $('gmChips').querySelectorAll('.chip').forEach(b => b.onclick = () => { gSet.mv = b.dataset.n; saveGSet(); renderGameSetup(); });
+  $('gCards').innerHTML = GAMES.map(g => `<button class="gcard${g.id === gSet.g ? ' on' : ''}" data-g="${g.id}"><span class="gi">${g.ico}</span><b>${esc(g.name)}</b><small>${esc(g.desc)}</small></button>`).join('');
+  $('gCards').querySelectorAll('.gcard').forEach(b => b.onclick = () => { gSet.g = b.dataset.g; saveGSet(); renderGameSetup(); });
+  const seg = (id, opts, val, key) => { $(id).innerHTML = opts.map(([v, l]) => `<button class="seg${String(v) === String(val) ? ' on' : ''}" data-v="${v}">${l}</button>`).join(''); $(id).querySelectorAll('.seg').forEach(b => b.onclick = () => { gSet[key] = isNaN(+b.dataset.v) || b.dataset.v === '' ? b.dataset.v : +b.dataset.v; saveGSet(); renderGameSetup(); }); };
+  seg('gDur', [[30, '30 s'], [60, '1 min'], [90, '1,5 min'], [120, '2 min']], gSet.dur, 'dur');
+  seg('gLvl', G_LVL.map((l, k) => [k, l[0]]), gSet.lvl, 'lvl');
+  seg('gSide', [['L', 'Izquierdo'], ['R', 'Derecho'], ['N', 'No aplica']], gSet.side, 'side');
+  const g = gameOf(gSet.g), lr = lastRomFor(cur.n, gSet.side === 'N' ? null : gSet.side), a = currentAthlete();
+  $('gNote').innerHTML = (g.kind === '2d' ? 'Diana 2D usa la inclinación en todas las direcciones: lo ideal es el sensor en la zona lumbar, en el muslo o en la pierna. ' : '') +
+    `Antes de jugar se calibra: 2 s quieto en la posición inicial y un movimiento al máximo cómodo. El juego se adapta a ese rango (${G_LVL[gSet.lvl][0].toLowerCase()}: ${Math.round(G_LVL[gSet.lvl][1] * 100)} % del máximo).` +
+    (lr ? ` Último ROM medido de este movimiento: <b>${r(lr, 0)}°</b>.` : '') + (a ? '' : ' <b>Elegí un atleta para guardar el resultado.</b>');
+  $('btnGamePlay').disabled = !connected();
+  $('btnGamePlay').textContent = connected() ? 'Calibrar y jugar ›' : 'Conectá el sensor para jugar';
+  const last = a ? results.filter(x => x.ath === a.id && x.test === 'GAME').slice(-1)[0] : null;
+  $('gLast').innerHTML = last ? `<div class="gl"><span>Última partida · ${fmtD(last.date)} · ${esc(last.cond)}</span><b>${esc(last.main[0])}: ${last.main[1]} ${esc(last.main[2])}</b></div>` : '';
+}
+
+// --- flujo de datos ---
+function gameData(e) {
+  const dv = e.target.value, k = (dv.byteLength - 2) / 12;
+  for (let i = 0; i < k; i++) { const o = 2 + i * 12, s = []; for (let j = 0; j < 6; j++) s.push(dv.getInt16(o + j * 2, true) / (j < 3 ? ACC_LSB : GYR_LSB)); gameSample(s); if (!gm) return; }
+}
+function gameSample(s) {
+  const g = gm; g.n++;
+  const w = [s[3], s[4], s[5]];
+  if (g.phase === 'cal0') {
+    const gmag = Math.hypot(w[0], w[1], w[2]);
+    if (gmag > 25) { g.cs = [0, 0, 0]; g.cg = [0, 0, 0]; g.cn = 0; return; }
+    for (let k = 0; k < 3; k++) { g.cs[k] += s[k]; g.cg[k] += w[k]; } g.cn++;
+    if (g.cn >= FS * 2) {
+      g.u = nrm(g.cs); g.gb = g.cg.map(v => v / g.cn); g.ex = g.u.slice(); g.yaw = 0;
+      const ref = Math.abs(g.u[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]; g.e1 = nrm(cross(g.u, ref)); g.e2 = cross(g.u, g.e1);
+      g.phase = 'cal1'; g.t0 = performance.now(); g.calMax = 0; g.calDir = null; beep(900, 0.12);
+    }
+    return;
+  }
+  const a = nrm(s); for (let k = 0; k < 3; k++) g.ex[k] = g.ex[k] * 0.85 + a[k] * 0.15;
+  const ex = nrm(g.ex), wc = [w[0] - g.gb[0], w[1] - g.gb[1], w[2] - g.gb[2]];
+  g.yaw += dot(wc, g.u) * DT;
+  g.ang = g.rot ? Math.abs(g.yaw) : Math.acos(Math.max(-1, Math.min(1, dot(ex, g.u)))) * R2D;
+  g.x2 = Math.asin(Math.max(-1, Math.min(1, dot(ex, g.e1)))) * R2D; g.y2 = Math.asin(Math.max(-1, Math.min(1, dot(ex, g.e2)))) * R2D;
+  if (g.phase === 'cal1') {
+    if (g.ang > g.calMax) { g.calMax = g.ang; if (g.def.kind === '2d') g.calDir = [g.x2, g.y2]; }
+    if (g.calMax > 12 && g.ang < g.calMax * 0.35) gameCalDone();
+  }
+  if (g.phase === 'play') { if (g.ang > g.maxAng) g.maxAng = g.ang; }
+}
+function gameCalDone(useVal) {
+  const g = gm; if (!g || g.phase !== 'cal1') return;
+  const base = useVal || (g.calMax >= 8 ? g.calMax : 30);
+  g.calR = base; g.R = Math.max(6, base * G_LVL[g.lvl][1]);
+  if (g.def.kind === '2d' && g.calDir && !useVal) { // el sentido del máximo = "arriba" en la pantalla
+    const d = nrm([g.e1[0] * g.calDir[0] + g.e2[0] * g.calDir[1], g.e1[1] * g.calDir[0] + g.e2[1] * g.calDir[1], g.e1[2] * g.calDir[0] + g.e2[2] * g.calDir[1]]);
+    g.e2 = d; g.e1 = cross(g.u, g.e2);
+  }
+  g.phase = 'ready'; g.t0 = performance.now(); beep(1100, 0.15);
+}
+function startGame() {
+  if (!connected() || rec) return;
+  initAudio();
+  const mv = romOf(gSet.mv) || ROM_DB[0];
+  gm = { def: gameOf(gSet.g), mv, rot: !!mv.rot, lvl: gSet.lvl, dur: gSet.dur, side: gSet.side === 'N' ? null : gSet.side, phase: 'cal0', n: 0, cs: [0, 0, 0], cg: [0, 0, 0], cn: 0,
+    ang: 0, x2: 0, y2: 0, maxAng: 0, score: 0, miss: 0, reps: 0, repUp: false, combo: 0, best: 0, fx: [], obj: [], mirror: false, last: lastRomFor(mv.n, gSet.side === 'N' ? null : gSet.side) };
+  lastSeq = -1; gm.stream = true; send('S');
+  $('gStage').classList.remove('hide'); document.body.classList.add('noscroll');
+  try { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); } catch (e) {}
+  gameResize(); requestAnimationFrame(gameFrame);
+}
+function gameResize() { if (gm) { const c = setupCanvas($('gCanvas')); gm.cx = c.x; gm.W = c.w; gm.H = c.h; } }
+window.addEventListener('resize', gameResize);
+function stopGame(save) {
+  const g = gm; if (!g) return;
+  send('P'); g.stream = false;
+  if (save && g.phase === 'end') saveGame(g);
+  gm = null; $('gStage').classList.add('hide'); document.body.classList.remove('noscroll');
+  try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) {}
+  renderGameSetup();
+}
+function gameResult(g) {
+  const d = g.def, played = Math.min(g.dur, g.el || 0);
+  let main, m = {};
+  if (d.id === 'zona') { const pct = g.zT ? g.zIn / g.zT * 100 : 0; main = ['Tiempo en la zona', r(pct, 0), '%']; m['Tiempo en la zona (%)'] = r(pct, 0); }
+  else { main = [d.main[0], g.score, d.main[1]]; m[d.main[0] + ' (' + d.main[1] + ')'] = g.score; m['Errados (n)'] = g.miss; m['Aciertos (%)'] = g.score + g.miss ? r(g.score / (g.score + g.miss) * 100, 0) : 0; }
+  if (d.id === 'diana' && g.reach.length) m['Tiempo medio al blanco (s)'] = r(mean(g.reach), 2);
+  if (d.kind === '1d') m['Repeticiones completas (n)'] = g.reps;
+  m['Mejor racha (n)'] = g.best; m['Ángulo máximo (°)'] = r(g.maxAng, 1); m['Rango calibrado (°)'] = r(g.calR, 1); m['Rango objetivo (°)'] = r(g.R, 1);
+  m['Dificultad'] = G_LVL[g.lvl][0]; m['Duración (s)'] = r(played, 0);
+  return { main, m };
+}
+function saveGame(g) {
+  const a = currentAthlete(); if (!a || g.saved) return; g.saved = true;
+  const { main, m } = gameResult(g);
+  const cond = [g.def.name, g.mv.n, g.side ? (g.side === 'L' ? 'izq' : 'der') : null].filter(Boolean).join(' · ');
+  results.push({ id: Date.now(), serie: Date.now(), n: 1, ath: a.id, test: 'GAME', side: g.side, cond, date: new Date().toISOString(), main, m });
+  store.set('trs_results', results); renderHist();
+}
+function gameEnd() {
+  const g = gm; g.phase = 'end'; beep(700, 0.2); setTimeout(() => beep(1000, 0.3), 220);
+  saveGame(g);
+}
+
+// --- dibujo y lógica ---
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+function gTxt(x, s, X, Y, size, col = '#fff', al = 'center', wt = 700) { x.font = `${wt} ${size}px system-ui, sans-serif`; x.textAlign = al; x.fillStyle = col; x.fillText(s, X, Y); }
+function burst(g, X, Y, col) { for (let k = 0; k < 14; k++) { const a = Math.random() * 6.28, v = 80 + Math.random() * 160; g.fx.push({ x: X, y: Y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0.7, col }); } }
+function popTxt(g, X, Y, s, col) { g.fx.push({ x: X, y: Y, vx: 0, vy: -50, t: 0.9, txt: s, col }); }
+function gameFrame(now) {
+  const g = gm; if (!g) return;
+  const x = g.cx, W = g.W, H = g.H, dt = Math.min(0.05, g.lastF ? (now - g.lastF) / 1000 : 0.016); g.lastF = now;
+  const big = Math.min(W, H);
+  x.clearRect(0, 0, W, H);
+  if (g.phase === 'cal0' || g.phase === 'cal1' || g.phase === 'ready') {
+    x.fillStyle = '#0b1220'; x.fillRect(0, 0, W, H);
+    const cx = W / 2, cy = H * 0.52, R = big * 0.26;
+    if (g.phase === 'cal0') {
+      gTxt(x, 'Posición inicial', cx, H * 0.16, big * 0.06); gTxt(x, g.mv.z, cx, H * 0.16 + big * 0.06, big * 0.03, '#9aa4b2', 'center', 500);
+      const f = g.cn / (FS * 2); x.lineWidth = big * 0.03; x.strokeStyle = '#232a35'; x.beginPath(); x.arc(cx, cy, R, 0, 6.29); x.stroke();
+      x.strokeStyle = '#4c9ef5'; x.beginPath(); x.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + f * 6.283); x.stroke();
+      gTxt(x, 'Quieto', cx, cy + big * 0.03, big * 0.09);
+    } else if (g.phase === 'cal1') {
+      gTxt(x, g.def.kind === '2d' ? 'Inclinate al máximo hacia adelante y volvé' : 'Llevá al máximo cómodo y volvé', cx, H * 0.16, big * 0.05);
+      gTxt(x, g.def.kind === '2d' ? 'Esa dirección va a ser "arriba" en la pantalla' : g.mv.m, cx, H * 0.16 + big * 0.06, big * 0.03, '#9aa4b2', 'center', 500);
+      const sc = Math.max(90, Math.ceil(g.calMax / 45) * 45);
+      x.lineWidth = big * 0.04; x.strokeStyle = '#232a35'; x.beginPath(); x.arc(cx, cy, R, 0, 6.29); x.stroke();
+      x.strokeStyle = '#18c29c'; x.lineCap = 'round'; x.beginPath(); x.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.min(1, g.ang / sc) * 6.283); x.stroke(); x.lineCap = 'butt';
+      const am = -Math.PI / 2 + Math.min(1, g.calMax / sc) * 6.283; x.strokeStyle = '#ff6b9a'; x.lineWidth = 5; x.beginPath(); x.moveTo(cx + Math.cos(am) * (R - big * 0.04), cy + Math.sin(am) * (R - big * 0.04)); x.lineTo(cx + Math.cos(am) * (R + big * 0.04), cy + Math.sin(am) * (R + big * 0.04)); x.stroke();
+      gTxt(x, r(g.ang, 0) + '°', cx, cy + big * 0.03, big * 0.11); gTxt(x, 'máx ' + r(g.calMax, 0) + '°', cx, cy + big * 0.1, big * 0.035, '#ff6b9a');
+    } else {
+      const k = 3 - Math.floor((now - g.t0) / 1000);
+      gTxt(x, `Rango: ${r(g.calR, 0)}° · objetivo ${r(g.R, 0)}°`, cx, H * 0.2, big * 0.04, '#9aa4b2', 'center', 500);
+      gTxt(x, k > 0 ? String(k) : '¡Ya!', cx, cy + big * 0.06, big * 0.22, '#18c29c');
+      if (k !== g.lastK) { g.lastK = k; beep(k > 0 ? 800 : 1300, 0.15); }
+      if (now - g.t0 > 3300) { g.phase = 'play'; g.tStart = now; g.el = 0; g.nextSpawn = 0.8; g.reach = []; g.zIn = 0; g.zT = 0; }
+    }
+    $('btnGameSkip').classList.toggle('hide', g.phase !== 'cal1');
+    $('btnGameSkip').textContent = g.last ? `Usar último ROM (${r(g.last, 0)}°)` : 'Listo';
+    return requestAnimationFrame(gameFrame);
+  }
+  if (g.phase === 'play') { g.el = (now - g.tStart) / 1000; if (g.el >= g.dur) gameEnd(); }
+  const p = g.ang / g.R;
+  if (g.phase === 'play' && g.def.kind === '1d') { if (p >= 0.85 && !g.repUp) { g.repUp = true; } if (p <= 0.25 && g.repUp) { g.repUp = false; g.reps++; } }
+  ({ vuelo: gVuelo, frutas: gFrutas, zona: gZona, diana: gDiana })[g.def.id](g, x, W, H, dt, p, now);
+  // efectos
+  g.fx = g.fx.filter(f => (f.t -= dt) > 0);
+  g.fx.forEach(f => { f.x += f.vx * dt; f.y += f.vy * dt; f.vy += f.txt ? 0 : 300 * dt; x.globalAlpha = Math.min(1, f.t / 0.5); if (f.txt) gTxt(x, f.txt, f.x, f.y, big * 0.05, f.col); else { x.fillStyle = f.col; x.beginPath(); x.arc(f.x, f.y, 4, 0, 6.29); x.fill(); } x.globalAlpha = 1; });
+  // HUD
+  const left = Math.max(0, g.dur - (g.el || 0));
+  x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(0, 0, W, big * 0.09);
+  gTxt(x, g.def.id === 'zona' ? `${g.zT ? r(g.zIn / g.zT * 100, 0) : 0} % en zona` : `⭐ ${g.score}`, 16, big * 0.06, big * 0.05, '#fff', 'left');
+  gTxt(x, `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`, W / 2, big * 0.06, big * 0.05);
+  gTxt(x, `${r(g.ang, 0)}°  ·  máx ${r(g.maxAng, 0)}°`, W - 16, big * 0.06, big * 0.04, '#cfe', 'right', 600);
+  if (g.combo >= 3 && g.phase === 'play') gTxt(x, `¡Racha x${g.combo}!`, W / 2, big * 0.15, big * 0.045, '#ffd166');
+  if (g.phase === 'end') gEndScreen(g, x, W, H, big);
+  $('btnGameSkip').classList.add('hide');
+  $('btnGameAgain').classList.toggle('hide', g.phase !== 'end');
+  $('btnGameStop').textContent = g.phase === 'end' ? 'Salir' : 'Terminar';
+  requestAnimationFrame(gameFrame);
+}
+function gEndScreen(g, x, W, H, big) {
+  const { main, m } = gameResult(g);
+  x.fillStyle = 'rgba(8,12,20,.86)'; x.fillRect(0, 0, W, H);
+  gTxt(x, '¡Terminado!', W / 2, H * 0.2, big * 0.08, '#18c29c');
+  gTxt(x, `${main[1]} ${main[2]}`, W / 2, H * 0.36, big * 0.13);
+  gTxt(x, main[0], W / 2, H * 0.36 + big * 0.06, big * 0.035, '#9aa4b2', 'center', 500);
+  const lines = [['Ángulo máximo', r(g.maxAng, 0) + '°'], ['Rango objetivo', r(g.R, 0) + '°'], g.def.kind === '1d' ? ['Repeticiones completas', g.reps] : ['Tiempo medio al blanco', g.reach.length ? r(mean(g.reach), 1) + ' s' : '–'], ['Mejor racha', g.best]];
+  lines.forEach(([l, v], k) => { const y = H * 0.56 + k * big * 0.065; gTxt(x, l, W / 2 - 10, y, big * 0.04, '#9aa4b2', 'right', 500); gTxt(x, String(v), W / 2 + 10, y, big * 0.045, '#fff', 'left'); });
+  gTxt(x, currentAthlete() ? 'Guardado en el historial del atleta' : 'Sin atleta: no se guardó', W / 2, H * 0.9, big * 0.032, '#9aa4b2', 'center', 500);
+}
+function hit(g, X, Y) { g.score++; g.combo++; g.best = Math.max(g.best, g.combo); beep(880 + Math.min(8, g.combo) * 60, 0.09); burst(g, X, Y, '#ffd166'); popTxt(g, X, Y - 20, '+1', '#ffd166'); }
+function fail(g, X, Y) { g.miss++; g.combo = 0; beep(220, 0.15); burst(g, X, Y, '#ff6b6b'); }
+// 1) Vuelo: altura = ángulo
+function gVuelo(g, x, W, H, dt, p, now) {
+  const lv = g.lvl, top = H * 0.2, bot = H * 0.9, Y = (q) => bot - clamp(q, -0.05, 1.12) * (bot - top);
+  const sky = x.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#2b6cb0'); sky.addColorStop(1, '#9fd3f5'); x.fillStyle = sky; x.fillRect(0, 0, W, H);
+  g.off = (g.off || 0) + dt * 40; x.fillStyle = 'rgba(255,255,255,.75)';
+  for (let k = 0; k < 6; k++) { const cx = ((k * 260 - g.off * (1 + k % 2)) % (W + 300) + W + 300) % (W + 300) - 150, cy = H * (0.18 + (k * 0.13) % 0.5); x.beginPath(); x.ellipse(cx, cy, 60, 18, 0, 0, 6.29); x.ellipse(cx + 30, cy - 10, 40, 16, 0, 0, 6.29); x.fill(); }
+  x.fillStyle = '#3c8d4f'; x.fillRect(0, bot + 6, W, H - bot);
+  // guía de rango
+  x.setLineDash([8, 8]); x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = 2; [0, 1].forEach(q => { x.beginPath(); x.moveTo(0, Y(q)); x.lineTo(W, Y(q)); x.stroke(); }); x.setLineDash([]);
+  const speed = W / (4.2 - lv * 0.6), gapH = (bot - top) * [0.34, 0.28, 0.22][lv], px = W * 0.22;
+  g.py = g.py == null ? Y(p) : g.py + (Y(p) - g.py) * Math.min(1, dt * 14);
+  if (g.phase === 'play') {
+    g.nextSpawn -= dt;
+    if (g.nextSpawn <= 0) { g.hi = !g.hi; const q = g.hi ? 0.88 + Math.random() * 0.1 : 0.08 + Math.random() * 0.12; g.obj.push({ x: W + 40, c: Y(q), done: false }); g.nextSpawn = [2.6, 2.1, 1.7][lv]; }
+    g.obj.forEach(o => { o.x -= speed * dt; if (!o.done && o.x < px) { o.done = true; if (Math.abs(g.py - o.c) < gapH / 2) hit(g, px, g.py); else fail(g, px, g.py); } });
+    g.obj = g.obj.filter(o => o.x > -60);
+  }
+  g.obj.forEach(o => {
+    x.fillStyle = o.done ? '#7b8794' : '#e76f51'; x.fillRect(o.x - 14, top - 30, 28, o.c - gapH / 2 - top + 30); x.fillRect(o.x - 14, o.c + gapH / 2, 28, bot - o.c - gapH / 2 + 6);
+    x.strokeStyle = o.done ? '#cbd5e1' : '#ffd166'; x.lineWidth = 6; x.beginPath(); x.ellipse(o.x, o.c, 12, gapH / 2, 0, 0, 6.29); x.stroke();
+  });
+  // avión
+  const tilt = clamp(((g.prevY || g.py) - g.py) * 0.05, -0.5, 0.5); g.prevY = g.py;
+  x.save(); x.translate(px, g.py); x.rotate(-tilt);
+  x.fillStyle = '#f8fafc'; x.beginPath(); x.ellipse(0, 0, 34, 11, 0, 0, 6.29); x.fill();
+  x.fillStyle = '#ef476f'; x.beginPath(); x.moveTo(-6, 0); x.lineTo(-22, -26); x.lineTo(4, -4); x.fill(); x.beginPath(); x.moveTo(-6, 2); x.lineTo(-18, 22); x.lineTo(6, 4); x.fill();
+  x.beginPath(); x.moveTo(-30, -2); x.lineTo(-40, -18); x.lineTo(-24, -4); x.fill();
+  x.fillStyle = '#118ab2'; x.beginPath(); x.arc(16, -3, 5, 0, 6.29); x.fill(); x.restore();
+}
+// 2) Frutas: posición horizontal = ángulo
+function gFrutas(g, x, W, H, dt, p, now) {
+  const lv = g.lvl, m = W * 0.1, bx0 = m + clamp(p, -0.05, 1.08) * (W - 2 * m), by = H * 0.86, bw = W * [0.17, 0.14, 0.11][lv];
+  g.bx = g.bx == null ? bx0 : g.bx + (bx0 - g.bx) * Math.min(1, dt * 14);
+  const bg = x.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#264653'); bg.addColorStop(1, '#2a9d8f'); x.fillStyle = bg; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#e9c46a'; x.fillRect(0, by + 26, W, H - by);
+  x.setLineDash([8, 8]); x.strokeStyle = 'rgba(255,255,255,.45)'; x.lineWidth = 2; [m, W - m].forEach(X => { x.beginPath(); x.moveTo(X, H * 0.1); x.lineTo(X, by + 26); x.stroke(); }); x.setLineDash([]);
+  gTxt(x, '0°', m, by + 52, 14, '#264653'); gTxt(x, r(g.R, 0) + '°', W - m, by + 52, 14, '#264653');
+  if (g.phase === 'play') {
+    g.nextSpawn -= dt;
+    if (g.nextSpawn <= 0) { const q = Math.random() < 0.5 ? (Math.random() < 0.5 ? 0.85 + Math.random() * 0.15 : Math.random() * 0.15) : 0.15 + Math.random() * 0.7; g.obj.push({ x: m + q * (W - 2 * m), y: H * 0.08, col: ['#e63946', '#f4a261', '#ffd166', '#90be6d', '#c77dff'][Math.floor(Math.random() * 5)] }); g.nextSpawn = [1.9, 1.5, 1.15][lv]; }
+    const v = H * [0.22, 0.3, 0.4][lv];
+    g.obj.forEach(o => { o.y += v * dt; if (!o.done && o.y >= by) { o.done = true; if (Math.abs(o.x - g.bx) < bw / 2 + 10) { o.gone = true; hit(g, o.x, by); } else fail(g, o.x, by + 20); } });
+    g.obj = g.obj.filter(o => !o.gone && o.y < H + 30);
+  }
+  g.obj.forEach(o => { x.fillStyle = o.col; x.beginPath(); x.arc(o.x, o.y, 16, 0, 6.29); x.fill(); x.fillStyle = '#2d6a4f'; x.beginPath(); x.ellipse(o.x + 6, o.y - 16, 7, 3.5, -0.6, 0, 6.29); x.fill(); x.fillStyle = 'rgba(255,255,255,.35)'; x.beginPath(); x.arc(o.x - 5, o.y - 5, 5, 0, 6.29); x.fill(); });
+  // canasta
+  x.fillStyle = '#8d5524'; x.beginPath(); x.moveTo(g.bx - bw / 2, by); x.lineTo(g.bx + bw / 2, by); x.lineTo(g.bx + bw / 2 - 12, by + 30); x.lineTo(g.bx - bw / 2 + 12, by + 30); x.closePath(); x.fill();
+  x.strokeStyle = '#c68642'; x.lineWidth = 3; for (let k = 1; k < 4; k++) { const yy = by + k * 7.5; x.beginPath(); x.moveTo(g.bx - bw / 2 + 3 * k, yy); x.lineTo(g.bx + bw / 2 - 3 * k, yy); x.stroke(); }
+}
+// 3) Seguí la zona: altura = ángulo, camino que se desplaza
+function gZona(g, x, W, H, dt, p, now) {
+  const lv = g.lvl, top = H * 0.2, bot = H * 0.9, Y = (q) => bot - clamp(q, -0.05, 1.12) * (bot - top), px = W * 0.28, band = [0.32, 0.24, 0.17][lv], spd = [0.09, 0.12, 0.16][lv];
+  const path = (t) => 0.5 + 0.34 * Math.sin(t * 2 * Math.PI * spd) + 0.08 * Math.sin(t * 2 * Math.PI * spd * 2.7 + 1.3);
+  x.fillStyle = '#10172a'; x.fillRect(0, 0, W, H);
+  const t = g.el || 0, pxPerS = W * 0.16;
+  x.beginPath();
+  for (let X = 0; X <= W; X += 6) { const tt = t + (X - px) / pxPerS; x.lineTo(X, Y(path(tt) + band / 2)); }
+  for (let X = W; X >= 0; X -= 6) { const tt = t + (X - px) / pxPerS; x.lineTo(X, Y(path(tt) - band / 2)); }
+  x.closePath(); const gr = x.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, 'rgba(24,194,156,.15)'); gr.addColorStop(0.3, 'rgba(24,194,156,.45)'); gr.addColorStop(1, 'rgba(76,158,245,.35)'); x.fillStyle = gr; x.fill();
+  x.strokeStyle = 'rgba(255,255,255,.08)'; x.lineWidth = 1; for (let k = 0; k <= 4; k++) { x.beginPath(); x.moveTo(0, Y(k / 4)); x.lineTo(W, Y(k / 4)); x.stroke(); gTxt(x, r(g.R * k / 4, 0) + '°', W - 8, Y(k / 4) - 4, 12, '#5b6574', 'right', 500); }
+  g.py = g.py == null ? Y(p) : g.py + (Y(p) - g.py) * Math.min(1, dt * 14);
+  const inside = Math.abs(p - path(t)) <= band / 2;
+  if (g.phase === 'play') { g.zT += dt; if (inside) { g.zIn += dt; g.inT = (g.inT || 0) + dt; if (g.inT > 2) { g.inT = 0; g.score++; g.combo++; g.best = Math.max(g.best, g.combo); beep(1000, 0.06); popTxt(g, px, g.py - 30, '+1', '#7dffd9'); } } else { if (g.wasIn) { g.combo = 0; } g.inT = 0; } g.wasIn = inside; }
+  g.trail = (g.trail || []).concat([[px, g.py]]).slice(-60);
+  x.strokeStyle = inside ? 'rgba(125,255,217,.5)' : 'rgba(255,107,107,.5)'; x.lineWidth = 4; x.beginPath(); g.trail.forEach((q, k) => { const X = q[0] - (g.trail.length - 1 - k) * 4; k ? x.lineTo(X, q[1]) : x.moveTo(X, q[1]); }); x.stroke();
+  x.fillStyle = inside ? '#7dffd9' : '#ff6b6b'; x.shadowColor = x.fillStyle; x.shadowBlur = 20; x.beginPath(); x.arc(px, g.py, 16, 0, 6.29); x.fill(); x.shadowBlur = 0;
+}
+// 4) Diana 2D: inclinación en dos ejes
+function gDiana(g, x, W, H, dt, p, now) {
+  const cx = W / 2, cy = H * 0.54, RR = Math.min(W, H) * 0.36, lv = g.lvl;
+  x.fillStyle = '#121826'; x.fillRect(0, 0, W, H);
+  [1, 0.66, 0.33].forEach((f, k) => { x.fillStyle = ['#1b2436', '#202b40', '#26334b'][k]; x.beginPath(); x.arc(cx, cy, RR * f, 0, 6.29); x.fill(); });
+  x.strokeStyle = '#33415c'; x.lineWidth = 1; x.beginPath(); x.moveTo(cx - RR, cy); x.lineTo(cx + RR, cy); x.moveTo(cx, cy - RR); x.lineTo(cx, cy + RR); x.stroke();
+  const sx = (g.mirror ? -1 : 1) * g.x2 / g.R, sy = g.y2 / g.R, bxT = cx + clamp(sx, -1.15, 1.15) * RR, byT = cy - clamp(sy, -1.15, 1.15) * RR;
+  g.bx = g.bx == null ? bxT : g.bx + (bxT - g.bx) * Math.min(1, dt * 14); g.by = g.by == null ? byT : g.by + (byT - g.by) * Math.min(1, dt * 14);
+  const tr = RR * [0.2, 0.16, 0.12][lv], hold = 0.6;
+  if (g.phase === 'play') {
+    if (!g.tg) { const center = g.toCenter; g.dirK = center ? g.dirK : (g.dirK == null ? 0 : (g.dirK + 3) % 8); const a = -Math.PI / 2 + g.dirK * Math.PI / 4; g.tg = center ? { x: cx, y: cy, c: true, t0: g.el } : { x: cx + Math.cos(a) * RR * 0.8, y: cy + Math.sin(a) * RR * 0.8, t0: g.el }; g.hold = 0; }
+    const d = Math.hypot(g.bx - g.tg.x, g.by - g.tg.y);
+    if (d < tr) { g.hold += dt; if (g.hold >= hold) { if (!g.tg.c) { hit(g, g.tg.x, g.tg.y); g.reach.push(g.el - g.tg.t0); } else beep(700, 0.05); g.toCenter = !g.tg.c; g.tg = null; } } else g.hold = Math.max(0, g.hold - dt * 2);
+  }
+  if (g.tg) {
+    const pulse = 1 + 0.08 * Math.sin(now / 150);
+    x.fillStyle = g.tg.c ? 'rgba(76,158,245,.25)' : 'rgba(255,209,102,.25)'; x.beginPath(); x.arc(g.tg.x, g.tg.y, tr * pulse, 0, 6.29); x.fill();
+    x.strokeStyle = g.tg.c ? '#4c9ef5' : '#ffd166'; x.lineWidth = 4; x.beginPath(); x.arc(g.tg.x, g.tg.y, tr * pulse, 0, 6.29); x.stroke();
+    if (g.hold > 0) { x.strokeStyle = '#7dffd9'; x.lineWidth = 6; x.beginPath(); x.arc(g.tg.x, g.tg.y, tr + 8, -Math.PI / 2, -Math.PI / 2 + g.hold / hold * 6.283); x.stroke(); }
+    if (!g.tg.c) gTxt(x, '★', g.tg.x, g.tg.y + tr * 0.35, tr, '#ffd166');
+  }
+  x.fillStyle = '#ef476f'; x.shadowColor = '#ef476f'; x.shadowBlur = 18; x.beginPath(); x.arc(g.bx, g.by, Math.max(12, tr * 0.45), 0, 6.29); x.fill(); x.shadowBlur = 0;
+  gTxt(x, 'adelante', cx, cy - RR - 10, 13, '#5b6574', 'center', 500);
+}
+$('btnBackHome3').onclick = () => nav('');
+$('btnGamePlay').onclick = startGame;
+$('btnGameStop').onclick = () => { if (gm && gm.phase === 'play') { gameEnd(); } else stopGame(); };
+$('btnGameAgain').onclick = () => { stopGame(); startGame(); };
+$('btnGameSkip').onclick = () => gameCalDone(gm && gm.last ? gm.last : null);
+$('btnGameCenter').onclick = () => { if (gm && gm.ex) { gm.u = nrm(gm.ex); gm.yaw = 0; const k = dot(gm.e2, gm.u); gm.e2 = nrm([gm.e2[0] - gm.u[0] * k, gm.e2[1] - gm.u[1] * k, gm.e2[2] - gm.u[2] * k]); gm.e1 = cross(gm.u, gm.e2); beep(600, 0.08); } };
+$('btnGameMirror').onclick = () => { if (gm) gm.mirror = !gm.mirror; };
+
 // ---------- Historial ----------
 function renderHist() {
   const a = currentAthlete(), t = $('hist');
@@ -3361,12 +3685,13 @@ function renderHist() {
   if (!rows.length) { t.innerHTML = '<tr><td class="note">Todavía no hay registros</td></tr>'; return; }
   const legacy = (x) => x.m['Altura (t. vuelo) (cm)'] != null ? ['Altura (t. vuelo)', x.m['Altura (t. vuelo) (cm)'], 'cm'] : x.m['RSI (m/s)'] != null ? ['RSI', x.m['RSI (m/s)'], 'm/s'] : ['', '', ''];
   t.innerHTML = '<tr><th>Fecha</th><th>Test</th><th>Condición</th><th>#</th><th>Resultado principal</th><th></th></tr>' +
-    rows.slice(0, 200).map(x => { const mn = x.main || legacy(x), tt = TESTS[x.test]; return `<tr data-id="${x.id}" class="${openId === x.id ? 'open' : ''}"><td>${new Date(x.date).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td><td>${tt ? tt.name : x.test}</td><td>${esc(x.cond || (x.box ? x.box + ' cm' : ''))}</td><td>${x.n ?? 1}</td><td>${mn[0]}: <b>${mn[1]}</b> ${mn[2]}</td><td class="go">Ver ›</td></tr>`; }).join('');
+    rows.slice(0, 200).map(x => { const mn = x.main || legacy(x), tt = testMeta(x.test); return `<tr data-id="${x.id}" class="${openId === x.id ? 'open' : ''}"><td>${new Date(x.date).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td><td>${tt ? tt.name : x.test}</td><td>${esc(x.cond || (x.box ? x.box + ' cm' : ''))}</td><td>${x.n ?? 1}</td><td>${mn[0]}: <b>${mn[1]}</b> ${mn[2]}</td><td class="go">Ver ›</td></tr>`; }).join('');
   t.querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = () => openHist(+tr.dataset.id));
 }
 let openId = null;
 async function openHist(id) {
   const e = results.find(x => x.id === id); if (!e) return;
+  if (e.test === 'GAME') { nav('#game'); return; }
   const t = TESTS[e.test]; openId = id;
   const parts = (e.cond || '').split(' · ');
   const sIdx = e.test === 'ROM' ? ROM_MOVES.findIndex(m => parts.includes(m[0])) : e.test === 'ISO' ? ISO_EX.findIndex(m => parts.includes(m[0])) : -1;
@@ -3517,6 +3842,7 @@ function parseHash() {
   if (q.p && PROGRAMS.some(x => x.id === q.p)) return { v: 'prog', p: q.p, sum: q.sum === '1' };
   if (q.g && GROUPS.some(g => g.id === q.g)) return { v: 'group', g: q.g };
   if ('a' in q) return q.a ? { v: 'ath', a: q.a } : { v: 'aths' };
+  if ('game' in q) return { v: 'game' };
   return { v: 'home' };
 }
 let curHash = location.hash;
@@ -3532,13 +3858,14 @@ window.addEventListener('popstate', () => {
 function renderRoute() {
   const r = parseHash(); curHash = location.hash;
   $('vHome').classList.toggle('hide', r.v !== 'home'); $('vGroup').classList.toggle('hide', r.v !== 'group'); $('vTest').classList.toggle('hide', r.v !== 'test'); $('vProg').classList.toggle('hide', r.v !== 'prog');
-  $('vAths').classList.toggle('hide', r.v !== 'aths'); $('vAth').classList.toggle('hide', r.v !== 'ath');
+  $('vAths').classList.toggle('hide', r.v !== 'aths'); $('vAth').classList.toggle('hide', r.v !== 'ath'); $('vGame').classList.toggle('hide', r.v !== 'game');
   document.querySelectorAll('.histCard').forEach(c => c.classList.toggle('hide', r.v === 'aths' || r.v === 'ath'));
   if (r.v !== 'test') AN.stop();
   if (r.v === 'home') renderHome();
   else if (r.v === 'group') renderGroup(r.g);
   else if (r.v === 'prog') renderProg(r.p, r.sum);
   else if (r.v === 'aths') renderAths();
+  else if (r.v === 'game') renderGameSetup();
   else if (r.v === 'ath') { if (curAthView !== r.a) { athOpenKey = null; athFilter = ''; curAthView = r.a; } renderAthProfile(r.a); }
   else openTest(r.t, r.s, r.side);
   window.scrollTo(0, 0);
@@ -3547,7 +3874,9 @@ let homeBuilt = false, curAthView = null;
 function renderHome() {
   if (homeBuilt) return; homeBuilt = true;
   $('tiles').innerHTML = GROUPS.map(g => { const n = gItems(g).length; return `<button class="tile${g.id === 'programas' ? ' prog' : ''}" data-g="${g.id}"><div class="ti">${AN.thumb(g.icon, g.vb || '0 38 320 184')}</div><b>${esc(g.name)}</b><small>${g.label ? g.label() : n + ' ' + (n > 1 ? 'tests' : 'test')}</small></button>`; }).join('');
-  $('tiles').querySelectorAll('.tile').forEach(b => b.onclick = () => nav('#g=' + b.dataset.g));
+  $('tiles').insertAdjacentHTML('afterbegin', `<button class="tile game" id="btnGames"><div class="ti">🎮</div><b>Juegos de rehabilitación</b><small>${GAMES.length} juegos con el sensor</small></button>`);
+  $('tiles').querySelectorAll('.tile[data-g]').forEach(b => b.onclick = () => nav('#g=' + b.dataset.g));
+  $('btnGames').onclick = () => nav('#game');
 }
 const RICON = {
   pos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="4.5" r="2.2" fill="currentColor" stroke="none"/><path d="M5 9h14M12 9v6M12 15l-3.5 6M12 15l3.5 6"/></svg>',
