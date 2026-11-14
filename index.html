@@ -69,6 +69,8 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 #romDial{width:100%;max-width:360px;height:340px;display:block;margin:4px auto 0}
 .romMini{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-top:10px}.romMini .md{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:6px 4px 4px;text-align:center;cursor:pointer}
 .romMini .md canvas{width:84px;height:84px;display:block;margin:0 auto}.romMini .md small{display:block;font-size:11px;color:var(--tx2)}.romMini .md.off{opacity:.45}.romMini .md.off small{color:var(--bad)}.romMini .md.best{border-color:#ff6b9a}
+#scrumInfo>svg{width:100%;height:auto;display:block;border-radius:14px;max-width:720px;margin:6px auto 0}
+#scrumLive{margin:6px 0 10px;overflow-x:auto}#scrumLive table{width:100%;border-collapse:collapse;font-size:14px}#scrumLive th{font-size:11px;color:var(--tx2);text-align:left;padding:4px 6px;font-weight:600}#scrumLive td{padding:7px 6px;border-top:1px solid var(--line)}#scrumLive tr.best td{color:var(--acc)}#scrumLive tr.last td{background:var(--card2)}#scrumLive td b{font-size:17px}
 #stabPlot{width:100%;max-width:380px;height:380px;display:block;margin:4px auto 0}
 .stabLeg{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:6px}.stabLeg>span{font-size:13px;padding:4px 10px;border-radius:20px;background:var(--card2);border:1px solid var(--line)}.stabLeg b{font-size:15px}
 .tile.game{background:linear-gradient(165deg,#4a2a5e 0%,#141c24 70%);border-color:#5b3a73}.tile.game .ti{display:flex;align-items:center;justify-content:center;font-size:44px;min-height:70px}
@@ -127,6 +129,8 @@ body.noscroll{overflow:hidden}
   #resCard{border:0;background:#fff;padding:0}
   .m{background:#f3f4f6;color:#111}.m .l,.note,th{color:#444}
   td,th{border-color:#ddd}
+  #scrumInfo>svg{width:auto;max-width:100%;max-height:265mm;border-radius:0;margin:0 auto}#scrumBox{page-break-after:always;break-after:page}
+  body.hasInfo #printHead,body.hasInfo #resTitle{display:none!important}
 }
 </style>
 </head>
@@ -306,9 +310,7 @@ body.noscroll{overflow:hidden}
     <label class="f" style="flex:2;min-width:180px">Ejercicio<select id="isoEx"></select></label>
     <label class="f">Duración<select id="isoDur"><option value="15">15 s</option><option value="20">20 s</option><option value="30" selected>30 s</option><option value="45">45 s</option><option value="60">60 s</option><option value="90">90 s</option><option value="120">2 min</option><option value="0">Hasta el fallo (Stop)</option></select></label>
   </div>
-  <div id="optScrum" class="row" style="margin-top:10px">
-    <label class="note" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="scBeep" checked> Pitido de salida en cada empuje (mide tiempo de reacción)</label>
-  </div>
+  <div id="optScrum" class="hide" style="display:none"><input type="checkbox" id="scBeep" style="display:none"></div>
   <div id="optOrient" class="row" style="margin-top:12px">
     <span class="note">Orientación del cinturón:</span> <span id="orientPill" class="pill no">sin calibrar</span>
     <button class="sm" id="btnOrient">Calibrar</button>
@@ -320,6 +322,7 @@ body.noscroll{overflow:hidden}
   <button class="pri big" id="btnRec" disabled>Registrar</button>
   <div id="status">Conectá el sensor</div>
   <div id="counter"></div>
+  <div id="scrumLive" class="hide"></div>
   <div id="gaugeWrap"><canvas id="gauge" class="hide"></canvas><button class="sm" id="btnGaugeBig">⛶ Pantalla grande</button></div>
   <canvas id="live"></canvas>
 </div>
@@ -327,6 +330,7 @@ body.noscroll{overflow:hidden}
 <div class="card hide" id="resCard">
   <div id="printHead"></div>
   <h2 id="resTitle">Resultado</h2>
+  <div id="scrumBox" class="hide"><div id="scrumInfo"></div><div class="row" style="justify-content:center;margin:8px 0 4px"><button class="sm" id="btnScrumPNG">⬇ Descargar infografía (PNG)</button></div></div>
   <div class="grid" id="sumGrid"></div>
   <div class="grid" id="lsiBox" style="margin-top:8px"></div>
   <div class="scroll" style="margin-top:10px"><table id="jumps"></table></div>
@@ -356,7 +360,7 @@ body.noscroll{overflow:hidden}
   </div>
 </div>
 
-<p class="note">TrakSensor v1.7.1 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v1.9 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -1457,10 +1461,8 @@ function analyzeScrum(S, fr, sig, calB, cues, opts) {
   if (fr.known) T('Variación lateral en el empuje', M('latR'), '°', 1, false, true);
   T('Variación del ángulo de tronco', M('flexR'), '°', 1, false, true);
   const rts = reps.map(x => x.rt).filter(fin);
-  if (rts.length) T('Tiempo de reacción al pitido', mean(rts) * 1000, 'ms', 0, false, true);
   if (reps.some(x => !x.ep.endOK)) res.warn.push('En algún empuje el jugador no quedó quieto al final: la velocidad y los metros de ese empuje son menos precisos.');
   if (!fr.known) res.warn.push('Orientación del cinturón sin calibrar: no se calcula la inclinación lateral.');
-  if (rts.length) res.warn.push('El tiempo de reacción es aproximado (±0,1 s) por la demora del Bluetooth.');
   // gráfico: velocidad hacia adelante y fases
   const Vfull = new Float64Array(n), spans = [], marks = [];
   reps.forEach((x, k) => {
@@ -1470,6 +1472,9 @@ function analyzeScrum(S, fr, sig, calB, cues, opts) {
   });
   const from = Math.max(calB, reps[0].ep.a - Math.round(0.5 * FS)), to = Math.min(n - 1, reps[reps.length - 1].ep.end + FS);
   res.chart = { type: 'lines', from, to, lines: [{ arr: Vfull, color: '#4c9ef5', lo: -0.5, hi: Math.max(1, best.vPk * 1.2), label: 'Velocidad hacia adelante (m/s)' }, { arr: fS, color: '#18c29c', lo: 0, hi: 110, label: 'Ángulo del tronco (°)' }], spans: reps.length > 3 ? spans.filter(s => s[3] !== 'unw') : spans, marks };
+  res.scrum = { n: reps.length, vPk: best.vPk, vMean: M('vMean'), disp: reps.length > 1 ? M('disp') : best.disp, back: M('back'), drop: M('drop'), tLoad: M('tLoad'), tDrive: M('tDrive'), tPk: M('tPk'), aPk: M('aPk'),
+    rot: M('rot'), latR: fr.known ? M('latR') : null, flexR: M('flexR'), isoFlex: M('isoFlex'), isoLat: fr.known ? M('isoLat') : null, known: !!fr.known, rt: null, cv: reps.length > 1 ? sdv(reps.map(x => x.vPk)) / M('vPk') * 100 : null };
+  res.scrumReps = reps.map(x => ({ vPk: x.vPk, vMean: x.vMean, disp: x.disp, rot: x.rot, drop: x.drop, isoFlex: x.isoFlex, tPk: x.tPk }));
   res.main = ['Velocidad pico', r(best.vPk, 2), 'm/s'];
   return res;
 }
@@ -2127,7 +2132,7 @@ const GUIDE = {
          errors: ['Mover los brazos para equilibrarse.', 'Hablar durante la prueba.'] },
   ROM: { steps: ['Elegí el movimiento: la app indica dónde va el sensor.', 'Sujetá el sensor con una banda elástica firme en ese segmento.', 'Posición inicial, quieto 2 s.', 'Hacé el movimiento hasta el máximo, lento y controlado, y volvé. Repetí 3 veces.', 'Tocá Stop y repetí del otro lado para comparar.'],
          errors: ['Sensor flojo (sobreestima el rango).', 'Compensar con el tronco.'] },
-  SCRUM: { steps: ['Calibrá la orientación del cinturón (una vez por colocación) y ajustalo bien firme: con el cuerpo horizontal, un cinturón flojo se mueve.', 'Parado quieto 2 s (referencia de postura).', 'Enganchate en la máquina y quedate quieto en isometría al menos 1 s.', 'Al pitido (o cuando quieras, si lo desactivás): carga (flexioná rodillas y cadera) y empujá desplazando la máquina.', 'Al terminar el empuje quedate quieto en posición: así la app cierra el cálculo de velocidad y metros.', 'Para hacer otro empuje, volvé a la posición inicial y quieto 1 s. Al pararte, el test termina solo.'],
+  SCRUM: { steps: ['Calibrá la orientación del cinturón (una vez por colocación) y ajustalo bien firme: con el cuerpo horizontal, un cinturón flojo se mueve.', 'Parado quieto 2 s (referencia de postura).', 'Enganchate en la máquina y quedate quieto en isometría al menos 1 s.', 'Cuando quieras: carga (flexioná rodillas y cadera) y empujá desplazando la máquina. Los datos de cada empuje aparecen en la pantalla.', 'Al terminar el empuje quedate quieto en posición: así la app cierra el cálculo de velocidad y metros.', 'Para hacer otro empuje, volvé a la posición inicial y quieto 1 s. Al pararte, el test termina solo.'],
            errors: ['Arrancar sin estar quieto antes (no hay punto de partida para medir la velocidad).', 'Pararse enseguida al terminar el empuje (quedate quieto en posición 1 s).', 'Cinturón flojo.', 'Con máquina fija no hay desplazamiento: el sensor mide postura y estabilidad, no la fuerza.'] },
   FREE: { steps: ['Tocá Play.', 'Hacé la actividad que quieras registrar.', 'Tocá Stop y exportá los datos crudos en CSV.'], errors: [] },
 };
@@ -2247,7 +2252,7 @@ const TESTS = {
   YBAL:  { cat: 'Equilibrio', name: 'Y-Balance (tren inferior)', kind: 'ybal', calib: 'pos', stop: 'manual', side: true, ybal: true,
            help: 'Parado en una pierna en el centro. Alcanzá lo más lejos posible con la otra pierna hacia adelante, posteromedial y posterolateral, volviendo al centro cada vez. Cargá las distancias y tocá Stop.' },
   SCRUM: { cat: 'Scrum', name: 'Scrum contra máquina (empuje)', kind: 'scrum', calib: 'stand', stop: 'scrum', mode: true, orient: true, scrum: true,
-           help: 'Parado quieto 2 s. Engancharse en la máquina y quedarse quieto en isometría; al pitido (o cuando quiera): carga y empuje. Al terminar cada empuje, quieto en posición.' },
+           help: 'Parado quieto 2 s. Engancharse en la máquina y quedarse quieto en isometría; cuando quiera: carga y empuje. Al terminar cada empuje, quieto en posición.' },
   FREE:  { cat: 'Otros', name: 'Registro libre (datos crudos)', kind: 'free', calib: 'stand', stop: 'manual',
            help: 'Graba todo lo que hagas entre Play y Stop y lo exporta en CSV. Ideal para mandar datos y ajustar los cálculos.' },
 };
@@ -2442,8 +2447,22 @@ function initAudio() { try { actx = actx || new (window.AudioContext || window.w
 function beep(f = 1200, d = 0.25) { if (!actx) return; try { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = f; g.gain.value = 0.3; o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + d); } catch (e) {} }
 
 // ---------- Scrum: seguimiento en vivo ----------
+// datos de cada empuje mientras se registra
+function scrumLiveUpdate() {
+  if (!rec || !rec.sc) return;
+  let res; try { res = analyzeTest({ S: rec.S.slice(), test: rec.test, calStart: rec.calStart, calEnd: rec.calEnd, cueAt: [], lost: 0 }, currentAthlete(), TESTS[rec.test]); } catch (e) { return; }
+  if (!res || res.error || !res.scrumReps) return;
+  rec.scLive = res.scrumReps; renderScrumLive();
+}
+function renderScrumLive() {
+  const L = rec && rec.scLive; if (!L || !L.length) { $('scrumLive').classList.add('hide'); return; }
+  const bi = L.reduce((b, x, k) => x.vPk > L[b].vPk ? k : b, 0);
+  $('scrumLive').classList.remove('hide');
+  $('scrumLive').innerHTML = `<table><tr><th>#</th><th>Vel. pico</th><th>Vel. media</th><th>Desplaz.</th><th>Rot. pelvis</th><th>Desc. cadera</th></tr>` +
+    L.map((x, k) => `<tr class="${k === bi ? 'best' : ''}${k === L.length - 1 ? ' last' : ''}"><td>${k + 1}${k === bi ? ' ★' : ''}</td><td><b>${r(x.vPk, 2)}</b> m/s</td><td>${r(x.vMean, 2)} m/s</td><td>${r(x.disp * 100, 0)} cm</td><td>${r(x.rot, 1)}°</td><td>${r(x.drop * 100, 1)} cm</td></tr>`).reverse().join('') + '</table>';
+}
 function scrumSetup(i) {
-  rec.sc = { ex: rec.cal.u.slice(), state: 'wait', still: 0, mov: 0, n: 0, upN: 0, last: i };
+  rec.sc = { ex: rec.cal.u.slice(), state: 'wait', still: 0, mov: 0, n: 0, upN: 0, last: i }; rec.scLive = null; $('scrumLive').classList.add('hide');
   rec.cueAt = [];
   status('Enganchate en la máquina y quedate quieto…');
   counter(rec.target === Infinity ? '0 empujes' : `0 de ${rec.target}`);
@@ -2456,12 +2475,13 @@ function scrumTick(i, s, m, gm) {
   c.still = motion ? 0 : c.still + 1; c.mov = motion ? c.mov + 1 : 0;
   if (c.state === 'wait' && ang > 40 && c.still > FS) {
     c.state = 'ready'; c.last = i;
-    if ($('scBeep').checked) { beep(1400, 0.3); rec.cueAt.push(i); status('¡Empujá!'); } else status('En posición: empujá cuando quieras');
+    status('En posición: empujá cuando quieras');
   } else if (c.state === 'ready' && c.mov > 0.08 * FS) { c.state = 'push'; status('Empujando…'); }
   else if (c.state === 'push' && c.still > 0.7 * FS) {
     c.n++; c.state = 'wait'; c.last = i;
     counter(rec.target === Infinity ? `${c.n} empuje${c.n > 1 ? 's' : ''}` : `${c.n} de ${rec.target}`);
     if (c.n >= rec.target) { finishRec(); return true; }
+    setTimeout(scrumLiveUpdate, 0);
     status('✓ Quieto en posición para el siguiente empuje…');
   }
   if (c.n > 0 && ang < 25) { if (++c.upN > FS) { finishRec(); return true; } } else c.upN = 0;
@@ -2616,6 +2636,7 @@ function stopRec() {
 // ---------- Fin del registro y análisis ----------
 function finishRec(msg) {
   if (gaugeBig) $('btnGaugeBig').click();
+  $('scrumLive').classList.add('hide');
   send('P');
   const r0 = rec; rec = null; setRecBtn(); counter('');
   const a = currentAthlete(), t = TESTS[r0.test];
@@ -2655,7 +2676,6 @@ function condLabel(id) {
   if (t.box) p.push($('boxH').value + ' cm');
   if (t.bal) p.push($('balStance').selectedOptions[0].text, $('balEyes').value, $('balSurf').value === 'E' ? 'espuma' : '', $('balDur').value + ' s');
   if (t.rom) p.push($('romMove').value);
-  if (t.scrum && $('scBeep').checked) p.push('con pitido');
   if (t.speed && $('tmSpeed').value) p.push($('tmSpeed').value + ' km/h');
   return p.filter(Boolean).join(' · ');
 }
@@ -2821,6 +2841,7 @@ function showSerie() {
   if (pw) tiles.push(['Mejor potencia', r(pw.best, 1), 'W/kg']);
   if (ct) tiles.push(['Contacto promedio', Math.round(ct.mean), 'ms']);
   $('sumGrid').innerHTML = tiles.map(tile).join('');
+  try { showInfo(infoSVG(infoFromSerie(J, t, isDJ, tiles), infoMeta(J[0].entry))); } catch (err) { console.warn('infografía', err); $('scrumBox').classList.add('hide'); document.body.classList.remove('hasInfo'); }
   renderLSI(J[0].entry, isDJ ? main.best : main.best);
   const bestIdx = J.reduce((b, j, k) => ((isDJ ? j.key.rsi : j.key.h) > (isDJ ? J[b].key.rsi : J[b].key.h) ? k : b), 0);
   const f = (v, d) => v == null ? '–' : r(v, d);
@@ -2865,6 +2886,11 @@ function showGeneric(res, entry, t) {
   $('resPlot').classList.toggle('hide', !res.chart);
   drawChart(res.chart);
   $('stabBox').classList.toggle('hide', !res.stab); if (res.stab) requestAnimationFrame(() => drawStab(res.stab));
+  try {
+    if (res.scrum) { const at = athletes.find(a => a.id === entry.ath) || currentAthlete() || { name: '' }; showInfo(scrumInfoSVG(res.scrum, { name: at.name, sub: [new Date(entry.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' }), at.mass ? at.mass + ' kg' : '', entry.cond || ''].filter(Boolean).join(' · ') })); }
+    else if (t.kind !== 'free') showInfo(infoSVG(infoFromGeneric(res, entry, t), infoMeta(entry)));
+    else { $('scrumBox').classList.add('hide'); document.body.classList.remove('hasInfo'); }
+  } catch (err) { console.warn('infografía', err); $('scrumBox').classList.add('hide'); document.body.classList.remove('hasInfo'); }
   $('romBox').classList.toggle('hide', !res.romDial);
   if (res.romDial) { romCurve = false; $('resPlot').classList.add('hide'); $('phaseLegend').classList.add('hide'); $('btnRomCurve').textContent = '📈 Ver curva en el tiempo'; requestAnimationFrame(() => drawRomDial(res.romDial)); }
   else $('phaseLegend').classList.remove('hide');
@@ -2961,6 +2987,310 @@ function toggleRep(k) {
   const ttl = $('resTitle').textContent;
   showGeneric(res, c.entry, c.t); $('resTitle').textContent = ttl;
   renderHist();
+}
+
+// ---------- Infografía del scrum (SVG 1080 x 1350, apta para PDF e Instagram) ----------
+function scrumInfoSVG(d, meta) {
+  const W = 1080, H = 1350, C = { ink: '#13233a', sub: '#5b6b80', line: '#d9e1ea', acc: '#0fa57f', acc2: '#18c29c', blue: '#2f7fe0', pink: '#e8466f', amber: '#e89a1c', card: '#f4f7fa' };
+  const f = (v, k = 0) => fin(v) ? (Math.round(v * 10 ** k) / 10 ** k).toLocaleString('es-AR', { minimumFractionDigits: k, maximumFractionDigits: k }) : '–';
+  const rad = (a) => a * Math.PI / 180;
+  const T = (x, y, s, size, col = C.ink, wt = 700, anchor = 'start', extra = '') => `<text x="${x}" y="${y}" font-size="${size}" font-weight="${wt}" fill="${col}" text-anchor="${anchor}" ${extra}>${esc(String(s))}</text>`;
+  const card = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="26" fill="${C.card}"/>`;
+  const exag = (a, min) => { const s = Math.abs(a) < min && Math.abs(a) > 0.05 ? min / Math.abs(a) : 1; return [a * s, s > 1]; };
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">`;
+  s += `<defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f2236"/><stop offset="1" stop-color="#0d4d43"/></linearGradient>
+    <marker id="ar" viewBox="0 0 10 10" refX="7" refY="5" markerUnits="userSpaceOnUse" markerWidth="24" markerHeight="24" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${C.pink}"/></marker>
+    <marker id="arb" viewBox="0 0 10 10" refX="7" refY="5" markerUnits="userSpaceOnUse" markerWidth="24" markerHeight="24" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${C.blue}"/></marker></defs>`;
+  s += `<rect width="${W}" height="${H}" fill="#ffffff"/>`;
+  // encabezado
+  s += `<rect width="${W}" height="190" fill="url(#hg)"/>`;
+  s += T(60, 70, 'INFORME DE SCRUM · EMPUJE CONTRA MÁQUINA', 24, '#7fe3c8', 700, 'start', 'letter-spacing="3"');
+  s += T(60, 128, meta.name, 50, '#ffffff', 800);
+  s += T(60, 168, meta.sub, 24, '#b8c7d6', 500);
+  s += `<text x="${W - 60}" y="128" font-size="40" font-weight="800" fill="#ffffff" text-anchor="end">Trak<tspan fill="#18c29c">Sensor</tspan></text>`;
+  s += T(W - 60, 168, `${d.n} empuje${d.n > 1 ? 's' : ''}${d.n > 1 ? ' · mejor y promedios' : ''}`, 22, '#b8c7d6', 500, 'end');
+
+  // ---- héroe: jugador de perfil con el ángulo del tronco ----
+  s += card(40, 220, 640, 470);
+  s += T(80, 275, 'POSTURA EN EL ENGANCHE', 22, C.sub, 700, 'start', 'letter-spacing="2"');
+  const th = clamp(fin(d.isoFlex) ? d.isoFlex : 80, 20, 115), gy = 640, Hx = 300, Hy = 470;
+  const Sx = Hx + 190 * Math.sin(rad(th)), Sy = Hy - 190 * Math.cos(rad(th)), hd = [Sx + 34 * Math.sin(rad(th + 12)), Sy - 34 * Math.cos(rad(th + 12))];
+  const K = [Hx + 40, Hy + 92], A = [Hx - 60, gy - 14], Toe = [A[0] - 30, gy - 4], K2 = [Hx + 10, Hy + 100], A2 = [Hx - 110, gy - 12];
+  s += `<line x1="70" y1="${gy}" x2="650" y2="${gy}" stroke="${C.line}" stroke-width="4"/>`;
+  // máquina
+  s += `<rect x="${Math.min(600, Sx + 70)}" y="${Sy - 60}" width="40" height="120" rx="10" fill="#c8d2de"/><rect x="${Math.min(600, Sx + 70) + 40}" y="${Sy - 10}" width="${Math.max(10, 650 - Math.min(600, Sx + 70) - 40)}" height="20" fill="#c8d2de"/>`;
+  const limb = (pts, col, w) => `<polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="${col}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  s += limb([[Hx, Hy], K2, A2, [A2[0] - 30, gy - 4]], '#8fa3ba', 26);
+  s += limb([[Hx, Hy], [Sx, Sy]], C.ink, 46);
+  s += limb([[Hx, Hy], K, A, Toe], C.ink, 28);
+  s += limb([[Sx - 10, Sy + 6], [Sx + 30, Sy + 40], [Math.min(600, Sx + 70), Sy + 34]], '#2b3e58', 16);
+  s += `<circle cx="${hd[0]}" cy="${hd[1] + 14}" r="26" fill="${C.ink}"/>`;
+  s += `<circle cx="${Hx}" cy="${Hy}" r="12" fill="${C.acc2}" stroke="#fff" stroke-width="4"/>`;
+  // arco del ángulo (desde la vertical)
+  const R0 = 120, a0 = -90, a1 = -90 + th, P = (a, R) => [Hx + R * Math.cos(rad(a)), Hy + R * Math.sin(rad(a))];
+  s += `<line x1="${Hx}" y1="${Hy}" x2="${Hx}" y2="${Hy - 165}" stroke="${C.sub}" stroke-width="3" stroke-dasharray="10 9"/>`;
+  s += `<path d="M${P(a0, R0).join(',')} A${R0},${R0} 0 ${th > 180 ? 1 : 0},1 ${P(a1, R0).join(',')}" fill="none" stroke="${C.pink}" stroke-width="7" stroke-linecap="round"/>`;
+  const lab = P((a0 + a1) / 2, R0 + 46);
+  s += T(lab[0] - 30, lab[1] + 6, f(d.isoFlex, 0) + '°', 52, C.pink, 800, 'middle');
+  s += T(80, 678, `Tronco: ${f(d.isoFlex, 0)}° desde la vertical (90° = espalda paralela al piso)`, 20, C.sub, 500);
+
+  // ---- KPIs de empuje ----
+  const kx = 710, kw = 330;
+  s += card(kx, 220, kw, 230);
+  s += T(kx + 34, 272, 'VELOCIDAD PICO', 22, C.sub, 700, 'start', 'letter-spacing="2"');
+  s += T(kx + 34, 362, f(d.vPk, 2), 92, C.acc, 800) + T(kx + 34, 410, 'm/s', 30, C.acc, 700);
+  s += T(kx + kw - 34, 410, `media ${f(d.vMean, 2)} m/s`, 22, C.sub, 600, 'end');
+  s += card(kx, 470, kw, 220);
+  s += T(kx + 34, 522, 'DESPLAZAMIENTO', 22, C.sub, 700, 'start', 'letter-spacing="2"');
+  s += `<text x="${kx + 34}" y="604" font-size="80" font-weight="800" fill="${C.blue}">${f(d.disp * 100, 0)}<tspan font-size="30" dx="10">cm</tspan></text>`;
+  s += `<line x1="${kx + 40}" y1="630" x2="${kx + kw - 60}" y2="630" stroke="${C.blue}" stroke-width="8" stroke-linecap="round" marker-end="url(#arb)"/>`;
+  s += T(kx + kw - 34, 680, `retroceso en la carga ${f(d.back * 100, 1)} cm`, 18, C.sub, 600, 'end');
+
+  // ---- fila de 3 paneles ----
+  const py = 715, pw = 320, ph = 360, xs = [40, 380, 720];
+  // a) rotación de pelvis (vista superior)
+  {
+    const x0 = xs[0]; s += card(x0, py, pw, ph);
+    s += T(x0 + 30, py + 50, 'ROTACIÓN DE PELVIS', 19, C.sub, 700, 'start', 'letter-spacing="1.5"');
+    const cx = x0 + pw / 2, cy = py + 175, [ad, ex] = exag(fin(d.rot) ? d.rot : 0, 12);
+    const pel = (rot, st) => `<g transform="rotate(${rot} ${cx} ${cy})">${st ? `<rect x="${cx - 95}" y="${cy - 32}" width="190" height="64" rx="32" fill="none" stroke="${C.sub}" stroke-width="3" stroke-dasharray="9 8"/>` : `<rect x="${cx - 95}" y="${cy - 32}" width="190" height="64" rx="32" fill="${C.acc2}" fill-opacity=".22" stroke="${C.acc}" stroke-width="5"/><circle cx="${cx - 60}" cy="${cy}" r="9" fill="${C.acc}"/><circle cx="${cx + 60}" cy="${cy}" r="9" fill="${C.acc}"/><circle cx="${cx}" cy="${cy + 8}" r="11" fill="${C.ink}"/>`}</g>`;
+    s += pel(0, true) + pel(ad, false);
+    s += `<line x1="${cx}" y1="${cy - 40}" x2="${cx}" y2="${cy - 95}" stroke="${C.sub}" stroke-width="3" marker-end="url(#arb)"/>` + T(cx, cy - 104, 'adelante', 15, C.sub, 600, 'middle');
+    const rr = 118; s += `<path d="M${cx + rr * Math.cos(rad(-10))},${cy + rr * Math.sin(rad(-10))} A${rr},${rr} 0 0,1 ${cx + rr * Math.cos(rad(-10 + Math.max(8, ad)))},${cy + rr * Math.sin(rad(-10 + Math.max(8, ad)))}" fill="none" stroke="${C.pink}" stroke-width="6" marker-end="url(#ar)"/>`;
+    s += T(cx, py + 300, f(d.rot, 1) + '°', 58, C.pink, 800, 'middle');
+    s += T(cx, py + 328, 'giro en el empuje · vista superior', 16, C.sub, 500, 'middle') + (ex ? T(cx, py + 348, '(dibujo exagerado para que se vea)', 13, '#9aa7b5', 500, 'middle') : '');
+  }
+  // b) inclinación lateral de cadera (vista posterior)
+  {
+    const x0 = xs[1]; s += card(x0, py, pw, ph);
+    s += T(x0 + 30, py + 50, 'INCLINACIÓN DE CADERA', 19, C.sub, 700, 'start', 'letter-spacing="1.5"');
+    const cx = x0 + pw / 2, cy = py + 140;
+    if (d.known && fin(d.isoLat)) {
+      const [ad, ex] = exag(d.isoLat, 6);
+      s += `<line x1="${cx - 130}" y1="${cy}" x2="${cx + 130}" y2="${cy}" stroke="${C.sub}" stroke-width="3" stroke-dasharray="9 8"/>`;
+      s += `<g transform="rotate(${ad} ${cx} ${cy})"><path d="M${cx - 110},${cy - 30} Q${cx - 120},${cy + 30} ${cx - 50},${cy + 40} L${cx + 50},${cy + 40} Q${cx + 120},${cy + 30} ${cx + 110},${cy - 30} Q${cx},${cy - 6} ${cx - 110},${cy - 30} z" fill="${C.acc2}" fill-opacity=".22" stroke="${C.acc}" stroke-width="5"/>
+        <line x1="${cx - 60}" y1="${cy + 44}" x2="${cx - 68}" y2="${cy + 96}" stroke="${C.ink}" stroke-width="22" stroke-linecap="round"/><line x1="${cx + 60}" y1="${cy + 44}" x2="${cx + 68}" y2="${cy + 96}" stroke="${C.ink}" stroke-width="22" stroke-linecap="round"/>
+        <line x1="${cx}" y1="${cy - 12}" x2="${cx}" y2="${cy - 60}" stroke="${C.ink}" stroke-width="14" stroke-linecap="round"/></g>`;
+      s += T(x0 + 30, cy - 62, 'IZQ', 16, C.sub, 700) + T(x0 + pw - 30, cy - 62, 'DER', 16, C.sub, 700, 'end');
+      s += T(cx, py + 300, f(Math.abs(d.isoLat), 1) + '°', 58, C.pink, 800, 'middle');
+      const low = Math.abs(d.isoLat) < 1 ? 'nivelada' : d.isoLat > 0 ? 'cadera derecha más baja' : 'cadera izquierda más baja';
+      s += T(cx, py + 328, `${low} · vista posterior`, 16, C.sub, 500, 'middle') + (ex ? T(cx, py + 348, '(dibujo exagerado para que se vea)', 13, '#9aa7b5', 500, 'middle') : '');
+    } else {
+      s += T(cx, cy + 20, 'Sin calibrar', 34, C.sub, 700, 'middle') + T(cx, cy + 56, 'Calibrá la orientación del cinturón', 16, C.sub, 500, 'middle') + T(cx, cy + 78, 'para medir la inclinación lateral.', 16, C.sub, 500, 'middle');
+    }
+  }
+  // c) descenso de cadera
+  {
+    const x0 = xs[2]; s += card(x0, py, pw, ph);
+    s += T(x0 + 30, py + 50, 'DESCENSO DE CADERA', 19, C.sub, 700, 'start', 'letter-spacing="1.5"');
+    const cx = x0 + 110, cy = py + 100, dh = clamp((d.drop || 0) * 100 * 8, 50, 130);
+    s += `<line x1="${x0 + 30}" y1="${cy}" x2="${x0 + pw - 30}" y2="${cy}" stroke="${C.sub}" stroke-width="3" stroke-dasharray="9 8"/>`;
+    s += T(x0 + pw - 30, cy - 10, 'antes de cargar', 14, C.sub, 600, 'end');
+    s += `<circle cx="${cx}" cy="${cy}" r="13" fill="#fff" stroke="${C.sub}" stroke-width="4" stroke-dasharray="6 5"/>`;
+    s += `<line x1="${cx + 80}" y1="${cy + dh - 4}" x2="${cx + 170}" y2="${cy + dh - 14}" stroke="${C.ink}" stroke-width="30" stroke-linecap="round"/>`;
+    s += `<line x1="${cx}" y1="${cy + dh}" x2="${cx + 80}" y2="${cy + dh - 4}" stroke="${C.ink}" stroke-width="30" stroke-linecap="round"/>`;
+    s += `<line x1="${cx}" y1="${cy + dh}" x2="${cx - 40}" y2="${cy + dh + 60}" stroke="${C.ink}" stroke-width="24" stroke-linecap="round"/>`;
+    s += `<line x1="${cx - 34}" y1="${cy + 16}" x2="${cx - 34}" y2="${cy + dh - 4}" stroke="${C.pink}" stroke-width="6" marker-end="url(#ar)"/>`;
+    s += `<circle cx="${cx}" cy="${cy + dh}" r="15" fill="${C.acc2}" stroke="#fff" stroke-width="4"/>`;
+    s += T(x0 + pw / 2, py + 300, f(d.drop * 100, 1) + ' cm', 58, C.pink, 800, 'middle');
+    s += T(x0 + pw / 2, py + 328, 'bajada de la cadera al cargar', 16, C.sub, 500, 'middle');
+  }
+
+  // ---- fila inferior: tiempos y extras ----
+  const by = 1100;
+  s += card(40, by, 660, 200);
+  s += T(70, by + 46, 'TIEMPOS DEL EMPUJE', 21, C.sub, 700, 'start', 'letter-spacing="2"');
+  const tl = d.tLoad * 1000, td = d.tDrive * 1000, tt = (tl + td) || 1, bx = 70, bw = 600, wl = Math.max(24, bw * tl / tt);
+  s += `<rect x="${bx}" y="${by + 66}" width="${wl}" height="40" rx="10" fill="${C.amber}"/><rect x="${bx + wl + 4}" y="${by + 66}" width="${bw - wl - 4}" height="40" rx="10" fill="${C.acc2}"/>`;
+  const xp = bx + wl + 4 + (bw - wl - 4) * clamp(d.tPk * 1000 / (td || 1), 0, 1);
+  s += `<line x1="${xp}" y1="${by + 58}" x2="${xp}" y2="${by + 114}" stroke="${C.pink}" stroke-width="5"/>`;
+  s += `<circle cx="${bx + 8}" cy="${by + 136}" r="8" fill="${C.amber}"/>` + T(bx + 24, by + 143, `Carga ${f(tl, 0)} ms`, 20, C.ink, 700);
+  s += `<circle cx="${bx + 220}" cy="${by + 136}" r="8" fill="${C.acc2}"/>` + T(bx + 236, by + 143, `Empuje ${f(td, 0)} ms`, 20, C.ink, 700);
+  s += `<rect x="${bx + 446}" y="${by + 128}" width="5" height="18" fill="${C.pink}"/>` + T(bx + 460, by + 143, `Pico a ${f(d.tPk * 1000, 0)} ms`, 20, C.pink, 700);
+  s += T(70, by + 182, `Variación del tronco en el empuje ${f(d.flexR, 1)}°${d.known && fin(d.latR) ? ` · variación lateral ${f(d.latR, 1)}°` : ''}`, 17, C.sub, 500);
+  s += card(720, by, 320, 200);
+  const ex2 = [['Aceleración pico', f(d.aPk, 2) + ' g'], ['Empujes', String(d.n)], d.n > 1 ? ['Constancia (CV)', f(d.cv, 1) + ' %'] : null].filter(Boolean);
+  ex2.forEach(([l, v], k) => { const y = by + 56 + k * 56; s += T(748, y, l, 17, C.sub, 600) + T(1014, y + 1, v, 26, C.ink, 800, 'end'); });
+  s += T(W / 2, H - 18, 'TrakSensor · sensor inercial lumbar · valores del mejor empuje (velocidad) y promedio de los empujes (resto)', 15, '#9aa7b5', 500, 'middle');
+  return s + '</svg>';
+}
+function scrumInfoPNG() {
+  const svg = $('scrumInfo').innerHTML, img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = 1080; c.height = 1350; c.getContext('2d').drawImage(img, 0, 0);
+    c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); const at = currentAthlete(); a.download = `scrum_${(at ? at.name : 'atleta').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }, 'image/png');
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+$('btnScrumPNG').onclick = () => infoPNG();
+
+// ---------- Infografía genérica para todas las evaluaciones (SVG 1080 x 1350) ----------
+function animForEntry(e) {
+  const parts = (e.cond || '').split(' · ');
+  let id = e.test;
+  if (e.test === 'ROM') { const m = ROM_MOVES.find(m => parts.includes(m[0])); if (m) id = 'ROM:' + m[0]; }
+  else if (e.test === 'ISO') { const x = ISO_EX.find(x => parts.includes(x[0])); if (x) id = 'ISO:' + x[0]; }
+  else if (e.test === 'MBESS') { const x = MBESS_ST.find(x => parts.includes(x[1]) || parts.includes(x[0])); if (x) id = 'MBESS:' + x[0]; }
+  return AN.has(id) ? id : AN.has(e.test) ? e.test : null;
+}
+function infoMeta(entry) {
+  const at = athletes.find(a => a.id === entry.ath) || currentAthlete() || { name: '' };
+  return { name: at.name, sub: [new Date(entry.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' }), at.mass ? at.mass + ' kg' : ''].filter(Boolean).join(' · '), side: at.side };
+}
+// d: { kicker, title, cond, anim, main:[l,v,u], kpis:[[l,v,u]], panels:[{type,...}], metrics:[[l,v,u]], foot }
+function infoSVG(d, meta) {
+  const W = 1080, H = 1350, C = { ink: '#13233a', sub: '#5b6b80', line: '#d9e1ea', acc: '#0fa57f', acc2: '#18c29c', blue: '#2f7fe0', pink: '#e8466f', amber: '#e89a1c', card: '#f4f7fa', dark: '#14202e' };
+  const T = (x, y, s, size, col = C.ink, wt = 700, anchor = 'start', extra = '') => `<text x="${x}" y="${y}" font-size="${size}" font-weight="${wt}" fill="${col}" text-anchor="${anchor}" ${extra}>${esc(String(s))}</text>`;
+  const card = (x, y, w, h, f = C.card) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="26" fill="${f}"/>`;
+  const fitTxt = (s, n) => (s = String(s), s.length > n ? s.slice(0, n - 1) + '…' : s);
+  const fv = (v) => typeof v === 'number' ? v.toLocaleString('es-AR', { maximumFractionDigits: 2 }) : /^-?\d+\.\d+$/.test(String(v)) ? (+v).toLocaleString('es-AR', { maximumFractionDigits: 2 }) : String(v);
+  const num = (v, u, big, small, col) => String(u || '').startsWith('°') ? `${esc(fv(v))}${esc(u)}` : `${esc(fv(v))}<tspan font-size="${small}" dx="${big > 60 ? 12 : 5}" fill="${col}">${esc(u || '')}</tspan>`;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="system-ui,-apple-system,Segoe UI,Roboto,sans-serif">`;
+  s += `<defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f2236"/><stop offset="1" stop-color="#0d4d43"/></linearGradient><linearGradient id="dk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a3b"/><stop offset="1" stop-color="#101923"/></linearGradient></defs>`;
+  s += `<rect width="${W}" height="${H}" fill="#ffffff"/><rect width="${W}" height="190" fill="url(#hg)"/>`;
+  s += T(60, 70, fitTxt(d.kicker, 52), 24, '#7fe3c8', 700, 'start', 'letter-spacing="3"');
+  s += T(60, 128, fitTxt(meta.name, 26), 50, '#ffffff', 800);
+  s += T(60, 168, fitTxt(meta.sub + (d.cond ? ' · ' + d.cond : ''), 62), 24, '#b8c7d6', 500);
+  s += `<text x="${W - 60}" y="128" font-size="40" font-weight="800" fill="#ffffff" text-anchor="end">Trak<tspan fill="#18c29c">Sensor</tspan></text>`;
+  // héroe: dibujo del ejercicio
+  s += card(40, 220, 560, 420, 'url(#dk)');
+  s += T(76, 268, 'EJERCICIO', 20, '#7fe3c8', 700, 'start', 'letter-spacing="2"');
+  if (d.anim) {
+    const th = AN.thumb(d.anim, d.animVB || '0 30 320 190'), vb = (th.match(/viewBox="([^"]+)"/) || [])[1] || '0 40 320 180', inner = th.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+    s += `<svg x="60" y="280" width="520" height="300" viewBox="${vb}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
+  }
+  s += T(320, 612, fitTxt(d.anim && /^(ROM|ISO|MBESS):/.test(d.anim) && !/^MBESS/.test(d.anim) ? d.anim.split(':')[1] : d.title, 40), 26, '#ffffff', 700, 'middle');
+  // KPI principal y secundarios
+  const kx = 620, kw = 420;
+  s += card(kx, 220, kw, 230);
+  s += T(kx + 34, 270, fitTxt(String(d.main[0]).toUpperCase(), 26), 20, C.sub, 700, 'start', 'letter-spacing="1.5"');
+  const mfs = String(d.main[1]).length > 5 ? 82 : 100;
+  s += `<text x="${kx + 34}" y="378" font-size="${mfs}" font-weight="800" fill="${C.acc}">${num(d.main[1], d.main[2], mfs, 32, C.acc)}</text>`;
+  if (d.mainNote) s += T(kx + 34, 422, fitTxt(d.mainNote, 34), 19, C.sub, 600);
+  const ks = (d.kpis || []).slice(0, 2);
+  ks.forEach(([l, v, u], k) => { const y = 470 + k * 90; s += card(kx, y, kw, 80); s += T(kx + 30, y + 33, fitTxt(l, 30), 18, C.sub, 600); s += `<text x="${kx + kw - 30}" y="${y + 58}" font-size="34" font-weight="800" fill="${C.ink}" text-anchor="end">${num(v, u, 34, 18, C.sub)}</text>`; });
+  // paneles específicos
+  const panels = (d.panels || []).slice(0, 2), py = 670, ph = 400;
+  const pw = panels.length === 2 ? 490 : 1000, pxs = panels.length === 2 ? [40, 550] : [40];
+  panels.forEach((P, k) => { s += card(pxs[k], py, pw, ph); s += infoPanel(P, pxs[k], py, pw, ph, C, T); });
+  // grilla de métricas
+  const my = panels.length ? 1095 : 670, mets = (d.metrics || []).slice(0, panels.length ? 8 : 16), cols = 4, cw = 237, chH = 86, gap = 17;
+  if (mets.length) {
+    s += T(44, my - 2, 'MÁS MÉTRICAS', 18, C.sub, 700, 'start', 'letter-spacing="2"');
+    mets.forEach(([l, v, u], k) => { const x = 40 + (k % cols) * (cw + gap), y = my + 14 + Math.floor(k / cols) * (chH + 14); if (y + chH > H - 40) return; s += card(x, y, cw, chH); s += `<text x="${x + 22}" y="${y + 44}" font-size="30" font-weight="800" fill="${C.ink}">${num(v, u, 30, 16, C.sub)}</text>`; s += T(x + 22, y + 70, fitTxt(l, 26), 15, C.sub, 600); });
+  }
+  s += T(W / 2, H - 18, fitTxt(d.foot || 'TrakSensor · sensor inercial', 110), 15, '#9aa7b5', 500, 'middle');
+  return s + '</svg>';
+}
+function infoPanel(P, x0, y0, w, h, C, T) {
+  let s = T(x0 + 30, y0 + 48, P.title.toUpperCase(), 19, C.sub, 700, 'start', 'letter-spacing="1.5"');
+  const f = (v, k) => fin(v) ? (Math.round(v * 10 ** k) / 10 ** k).toLocaleString('es-AR', { minimumFractionDigits: k, maximumFractionDigits: k }) : '–';
+  if (P.type === 'dial') {
+    const cx = x0 + w / 2, cy = y0 + 225, R = Math.min(w, h) * 0.32, sc = P.scale, lw = 30, A = (v) => -Math.PI / 2 + Math.min(1, v / sc) * 2 * Math.PI, pt = (a, r) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    s += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#e2e8f0" stroke-width="${lw}"/>`;
+    const a1 = A(P.val), large = (P.val / sc) > 0.5 ? 1 : 0, p0 = pt(-Math.PI / 2, R), p1 = pt(a1, R);
+    s += P.val / sc >= 0.999 ? `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${C.acc2}" stroke-width="${lw}"/>` : `<path d="M${p0.join(',')} A${R},${R} 0 ${large},1 ${p1.join(',')}" fill="none" stroke="${C.acc2}" stroke-width="${lw}" stroke-linecap="round"/>`;
+    (P.marks || []).forEach((v, k) => { const a = A(v), q0 = pt(a, R - lw / 2 - 6), q1 = pt(a, R + lw / 2 + 6), ql = pt(a, R + lw / 2 + 24); const best = v === Math.max(...P.marks); s += `<line x1="${q0[0]}" y1="${q0[1]}" x2="${q1[0]}" y2="${q1[1]}" stroke="${best ? C.pink : C.amber}" stroke-width="${best ? 6 : 4}"/>`; s += T(ql[0], ql[1] + 5, k + 1, 15, best ? C.pink : C.amber, 800, 'middle'); });
+    s += T(cx, cy + 10, f(P.val, 1) + '°', 50, C.ink, 800, 'middle');
+    s += T(cx, cy + 40, 'máximo', 17, C.sub, 600, 'middle') + (P.sub ? T(cx, cy + 62, P.sub, 15, C.sub, 600, 'middle') : '');
+    s += T(x0 + w - 30, y0 + 48, `escala ${sc}°`, 15, '#94a3b8', 600, 'end');
+  } else if (P.type === 'bars') {
+    const vals = P.vals, n = vals.length, bx = x0 + 50, bw = w - 80, top = y0 + 90, bot = y0 + h - 60, mx = Math.max(...vals.filter(fin), 1e-9) * 1.15;
+    const step = bw / n, barW = Math.min(70, step * 0.62), bi = vals.reduce((b, v, k) => (P.low ? v < vals[b] : v > vals[b]) ? k : b, 0);
+    s += `<line x1="${bx - 10}" y1="${bot}" x2="${bx + bw}" y2="${bot}" stroke="${C.line}" stroke-width="3"/>`;
+    if (fin(P.ref)) { const yr = bot - P.ref / mx * (bot - top); s += `<line x1="${bx - 10}" y1="${yr}" x2="${bx + bw}" y2="${yr}" stroke="${C.blue}" stroke-width="2" stroke-dasharray="8 7"/>` + T(x0 + 30, y0 + h - 18, `- - promedio ${f(P.ref, P.d)} ${P.unit || ''}`, 15, C.blue, 700); }
+    vals.forEach((v, k) => { if (!fin(v)) return; const x = bx + k * step + (step - barW) / 2, hh = v / mx * (bot - top), y = bot - hh, best = k === bi; s += `<rect x="${x}" y="${y}" width="${barW}" height="${hh}" rx="8" fill="${best ? C.pink : C.acc2}"/>`; if (n <= 14) s += T(x + barW / 2, y - 10, f(v, P.d), n > 8 ? 13 : 17, best ? C.pink : C.ink, 800, 'middle'); s += T(x + barW / 2, bot + 26, (P.labels ? P.labels[k] : k + 1), 14, C.sub, 600, 'middle'); });
+    s += T(x0 + w - 30, y0 + 48, P.unit || '', 17, C.sub, 600, 'end');
+  } else if (P.type === 'stab') {
+    const st = P.st, cx = x0 + w / 2, cy = y0 + 220, R = Math.min(w, h) * 0.36;
+    const p99 = st.pts.map(p => Math.hypot(p[0], p[1])).sort((a, b) => a - b)[Math.floor(st.pts.length * 0.99)] || 0, lim = Math.max(st.z[1] * 1.6, Math.ceil(p99 * 1.15)), sc = R / lim;
+    s += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="#fde2e2"/><circle cx="${cx}" cy="${cy}" r="${Math.min(R, st.z[1] * sc)}" fill="#fdeccc"/><circle cx="${cx}" cy="${cy}" r="${Math.min(R, st.z[0] * sc)}" fill="#cdf2e6"/>`;
+    s += `<line x1="${cx - R}" y1="${cy}" x2="${cx + R}" y2="${cy}" stroke="#c4cdd8"/><line x1="${cx}" y1="${cy - R}" x2="${cx}" y2="${cy + R}" stroke="#c4cdd8"/>`;
+    const step = Math.max(1, Math.floor(st.pts.length / 500));
+    s += `<polyline points="${st.pts.filter((_, k) => k % step === 0).map(p => (cx + p[0] * sc).toFixed(1) + ',' + (cy - p[1] * sc).toFixed(1)).join(' ')}" fill="none" stroke="${C.blue}" stroke-width="2" stroke-opacity=".8"/>`;
+    const mx = [cx + st.max[0] * sc, cy - st.max[1] * sc]; s += `<circle cx="${mx[0]}" cy="${mx[1]}" r="8" fill="${C.pink}"/>` + `<circle cx="${cx}" cy="${cy}" r="5" fill="${C.ink}"/>`;
+    s += T(x0 + 30, y0 + h - 22, `≤${st.z[0]}°: ${f(st.zp[0], 0)} %   ·   ${st.z[0]}–${st.z[1]}°: ${f(st.zp[1], 0)} %   ·   >${st.z[1]}°: ${f(st.zp[2], 0)} %`, 16, C.sub, 700);
+  } else if (P.type === 'lr') {
+    const rows = P.rows.slice(0, 5), top = y0 + 96, rh = Math.min(58, (h - 130) / rows.length), cx = x0 + w / 2, half = w / 2 - 150;
+    s += T(cx - 14, y0 + 82, 'IZQUIERDA', 15, C.blue, 800, 'end') + T(cx + 14, y0 + 82, 'DERECHA', 15, C.acc, 800, 'start');
+    rows.forEach(([l, L, R, u, dd], k) => {
+      const y = top + k * rh, m = Math.max(Math.abs(L), Math.abs(R)) || 1, wl = Math.abs(L) / m * half, wr = Math.abs(R) / m * half, as = asymPct(Math.abs(L), Math.abs(R));
+      s += `<rect x="${cx - 6 - wl}" y="${y + 18}" width="${wl}" height="22" rx="6" fill="${C.blue}"/><rect x="${cx + 6}" y="${y + 18}" width="${wr}" height="22" rx="6" fill="${C.acc2}"/>`;
+      s += T(cx - 12 - wl, y + 35, f(L, dd ?? 1), 15, C.ink, 800, 'end') + T(cx + 12 + wr, y + 35, f(R, dd ?? 1), 15, C.ink, 800, 'start');
+      s += T(x0 + 30, y + 12, l + (u ? ` (${u})` : ''), 14, C.sub, 600) + T(x0 + w - 30, y + 12, `asim. ${f(as, 1)} %`, 14, as > 15 ? C.pink : as > 10 ? C.amber : C.acc, 800, 'end');
+    });
+  } else if (P.type === 'xy') {
+    const ch = P.ch, cx = x0 + w / 2, cy = y0 + 220, R = Math.min(w, h) * 0.36, lim = Math.max(0.5, ...ch.pts.map(p => Math.max(Math.abs(p[0]), Math.abs(p[1])))) * 1.15, sc = R / lim, sx = ch.invertX ? -1 : 1;
+    s += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="#eef3f8"/><line x1="${cx - R}" y1="${cy}" x2="${cx + R}" y2="${cy}" stroke="#c4cdd8"/><line x1="${cx}" y1="${cy - R}" x2="${cx}" y2="${cy + R}" stroke="#c4cdd8"/>`;
+    const step = Math.max(1, Math.floor(ch.pts.length / 600));
+    s += `<polyline points="${ch.pts.filter((_, k) => k % step === 0).map(p => (cx + sx * p[0] * sc).toFixed(1) + ',' + (cy - p[1] * sc).toFixed(1)).join(' ')}" fill="none" stroke="${C.blue}" stroke-width="1.6" stroke-opacity=".75"/>`;
+    let e = ''; for (let k = 0; k <= 72; k++) { const t = k / 72 * 2 * Math.PI, ex = ch.ell.a * Math.cos(t), ey = ch.ell.b * Math.sin(t), X = ex * Math.cos(ch.ell.ang) - ey * Math.sin(ch.ell.ang), Y = ex * Math.sin(ch.ell.ang) + ey * Math.cos(ch.ell.ang); e += (k ? ' ' : '') + (cx + sx * X * sc).toFixed(1) + ',' + (cy - Y * sc).toFixed(1); }
+    s += `<polyline points="${e}" fill="none" stroke="${C.amber}" stroke-width="3"/>`;
+    s += T(x0 + w - 30, y0 + 48, '±' + f(lim, 1) + '°', 15, '#94a3b8', 600, 'end');
+    s += T(x0 + 30, y0 + h - 18, 'Recorrido del tronco visto desde arriba · elipse naranja: 95 % de la oscilación', 14, C.sub, 600);
+  } else if (P.type === 'line') {
+    const ch = P.ch, a = ch.from || 0, b = ch.to || (ch.lines[0].arr.length - 1), L = x0 + 40, Rr = x0 + w - 30, top = y0 + 80, bot = y0 + h - 90, X = (i) => L + (i - a) / (b - a || 1) * (Rr - L);
+    const DOT = { unw: '#d9a35c', brk: C.amber, con: C.acc2, fall: '#7aa6d8', fly: C.blue, land: '#a3adb9' };
+    (ch.spans || []).forEach(([lab, sa, sb, cl]) => { const xa = X(Math.max(a, sa)), xb = X(Math.min(b, sb)); if (xb <= xa) return; s += `<rect x="${xa}" y="${top}" width="${xb - xa}" height="${bot - top}" fill="${DOT[cl] || '#ccc'}" fill-opacity=".18"/>`; });
+    const seen = {}; let lx = L; (ch.spans || []).forEach(([lab, sa, sb, cl]) => { if (seen[lab] || lx > Rr - 120) return; seen[lab] = 1; s += `<rect x="${lx}" y="${bot + 30}" width="14" height="14" rx="3" fill="${DOT[cl] || '#ccc'}"/>` + T(lx + 20, bot + 42, lab, 14, C.sub, 600); lx += 30 + lab.length * 8; });
+    ch.lines.slice(0, 2).forEach((ln, k) => {
+      const n = b - a, stp = Math.max(1, Math.floor(n / 500)); let lo = ln.lo, hi = ln.hi;
+      if (!fin(lo) || !fin(hi)) { lo = Infinity; hi = -Infinity; for (let i = a; i <= b; i++) { const v = ln.arr[i]; if (fin(v)) { lo = Math.min(lo, v); hi = Math.max(hi, v); } } const pd = (hi - lo) * 0.08 || 1; lo -= pd; hi += pd; }
+      const Y = (v) => bot - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo || 1) * (bot - top);
+      let pts = ''; for (let i = a; i <= b; i += stp) { const v = ln.arr[i]; if (fin(v)) pts += X(i).toFixed(1) + ',' + Y(v).toFixed(1) + ' '; }
+      s += `<polyline points="${pts}" fill="none" stroke="${k ? C.acc : C.blue}" stroke-width="${k ? 2.5 : 3}" stroke-linejoin="round"/>`;
+      s += T(k ? Rr : L, top - 14, ln.label || '', 14, k ? C.acc : C.blue, 700, k ? 'end' : 'start');
+    });
+    s += `<line x1="${L}" y1="${bot}" x2="${Rr}" y2="${bot}" stroke="${C.line}" stroke-width="2"/>`;
+    s += T(Rr, bot + 18, f((b - a) / FS, 1) + ' s', 13, '#94a3b8', 600, 'end');
+  } else if (P.type === 'big') {
+    const cx = x0 + w / 2; s += T(cx, y0 + h / 2 + 10, P.val, 90, P.col || C.ink, 800, 'middle') + T(cx, y0 + h / 2 + 56, P.sub || '', 20, C.sub, 600, 'middle');
+  }
+  return s;
+}
+const tl2m = (t) => [t[0], t[1], t[2]];
+function infoFromGeneric(res, entry, t) {
+  const tiles = res.tiles || [], main = res.main || (tiles[0] ? tl2m(tiles[0]) : ['', '–', '']);
+  const rest = tiles.filter(x => x[0] !== main[0]).map(tl2m), extra = (res.tiles2 || []).map(tl2m);
+  const d = { kicker: (t.cat ? t.cat + ' · ' : '') + 'Informe de evaluación', title: res.title || t.name, cond: entry.cond || '', anim: animForEntry(entry), main, kpis: rest.slice(0, 2), panels: [], metrics: rest.slice(2).concat(extra), foot: 'TrakSensor · sensor inercial · ' + (res.title || t.name) };
+  if (res.romDial) {
+    const rd = res.romDial, ex = new Set(rd.ex || []), inc = rd.vals.filter((_, k) => !ex.has(k + 1)), top = Math.max(...inc);
+    d.panels.push({ type: 'dial', title: 'Ángulo alcanzado', val: rd.max, scale: top <= 85 ? 90 : top <= 175 ? 180 : 360, marks: inc, sub: `prom. ${String(r(rd.mean, 1)).replace('.', ',')}°` });
+    if (inc.length > 1) d.panels.push({ type: 'bars', title: 'Cada repetición', unit: '°', vals: inc, d: 0, ref: rd.mean });
+  }
+  if (res.stab) d.panels.push({ type: 'stab', title: 'Control del centro (vista superior)', st: res.stab });
+  if (res.rows && res.rows.length) d.panels.push({ type: 'lr', title: 'Izquierda vs derecha', rows: res.rows });
+  if (!d.panels.length && res.table && res.table.rows.length > 1) {
+    const num = (c) => { const m = String(c).replace(',', '.').match(/-?\d+(\.\d+)?/); return m ? +m[0] : NaN; };
+    const col = res.table.head.findIndex((h, k) => k > 0 && res.table.rows.every(rw => fin(num(rw[k]))));
+    if (col > 0) { const vals = res.table.rows.map(rw => num(rw[col])), unit = (String(res.table.rows[0][col]).match(/[^\d\s.,-]+.*$/) || [''])[0]; d.panels.push({ type: 'bars', title: res.table.head[col] + ' por repetición', unit, vals, d: vals.some(v => Math.abs(v) < 10) ? 2 : 0, ref: mean(vals) }); }
+  }
+  if (!d.panels.length && res.chart) {
+    if (res.chart.type === 'xy' && res.chart.pts && res.chart.pts.length) d.panels.push({ type: 'xy', title: 'Estabilograma', ch: res.chart });
+    else if (res.chart.type === 'lines' && res.chart.lines && res.chart.lines.length) d.panels.push({ type: 'line', title: 'Registro y fases', ch: res.chart });
+  }
+  return d;
+}
+function infoFromSerie(J, t, isDJ, tiles) {
+  const e = J[0].entry, vals = J.map(j => isDJ ? j.key.rsi : j.key.h);
+  const d = { kicker: (t.cat ? t.cat + ' · ' : '') + 'Informe de evaluación', title: t.name + (t.side ? ' · ' + (e.side === 'L' ? 'izquierda' : 'derecha') : ''), cond: e.cond || '', anim: animForEntry(e), main: tl2m(tiles[0]), kpis: tiles.slice(1, 3).map(tl2m), panels: [], metrics: tiles.slice(3).map(tl2m), foot: `TrakSensor · ${t.name} · ${J.length} salto${J.length > 1 ? 's' : ''}` };
+  d.panels.push({ type: 'bars', title: isDJ ? 'RSI de cada salto' : 'Altura de cada salto', unit: isDJ ? 'm/s' : 'cm', vals, d: isDJ ? 2 : 1, ref: mean(vals.filter(fin)) });
+  const pws = J.map(j => j.key.pw).filter(fin), cts = J.map(j => j.key.ct).filter(fin);
+  if (isDJ && cts.length) d.panels.push({ type: 'bars', title: 'Tiempo de contacto', unit: 'ms', vals: J.map(j => j.key.ct), d: 0, low: true, ref: mean(cts) });
+  else if (pws.length >= J.length * 0.6) d.panels.push({ type: 'bars', title: 'Potencia de cada salto', unit: 'W/kg', vals: J.map(j => j.key.pw), d: 1, ref: mean(pws) });
+  return d;
+}
+function showInfo(svg) {
+  $('scrumBox').classList.remove('hide'); document.body.classList.add('hasInfo');
+  $('scrumInfo').innerHTML = svg;
+}
+function infoPNG() {
+  const svg = $('scrumInfo').innerHTML, img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = 1080; c.height = 1350; c.getContext('2d').drawImage(img, 0, 0);
+    c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); const at = currentAthlete(); const ttl = ($('resTitle').textContent || 'informe').split(' · ')[0]; a.download = `${ttl}_${(at ? at.name : 'atleta')}_${new Date().toISOString().slice(0, 10)}.png`.replace(/[^\wáéíóúñÁÉÍÓÚÑ.-]+/g, '_'); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }, 'image/png');
+  };
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
 
 // LSI con el otro lado (mismo día) y Romberg
@@ -3224,6 +3554,12 @@ function drawGauge() {
     const d = Math.hypot(lv.sx, lv.sy), q = P([lv.sx, lv.sy]);
     x.fillStyle = d < 3 ? '#18c29c' : d < 6 ? '#f0a63a' : '#ff6b6b'; x.beginPath(); x.arc(q[0], q[1], Math.max(8, R * 0.09), 0, 2 * Math.PI); x.fill();
     x.textAlign = 'center'; x.fillStyle = '#e8ecf1'; x.font = `700 ${Math.round(R * 0.2)}px system-ui`; x.fillText(isFinite(secs) ? fmtT(Math.max(0, secs - el)) : fmtT(el), cx, cy + R + lw + R * 0.22);
+  } else if (lv.mode === 'scrum' && rec.scLive && rec.scLive.length) {
+    title(t.name);
+    const L = rec.scLive, last = L[L.length - 1], best = Math.max(...L.map(x => x.vPk));
+    ring(last.vPk / (best || 1), last.vPk >= best ? '#7dffd9' : '#18c29c');
+    big(last.vPk.toFixed(2), `m/s · empuje ${L.length} · ${r(last.disp * 100, 0)} cm`);
+    x.textAlign = 'center'; x.fillStyle = '#9aa4b2'; x.font = `600 ${Math.round(R * 0.12)}px system-ui`; x.fillText(`mejor ${best.toFixed(2)} m/s · tronco ${lv.ang.toFixed(0)}°`, cx, cy - R * 0.42);
   } else if (lv.mode === 'reps' || lv.mode === 'hops' || lv.mode === 'scrum') {
     title(t.name);
     const n = lv.mode === 'reps' ? rec.ups : lv.mode === 'hops' ? lv.hops : (rec.sc ? rec.sc.n : 0);
