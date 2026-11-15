@@ -420,7 +420,7 @@ create policy &quot;trs_raw_del&quot; on storage.objects for delete to authentic
   </div>
 </div>
 
-<p class="note">TrakSensor v2.0 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v2.0.1 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -1107,8 +1107,20 @@ function analyzeBalance(S, fr, sig, a, b, opts) {
 }
 
 // ---------- Isométricos: oscilación, temblor, deriva postural y fatiga ----------
+// primer momento en que la postura ya está quieta (descarta la bajada a la posición, p. ej. en la media sentadilla)
+function isoSettle(S, a, b) {
+  const W = FS, step = Math.round(FS / 10), lim = Math.min(b - W, a + 8 * FS);
+  const dirAt = (i0, i1) => { const v = [0, 0, 0]; for (let i = i0; i < i1; i++) for (let k = 0; k < 3; k++) v[k] += S[i][k]; return nrm(v); };
+  for (let k = a; k <= lim; k += step) {
+    const m = dirAt(k, k + W); let mx = 0;
+    for (let i = k; i < k + W; i += 10) { const sub = dirAt(i, Math.min(k + W, i + 20)); const d = Math.acos(Math.max(-1, Math.min(1, dot(sub, m)))) * R2D; if (d > mx) mx = d; }
+    if (mx < 1.5) return k;
+  }
+  return a;
+}
 function analyzeIso(S, fr, a, b) {
   if (b - a < 3 * FS) return { error: 'La posición duró muy poco: no hay datos suficientes para analizar.' };
+  const a0 = a, aS = isoSettle(S, a, b); if (b - aS >= 3 * FS) a = aS;
   pcaForward(S, fr, a, b);
   const sig = signals(S, fr);
   const bal = analyzeBalance(S, fr, sig, a, b, {});
@@ -1142,6 +1154,7 @@ function analyzeIso(S, fr, a, b) {
   const inc = new Float64Array(S.length), ax = gaussSmooth(S.map(x => x[0]), 0.2), ay = gaussSmooth(S.map(x => x[1]), 0.2), az = gaussSmooth(S.map(x => x[2]), 0.2);
   for (let i = a; i < end; i++) inc[i] = Math.acos(Math.max(-1, Math.min(1, dot(nrm([ax[i], ay[i], az[i]]), v0)))) * R2D;
   const res = { tiles: [], tiles2: [], warn: [], m: {} };
+  if (a - a0 > FS / 2) res.warn.push(`Se descartaron los primeros ${r((a - a0) / FS, 1)} s (acomodarse en la posición): el centro es la postura ya estable.`);
   const T = (l, v, u, d, main, sec) => { if (fin(v)) { (sec ? res.tiles2 : res.tiles).push([l, r(v, d), u, main]); res.m[l + ' (' + u + ')'] = r(v, d); } };
   const open = !isFinite(+$('isoDur').value || Infinity) || +$('isoDur').value === 0;
   // estabilograma tipo "diana": desvío del tronco respecto de la posición inicial
@@ -3552,7 +3565,13 @@ function liveTick(s, w, m, i) {
   if (lv.mode === 'yaw') { lv.ang = lv.yaw; if (Math.abs(lv.yaw) > Math.abs(lv.peak)) lv.peak = lv.yaw; }
   if (lv.mode === 'scrum' && rec.sc) lv.ang = Math.acos(Math.max(-1, Math.min(1, dot(nrm(rec.sc.ex), u)))) * R2D;
   if (lv.mode === 'sway') {
-    lv.sx = Math.asin(Math.max(-1, Math.min(1, dot(ex, lv.e1)))) * R2D; lv.sy = Math.asin(Math.max(-1, Math.min(1, dot(ex, lv.e2)))) * R2D;
+    let sx = Math.asin(Math.max(-1, Math.min(1, dot(ex, lv.e1)))) * R2D, sy = Math.asin(Math.max(-1, Math.min(1, dot(ex, lv.e2)))) * R2D;
+    if (!lv.cen) {   // esperar a que se acomode y quede quieto 1 s; esa postura es el centro
+      (lv.buf = lv.buf || []).push([sx, sy]); if (lv.buf.length > FS) lv.buf.shift();
+      if (lv.buf.length >= FS) { const xs = lv.buf.map(p => p[0]), ys = lv.buf.map(p => p[1]); if (Math.max(...xs) - Math.min(...xs) < 2 && Math.max(...ys) - Math.min(...ys) < 2) { lv.cen = [mean(xs), mean(ys)]; lv.trail = []; } }
+    }
+    if (lv.cen) { sx -= lv.cen[0]; sy -= lv.cen[1]; }
+    lv.sx = sx; lv.sy = sy;
     if (i % 4 === 0) { lv.trail.push([lv.sx, lv.sy]); if (lv.trail.length > 150) lv.trail.shift(); }
   }
   if (lv.mode === 'hops') {
@@ -3613,6 +3632,7 @@ function drawGauge() {
     x.strokeStyle = 'rgba(24,194,156,.45)'; x.lineWidth = 2; x.beginPath(); lv.trail.forEach((p, k) => { const q = P(p); k ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1]); }); x.stroke();
     const d = Math.hypot(lv.sx, lv.sy), q = P([lv.sx, lv.sy]);
     x.fillStyle = d < 3 ? '#18c29c' : d < 6 ? '#f0a63a' : '#ff6b6b'; x.beginPath(); x.arc(q[0], q[1], Math.max(8, R * 0.09), 0, 2 * Math.PI); x.fill();
+    if (!lv.cen) { x.fillStyle = 'rgba(11,14,19,.75)'; x.fillRect(cx - R, cy - R * 0.16, 2 * R, R * 0.32); x.textAlign = 'center'; x.fillStyle = '#f0a63a'; x.font = `600 ${Math.round(R * 0.12)}px system-ui`; x.fillText('Acomodate y quedate quieto…', cx, cy + R * 0.05); }
     x.textAlign = 'center'; x.fillStyle = '#e8ecf1'; x.font = `700 ${Math.round(R * 0.2)}px system-ui`; x.fillText(isFinite(secs) ? fmtT(Math.max(0, secs - el)) : fmtT(el), cx, cy + R + lw + R * 0.22);
   } else if (lv.mode === 'scrum' && rec.scLive && rec.scLive.length) {
     title(t.name);
