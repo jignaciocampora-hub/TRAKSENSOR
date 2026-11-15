@@ -81,6 +81,7 @@ td.good{color:var(--acc)}td.mid{color:var(--warn)}td.bad{color:var(--bad)}
 #gStage{position:fixed;inset:0;z-index:70;background:#000;display:flex;flex-direction:column}#gStage.hide{display:none}#gCanvas{flex:1;width:100%;min-height:0;display:block}
 .gbar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:8px;background:#0b0e13}.gbar button{padding:10px 16px}
 body.noscroll{overflow:hidden}
+#btnCloud.ok{border-color:var(--acc);color:var(--acc)}.sqlbox{background:#0b0e13;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:11px;max-height:220px;overflow:auto;white-space:pre-wrap;color:#9fb3c8}
 .navrow{display:flex;align-items:center;gap:10px;margin-bottom:12px}.navrow h2{margin:0;flex:1}
 #testTitle,#gTitle,#pTitle{font-size:17px;text-transform:none;letter-spacing:0;color:var(--tx)}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch}.chips::-webkit-scrollbar{display:none}
@@ -154,7 +155,7 @@ body.noscroll{overflow:hidden}
 <rect x="42.6" y="89.2" width="16.0" height="6.4" rx="2.7" transform="rotate(-3.3 50.6 92.4)" fill="#e8ecf1" opacity="1.0"/>
 <path d="M43.2 97.6 C47 96.6 54 97 58.6 98.4 C60.6 102.6 61.4 106.4 60.6 109.6 C58.8 109.8 55.8 107.6 53.4 105.8 C49.6 103.2 45.8 100.6 43.2 97.6 Z" fill="#e8ecf1" opacity="0.85"/>
 <path d="M60.6 111.4 L62.2 114" stroke="#e8ecf1" stroke-width="2" stroke-linecap="round" opacity="0.7"/><rect x="61" y="80" width="17" height="20" rx="5" fill="#18c29c"/></g></svg></span><h1>Trak<span>Sensor</span></h1></div>
-  <div class="row"><span id="connTxt"><span class="dot" id="connDot"></span><span id="connLbl">Desconectado</span></span>
+  <div class="row"><button class="sm" id="btnCloud">☁ Nube</button><span id="connTxt"><span class="dot" id="connDot"></span><span id="connLbl">Desconectado</span></span>
   <button class="pri" id="btnConn">Conectar</button></div>
 </header>
 
@@ -203,6 +204,65 @@ body.noscroll{overflow:hidden}
 <div id="vHome">
   <div class="card"><h2>Elegí un test</h2><div class="tiles" id="tiles"></div></div>
 </div>
+
+<div id="vCloud" class="hide"><div class="card">
+  <div class="navrow"><button class="sm" id="btnBackHome4">‹ Inicio</button><h2>Cuenta en la nube</h2></div>
+  <p class="note">Con tu usuario y contraseña, los atletas, las evaluaciones y las grabaciones quedan guardados en tu Supabase y aparecen en cualquier dispositivo (celular, iPad, PC). Sin internet la app sigue funcionando y sincroniza cuando vuelve la conexión.</p>
+  <p id="cfState" style="margin:10px 0"></p>
+  <p id="cfErr" class="note warn hide"></p>
+  <div id="loginBox" class="hide">
+    <label class="f">Mail<input id="cfMail" type="email" autocomplete="username" placeholder="tu@mail.com"></label>
+    <label class="f">Contraseña<input id="cfPass" type="password" autocomplete="current-password" placeholder="mínimo 6 caracteres"></label>
+    <div class="row" style="margin-top:8px"><button class="pri" id="btnLogin">Ingresar</button><button id="btnSignup">Crear cuenta</button></div>
+  </div>
+  <div id="sessBox" class="hide">
+    <p class="note" id="cfCounts"></p>
+    <div class="row" style="margin-top:8px"><button class="pri" id="btnSyncNow">⟳ Sincronizar ahora</button><button id="btnLogout">Cerrar sesión</button></div>
+  </div>
+  <details id="cfgBox" style="margin-top:14px"><summary class="note" style="cursor:pointer">Configuración del proyecto de Supabase</summary>
+    <p class="note">En Supabase: <b>Project Settings → API</b> (o <b>Data API / API Keys</b>). Copiá la <b>Project URL</b> y la clave <b>anon public</b> (o <b>publishable</b>).</p>
+    <label class="f">Project URL<input id="cfUrl" placeholder="https://xxxx.supabase.co"></label>
+    <label class="f">Anon / publishable key<input id="cfKey" placeholder="eyJ… o sb_publishable_…"></label>
+    <div class="row" style="margin-top:8px"><button class="pri" id="btnCfSave">Guardar</button></div>
+    <p class="note" style="margin-top:12px">Una sola vez: en Supabase abrí <b>SQL Editor</b>, pegá este script y tocá <b>Run</b>. Crea la tabla y hace que cada usuario vea solo sus datos.</p>
+    <div class="row"><button class="sm" id="btnCopySQL">Copiar script</button></div>
+    <pre id="sqlBox" class="sqlbox">-- TrakSensor · nube (correr una sola vez en Supabase → SQL Editor → Run)
+create table if not exists public.trs_docs (
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  kind text not null,
+  id text not null,
+  data jsonb,
+  deleted boolean not null default false,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, kind, id)
+);
+create index if not exists trs_docs_upd on public.trs_docs (user_id, updated_at);
+alter table public.trs_docs enable row level security;
+drop policy if exists &quot;trs_sel&quot; on public.trs_docs;
+drop policy if exists &quot;trs_ins&quot; on public.trs_docs;
+drop policy if exists &quot;trs_upd&quot; on public.trs_docs;
+drop policy if exists &quot;trs_del&quot; on public.trs_docs;
+create policy &quot;trs_sel&quot; on public.trs_docs for select to authenticated using (auth.uid() = user_id);
+create policy &quot;trs_ins&quot; on public.trs_docs for insert to authenticated with check (auth.uid() = user_id);
+create policy &quot;trs_upd&quot; on public.trs_docs for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy &quot;trs_del&quot; on public.trs_docs for delete to authenticated using (auth.uid() = user_id);
+create or replace function public.trs_touch() returns trigger language plpgsql as $$ begin new.updated_at = clock_timestamp(); return new; end $$;
+drop trigger if exists trs_touch on public.trs_docs;
+create trigger trs_touch before insert or update on public.trs_docs for each row execute function public.trs_touch();
+
+-- grabaciones crudas (para reabrir registros en otro dispositivo)
+insert into storage.buckets (id, name, public) values (&#x27;trs-raw&#x27;, &#x27;trs-raw&#x27;, false) on conflict (id) do nothing;
+drop policy if exists &quot;trs_raw_sel&quot; on storage.objects;
+drop policy if exists &quot;trs_raw_ins&quot; on storage.objects;
+drop policy if exists &quot;trs_raw_upd&quot; on storage.objects;
+drop policy if exists &quot;trs_raw_del&quot; on storage.objects;
+create policy &quot;trs_raw_sel&quot; on storage.objects for select to authenticated using (bucket_id = &#x27;trs-raw&#x27; and (storage.foldername(name))[1] = auth.uid()::text);
+create policy &quot;trs_raw_ins&quot; on storage.objects for insert to authenticated with check (bucket_id = &#x27;trs-raw&#x27; and (storage.foldername(name))[1] = auth.uid()::text);
+create policy &quot;trs_raw_upd&quot; on storage.objects for update to authenticated using (bucket_id = &#x27;trs-raw&#x27; and (storage.foldername(name))[1] = auth.uid()::text);
+create policy &quot;trs_raw_del&quot; on storage.objects for delete to authenticated using (bucket_id = &#x27;trs-raw&#x27; and (storage.foldername(name))[1] = auth.uid()::text);
+</pre>
+  </details>
+</div></div>
 
 <div id="vGame" class="hide"><div class="card">
   <div class="navrow"><button class="sm" id="btnBackHome3">‹ Inicio</button><h2>Juegos de rehabilitación</h2></div>
@@ -360,7 +420,7 @@ body.noscroll{overflow:hidden}
   </div>
 </div>
 
-<p class="note">TrakSensor v1.9 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v2.0 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -2140,7 +2200,7 @@ const GUIDE = {
 // ===================== APP =====================
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} if ((k === 'trs_results' || k === 'trs_athletes') && window.__cloudReady && !syncS.applying) cloudSoon(); }
 };
 let athletes = store.get('trs_athletes', []);
 let results = store.get('trs_results', []);
@@ -4351,6 +4411,149 @@ $('btnGameSkip').onclick = () => gameCalDone(gm && gm.last ? gm.last : null);
 $('btnGameCenter').onclick = () => { if (gm && gm.ex) { gm.u = nrm(gm.ex); gm.yaw = 0; gm.yawS = 0; const k = dot(gm.e2, gm.u); gm.e2 = nrm([0, 1, 2].map(i => gm.e2[i] - gm.u[i] * k)); gm.e1 = cross(gm.e2, gm.u); beep(600, 0.08); } };
 $('btnGameMirror').onclick = () => { if (gm) gm.mirror = !gm.mirror; };
 
+// ---------- Nube (Supabase): usuario y contraseña, sincronización entre dispositivos ----------
+const CLOUD_DEFAULT = { url: '', key: '' };   // si se completan acá, los dispositivos solo piden mail y contraseña
+let cloud = Object.assign({}, CLOUD_DEFAULT, store.get('trs_cloud_cfg', {}));
+let sess = store.get('trs_cloud_sess', null);
+const syncS = { busy: false, err: '', last: store.get('trs_cloud_last', null), applying: false, timer: null };
+const cloudOK = () => !!(cloud.url && cloud.key);
+const cloudOn = () => cloudOK() && !!sess;
+const sbBase = () => cloud.url.trim().replace(/\/+$/, '');
+const sbHead = (auth = true) => Object.assign({ apikey: cloud.key.trim(), 'Content-Type': 'application/json' }, auth && sess ? { Authorization: 'Bearer ' + sess.access_token } : {});
+async function sbAuth(path, body) {
+  const r = await fetch(sbBase() + '/auth/v1/' + path, { method: 'POST', headers: sbHead(false), body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(sbErrTxt(j.error_description || j.msg || j.message || j.error || ('Error ' + r.status)));
+  return j;
+}
+function sbErrTxt(m) {
+  m = String(m);
+  if (/Invalid login credentials/i.test(m)) return 'Mail o contraseña incorrectos.';
+  if (/Email not confirmed/i.test(m)) return 'Falta confirmar el mail: abrí el correo de Supabase y tocá el enlace (o desactivá "Confirm email" en Supabase).';
+  if (/already registered|already been registered/i.test(m)) return 'Ese mail ya tiene cuenta: tocá "Ingresar".';
+  if (/Password should be/i.test(m)) return 'La contraseña tiene que tener al menos 6 caracteres.';
+  if (/Invalid API key|No API key/i.test(m)) return 'La clave (anon key) no es correcta.';
+  if (/relation .*trs_docs.* does not exist|Could not find the table/i.test(m)) return 'Falta crear la tabla: corré el script SQL en Supabase.';
+  return m;
+}
+function setSess(j) { sess = { access_token: j.access_token, refresh_token: j.refresh_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000, user: { id: j.user.id, email: j.user.email } }; store.set('trs_cloud_sess', sess); }
+async function sbFresh(force) {
+  if (!sess) throw new Error('No hay sesión iniciada');
+  if (force || Date.now() > sess.expires_at - 60000) { try { setSess(await sbAuth('token?grant_type=refresh_token', { refresh_token: sess.refresh_token })); } catch (e) { if (/refresh|invalid|expired|not found/i.test(e.message)) { sess = null; store.set('trs_cloud_sess', null); renderCloud(); } throw e; } }
+}
+async function sbFetch(path, opt = {}, retry = true) {
+  await sbFresh();
+  const r = await fetch(sbBase() + path, Object.assign({}, opt, { headers: Object.assign(sbHead(), opt.headers || {}) }));
+  if (r.status === 401 && retry) { await sbFresh(true); return sbFetch(path, opt, false); }
+  if (!r.ok) { const t = await r.text().catch(() => ''); let m = t; try { const j = JSON.parse(t); m = j.message || j.error || t; } catch (e) {} throw new Error(sbErrTxt(m || ('Error ' + r.status))); }
+  return r;
+}
+const hashS = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + str.length.toString(36); };
+const b64Of = (i16) => { const u8 = new Uint8Array(i16.buffer, i16.byteOffset, i16.byteLength); let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+const i16Of = (b64) => { const s = atob(b64), u8 = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u8[i] = s.charCodeAt(i); return new Int16Array(u8.buffer); };
+
+function cloudSoon(ms = 3000) { if (!cloudOn()) return; clearTimeout(syncS.timer); syncS.timer = setTimeout(() => cloudSync(), ms); }
+async function cloudSync(full) {
+  if (!cloudOn() || syncS.busy || !navigator.onLine) return;
+  syncS.busy = true; syncS.err = ''; renderCloud();
+  try {
+    const uid = sess.user.id, snap = store.get('trs_cloud_snap', {});
+    // 1) subir lo nuevo o modificado, y las bajas
+    const loc = {}; athletes.forEach(a => loc['athlete|' + a.id] = a); results.forEach(x => loc['result|' + x.id] = x);
+    const up = [];
+    for (const k in loc) { const h = hashS(JSON.stringify(loc[k])); if (snap[k] !== h) up.push([k, loc[k], h]); }
+    for (const k in snap) if (!loc[k]) up.push([k, null, null]);
+    for (let i = 0; i < up.length; i += 200) {
+      const ch = up.slice(i, i + 200);
+      await sbFetch('/rest/v1/trs_docs?on_conflict=user_id,kind,id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(ch.map(([k, v]) => { const p = k.indexOf('|'); return { user_id: uid, kind: k.slice(0, p), id: k.slice(p + 1), data: v, deleted: !v }; })) });
+      ch.forEach(([k, v, h]) => { if (v) snap[k] = h; else delete snap[k]; }); store.set('trs_cloud_snap', snap);
+    }
+    // 2) bajar lo que cambió en otros dispositivos
+    const since = full ? null : store.get('trs_cloud_since', null);
+    let off = 0, maxTs = since, changed = false;
+    const ia = new Map(athletes.map((a, k) => [String(a.id), k])), ir = new Map(results.map((x, k) => [String(x.id), k]));
+    let delA = new Set(), delR = new Set();
+    for (;;) {
+      const rows = await (await sbFetch(`/rest/v1/trs_docs?select=kind,id,data,deleted,updated_at&order=updated_at.asc&limit=1000&offset=${off}` + (since ? `&updated_at=gte.${encodeURIComponent(since)}` : ''))).json();
+      for (const rw of rows) {
+        if (!maxTs || rw.updated_at > maxTs) maxTs = rw.updated_at;
+        const k = rw.kind + '|' + rw.id, arr = rw.kind === 'athlete' ? athletes : rw.kind === 'result' ? results : null, idx = rw.kind === 'athlete' ? ia : ir; if (!arr) continue;
+        const li = idx.get(String(rw.id)), cur = li != null ? arr[li] : null;
+        if (cur && snap[k] && hashS(JSON.stringify(cur)) !== snap[k]) continue;   // cambiado acá y todavía sin subir: gana lo local
+        if (rw.deleted) { if (cur) { (rw.kind === 'athlete' ? delA : delR).add(li); changed = true; } delete snap[k]; continue; }
+        const nh = hashS(JSON.stringify(rw.data));
+        if (cur && hashS(JSON.stringify(cur)) === nh) { snap[k] = nh; continue; }
+        if (li != null) arr[li] = rw.data; else { idx.set(String(rw.id), arr.length); arr.push(rw.data); }
+        snap[k] = nh; changed = true;
+      }
+      if (rows.length < 1000) break; off += 1000;
+    }
+    if (delA.size) athletes = athletes.filter((_, k) => !delA.has(k));
+    if (delR.size) results = results.filter((_, k) => !delR.has(k));
+    store.set('trs_cloud_snap', snap); if (maxTs) store.set('trs_cloud_since', maxTs);
+    if (changed) {
+      results.sort((a, b) => a.id - b.id);
+      syncS.applying = true; store.set('trs_athletes', athletes); store.set('trs_results', results); syncS.applying = false;
+      if (!rec && !gm) { renderAth(); renderHist(); renderRoute(); }
+    }
+    // 3) grabaciones crudas (para reabrir registros y ver gráficos e infografías en otro dispositivo)
+    const rup = store.get('trs_cloud_rawup', {}); let n = 0;
+    for (const sid of [...new Set(results.filter(x => x.raw).map(x => x.serie))]) {
+      if (rup[sid] || n >= 15) continue;
+      const raw = await rawDB.get(sid); if (!raw) continue;
+      const body = JSON.stringify(Object.assign({}, raw, { S: b64Of(raw.S instanceof Int16Array ? raw.S : new Int16Array(raw.S)) }));
+      await sbFetch(`/storage/v1/object/trs-raw/${uid}/${encodeURIComponent(sid)}.json`, { method: 'POST', headers: { 'x-upsert': 'true' }, body });
+      rup[sid] = 1; n++; store.set('trs_cloud_rawup', rup);
+    }
+    if (n >= 15) cloudSoon(1500);
+    syncS.last = new Date().toISOString(); store.set('trs_cloud_last', syncS.last);
+  } catch (e) { syncS.err = e.message || String(e); console.warn('nube', e); }
+  finally { syncS.busy = false; renderCloud(); }
+}
+async function getRaw(sid) {
+  let raw = await rawDB.get(sid);
+  if (raw || !cloudOn() || !navigator.onLine) return raw;
+  try {
+    const r = await sbFetch(`/storage/v1/object/authenticated/trs-raw/${sess.user.id}/${encodeURIComponent(sid)}.json`);
+    raw = await r.json(); raw.S = i16Of(raw.S); await rawDB.put(sid, raw);
+    const rup = store.get('trs_cloud_rawup', {}); rup[sid] = 1; store.set('trs_cloud_rawup', rup);
+    return raw;
+  } catch (e) { return null; }
+}
+function renderCloud() {
+  const b = $('btnCloud'); if (b) { b.textContent = cloudOn() ? (syncS.busy ? '☁ Sincronizando…' : syncS.err ? '☁ ⚠' : '☁ ✓') : '☁ Nube'; b.classList.toggle('ok', cloudOn() && !syncS.err); }
+  if (!$('vCloud') || $('vCloud').classList.contains('hide')) return;
+  $('cfgBox').open = !cloudOK();
+  $('cfUrl').value = $('cfUrl').value || cloud.url; $('cfKey').value = $('cfKey').value || cloud.key;
+  $('cfState').innerHTML = !cloudOK() ? '1) Pegá los datos de tu proyecto de Supabase y tocá "Guardar".' : !sess ? '2) Ingresá con tu mail y contraseña (o creá la cuenta la primera vez).' :
+    `Conectado como <b>${esc(sess.user.email)}</b>${syncS.busy ? ' · sincronizando…' : syncS.last ? ' · última sincronización: ' + new Date(syncS.last).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : ''}`;
+  $('cfErr').textContent = syncS.err; $('cfErr').classList.toggle('hide', !syncS.err);
+  $('loginBox').classList.toggle('hide', !cloudOK() || !!sess); $('sessBox').classList.toggle('hide', !sess);
+  $('cfCounts').textContent = sess ? `${athletes.length} atleta${athletes.length === 1 ? '' : 's'} · ${results.length} registros en este dispositivo` : '';
+}
+function cloudMsg(t, bad) { syncS.err = bad ? t : ''; $('cfErr').textContent = t; $('cfErr').classList.toggle('hide', !t); $('cfErr').style.color = bad ? '' : 'var(--acc)'; }
+$('btnCloud').onclick = () => nav('#nube');
+$('btnBackHome4').onclick = () => nav('');
+$('btnCfSave').onclick = () => { cloud = { url: $('cfUrl').value.trim(), key: $('cfKey').value.trim() }; store.set('trs_cloud_cfg', cloud); cloudMsg(''); renderCloud(); };
+$('btnLogin').onclick = async () => {
+  const em = $('cfMail').value.trim(), pw = $('cfPass').value; if (!em || !pw) return cloudMsg('Completá mail y contraseña.', true);
+  try { $('btnLogin').disabled = true; setSess(await sbAuth('token?grant_type=password', { email: em, password: pw })); $('cfPass').value = ''; store.set('trs_cloud_since', null); renderCloud(); await cloudSync(true); }
+  catch (e) { cloudMsg(e.message, true); } finally { $('btnLogin').disabled = false; renderCloud(); }
+};
+$('btnSignup').onclick = async () => {
+  const em = $('cfMail').value.trim(), pw = $('cfPass').value; if (!em || !pw) return cloudMsg('Completá mail y contraseña.', true);
+  try { $('btnSignup').disabled = true; const j = await sbAuth('signup', { email: em, password: pw });
+    if (j.access_token) { setSess(j); $('cfPass').value = ''; renderCloud(); await cloudSync(true); } else cloudMsg('Cuenta creada. Supabase te mandó un mail para confirmarla: abrí el enlace y después tocá "Ingresar".'); }
+  catch (e) { cloudMsg(e.message, true); } finally { $('btnSignup').disabled = false; renderCloud(); }
+};
+$('btnSyncNow').onclick = () => cloudSync(true);
+$('btnLogout').onclick = () => { if (!confirm('¿Cerrar sesión en este dispositivo? Los datos que ya están acá se mantienen.')) return; sess = null; store.set('trs_cloud_sess', null); renderCloud(); };
+$('btnCopySQL').onclick = () => { navigator.clipboard && navigator.clipboard.writeText($('sqlBox').textContent).then(() => { $('btnCopySQL').textContent = '✓ Copiado'; setTimeout(() => $('btnCopySQL').textContent = 'Copiar script', 1500); }); };
+window.addEventListener('online', () => cloudSoon(500));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') cloudSoon(500); });
+setInterval(() => { if (!rec && !gm) cloudSync(); }, 90000);
+window.__cloudReady = true;
+
 // ---------- Historial ----------
 function renderHist() {
   const a = currentAthlete(), t = $('hist');
@@ -4371,7 +4574,7 @@ async function openHist(id) {
   const sIdx = e.test === 'ROM' ? ROM_MOVES.findIndex(m => parts.includes(m[0])) : e.test === 'ISO' ? ISO_EX.findIndex(m => parts.includes(m[0])) : -1;
   if (!nav('#t=' + e.test + (sIdx >= 0 ? '&s=' + sIdx : ''))) return;
   renderHist();
-  const raw = e.raw ? await rawDB.get(e.serie) : null;
+  const raw = e.raw ? await getRaw(e.serie) : null;
   if (raw) {
     const S = unpackS(raw.S), r0 = { S, test: raw.test, calStart: raw.calStart, calEnd: raw.calEnd, cueAt: raw.cueAt, lost: raw.lost, excl: e.excl || [] };
     const keep = uiSnap(); uiApply(raw.snap);
@@ -4517,6 +4720,7 @@ function parseHash() {
   if (q.g && GROUPS.some(g => g.id === q.g)) return { v: 'group', g: q.g };
   if ('a' in q) return q.a ? { v: 'ath', a: q.a } : { v: 'aths' };
   if ('game' in q) return { v: 'game' };
+  if ('nube' in q) return { v: 'nube' };
   return { v: 'home' };
 }
 let curHash = location.hash;
@@ -4532,14 +4736,15 @@ window.addEventListener('popstate', () => {
 function renderRoute() {
   const r = parseHash(); curHash = location.hash;
   $('vHome').classList.toggle('hide', r.v !== 'home'); $('vGroup').classList.toggle('hide', r.v !== 'group'); $('vTest').classList.toggle('hide', r.v !== 'test'); $('vProg').classList.toggle('hide', r.v !== 'prog');
-  $('vAths').classList.toggle('hide', r.v !== 'aths'); $('vAth').classList.toggle('hide', r.v !== 'ath'); $('vGame').classList.toggle('hide', r.v !== 'game');
-  document.querySelectorAll('.histCard').forEach(c => c.classList.toggle('hide', r.v === 'aths' || r.v === 'ath'));
+  $('vAths').classList.toggle('hide', r.v !== 'aths'); $('vAth').classList.toggle('hide', r.v !== 'ath'); $('vGame').classList.toggle('hide', r.v !== 'game'); $('vCloud').classList.toggle('hide', r.v !== 'nube');
+  document.querySelectorAll('.histCard').forEach(c => c.classList.toggle('hide', r.v === 'aths' || r.v === 'ath' || r.v === 'nube'));
   if (r.v !== 'test') AN.stop();
   if (r.v === 'home') renderHome();
   else if (r.v === 'group') renderGroup(r.g);
   else if (r.v === 'prog') renderProg(r.p, r.sum);
   else if (r.v === 'aths') renderAths();
   else if (r.v === 'game') renderGameSetup();
+  else if (r.v === 'nube') renderCloud();
   else if (r.v === 'ath') { if (curAthView !== r.a) { athOpenKey = null; athFilter = ''; curAthView = r.a; } renderAthProfile(r.a); }
   else openTest(r.t, r.s, r.side);
   window.scrollTo(0, 0);
@@ -4724,6 +4929,7 @@ $('btnCsv').onclick = exportCsv;
 $('btnRaw').onclick = exportRaw;
 buildTestSelect(); renderTestOpts(); renderOrient(); renderAth(); setRecBtn(); $('btnOrient').disabled = true;
 renderRoute();
+renderCloud(); if (cloudOn()) cloudSoon(1500);
 drawLive();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
