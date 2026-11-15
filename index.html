@@ -420,7 +420,7 @@ create policy &quot;trs_raw_del&quot; on storage.objects for delete to authentic
   </div>
 </div>
 
-<p class="note">TrakSensor v2.0.2 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v2.0.3 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -2230,9 +2230,20 @@ function uiSnap() { const o = {}; UI_KEYS.forEach(k => { const el = $(k); if (el
 function uiApply(sn) { UI_KEYS.forEach(k => { const el = $(k); if (el && sn.ui[k] !== undefined) { if (el.type === 'checkbox') el.checked = sn.ui[k]; else el.value = sn.ui[k]; } }); testId = sn.testId; side = sn.side; orient = sn.orient; }
 function packS(S) { const a = new Int16Array(S.length * 6); for (let i = 0; i < S.length; i++) for (let j = 0; j < 6; j++) a[i * 6 + j] = Math.round(S[i][j] * (j < 3 ? ACC_LSB : GYR_LSB)); return a; }
 function unpackS(a) { const S = new Array(a.length / 6); for (let i = 0; i < S.length; i++) { const s = new Array(6); for (let j = 0; j < 6; j++) s[j] = a[i * 6 + j] / (j < 3 ? ACC_LSB : GYR_LSB); S[i] = s; } return S; }
-function saveRaw(key, r0) { rawDB.put(key, { S: packS(r0.S), test: r0.test, calStart: r0.calStart, calEnd: r0.calEnd, cueAt: r0.cueAt || [], lost: r0.lost || 0, rate: r0.rate || null, snap: uiSnap() }); }
+function saveRaw(key, r0) { rawDB.put(key, { S: packS(r0.S), test: r0.test, calStart: r0.calStart, calEnd: r0.calEnd, cueAt: r0.cueAt || [], lost: r0.lost || 0, rate: r0.rate || null, fixed: !!r0.fixed, snap: uiSnap() }); }
 // frecuencia real de llegada de datos (debe ser ~200 Hz); si es menor, el firmware viejo "comprime" el tiempo
-function rateWarn(r0) { const f = r0 && r0.rate; return f && Math.abs(f - FS) / FS > 0.04 ? `El sensor envió ${Math.round(f)} datos/s en vez de ${FS}: los tiempos (vuelo, fases, altura) pueden salir más cortos. Actualizá el firmware del sensor a la v1.1.` : ''; }
+function rateWarn(r0) { const f = r0 && r0.rate; if (!f || Math.abs(f - FS) / FS <= 0.02) return '';
+  return r0.fixed ? `El sensor envió ${Math.round(f)} datos/s en vez de ${FS}: la app corrigió la escala de tiempo automáticamente (vuelo, fases y altura ya están ajustados).`
+    : `El sensor envió ${Math.round(f)} datos/s en vez de ${FS}: los tiempos (vuelo, fases, altura) pueden salir más cortos.`; }
+// Si el sensor no mandó 200 datos/s reales, re-muestrea la señal a 200 Hz para que todos los tiempos salgan bien
+function fixRate(r0) {
+  const f = r0.rate; if (!f || r0.fixed || Math.abs(f - FS) / FS <= 0.02 || Math.abs(f - FS) / FS > 0.5) return;
+  const k = FS / f, S = r0.S, n = Math.floor((S.length - 1) * k) + 1, out = new Array(n);
+  for (let i = 0; i < n; i++) { const x = i / k, a = Math.floor(x), b = Math.min(a + 1, S.length - 1), w = x - a; out[i] = S[a].map((v, j) => v + (S[b][j] - v) * w); }
+  r0.S = out; const sc = i => i == null ? i : Math.round(i * k);
+  r0.calStart = sc(r0.calStart); r0.calEnd = sc(r0.calEnd); if (r0.cueAt) r0.cueAt = r0.cueAt.map(sc); r0.fixed = true;
+}
+function rateTxt(r0) { return r0.rate ? ` · sensor: ${Math.round(r0.rate)} datos/s${r0.fixed ? ' (corregido)' : ''}` : ''; }
 function cleanRaw(sid) { if (!results.some(x => x.serie === sid)) rawDB.del(sid); }
 let orient = store.get('trs_orient', null);
 
@@ -2716,6 +2727,7 @@ function finishRec(msg) {
   send('P');
   const r0 = rec; rec = null; setRecBtn(); counter('');
   if (r0.tB - r0.tA > 4000) r0.rate = (r0.nB - r0.nA - 10) / ((r0.tB - r0.tA) / 1000);
+  fixRate(r0);
   const a = currentAthlete(), t = TESTS[r0.test];
   lastRaw = { S: r0.S, test: r0.test, athlete: a.name };
   $('btnRaw').disabled = false;
@@ -2730,7 +2742,7 @@ function finishRec(msg) {
   entry.raw = true; saveRaw(entry.serie, r0);
   results.push(entry); store.set('trs_results', results);
   current = { res, entry, t, r0, snap: uiSnap() };
-  status(msg || '¡Listo! Resultado guardado');
+  status((msg || '¡Listo! Resultado guardado') + rateTxt(r0));
   if (progRecord([entry.id])) status((msg || '¡Listo! Resultado guardado') + ' · paso del programa completado');
   showGeneric(res, entry, t);
   renderHist();
@@ -2874,7 +2886,7 @@ function finishJumps(r0, a, t, msg) {
   out.jumps.forEach(j => j.entry.raw = true); saveRaw(sid, r0);
   store.set('trs_results', results);
   serie = { test: r0.test, jt: t.jump, jumps: out.jumps, sid }; selJump = 0; current = null;
-  status(msg || `¡Listo! ${out.jumps.length} salto${out.jumps.length > 1 ? 's' : ''} analizado${out.jumps.length > 1 ? 's' : ''}`);
+  status(msg || `¡Listo! ${out.jumps.length} salto${out.jumps.length > 1 ? 's' : ''} analizado${out.jumps.length > 1 ? 's' : ''}` + rateTxt(r0));
   showSerie();
   renderHist();
   if (progRecord(out.jumps.map(j => j.entry.id))) status($('status').textContent + ' · paso del programa completado');
@@ -4602,7 +4614,7 @@ async function openHist(id) {
   renderHist();
   const raw = e.raw ? await getRaw(e.serie) : null;
   if (raw) {
-    const S = unpackS(raw.S), r0 = { S, test: raw.test, calStart: raw.calStart, calEnd: raw.calEnd, cueAt: raw.cueAt, lost: raw.lost, rate: raw.rate || null, excl: e.excl || [] };
+    const S = unpackS(raw.S), r0 = { S, test: raw.test, calStart: raw.calStart, calEnd: raw.calEnd, cueAt: raw.cueAt, lost: raw.lost, rate: raw.rate || null, fixed: !!raw.fixed, excl: e.excl || [] };
     const keep = uiSnap(); uiApply(raw.snap);
     try {
       const a = currentAthlete();
