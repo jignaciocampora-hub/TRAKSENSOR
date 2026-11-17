@@ -156,7 +156,7 @@ body.noscroll{overflow:hidden}
 <path d="M43.2 97.6 C47 96.6 54 97 58.6 98.4 C60.6 102.6 61.4 106.4 60.6 109.6 C58.8 109.8 55.8 107.6 53.4 105.8 C49.6 103.2 45.8 100.6 43.2 97.6 Z" fill="#e8ecf1" opacity="0.85"/>
 <path d="M60.6 111.4 L62.2 114" stroke="#e8ecf1" stroke-width="2" stroke-linecap="round" opacity="0.7"/><rect x="61" y="80" width="17" height="20" rx="5" fill="#18c29c"/></g></svg></span><h1>Trak<span>Sensor</span></h1></div>
   <div class="row"><button class="sm" id="btnCloud">☁ Nube</button><span id="connTxt"><span class="dot" id="connDot"></span><span id="connLbl">Desconectado</span></span>
-  <button class="pri" id="btnConn">Conectar</button></div>
+  <button class="sm hide" id="btnOff" title="Apagar sensor">⏻</button><button class="pri" id="btnConn">Conectar</button></div>
 </header>
 
 <div class="card">
@@ -420,7 +420,7 @@ create policy &quot;trs_raw_del&quot; on storage.objects for delete to authentic
   </div>
 </div>
 
-<p class="note">TrakSensor v2.0.3 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v2.0.4 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -2501,6 +2501,7 @@ function setConn(ok) {
   $('connDot').className = 'dot' + (ok ? ' ok' : '');
   $('connLbl').textContent = ok ? 'Conectado' : 'Desconectado';
   $('btnConn').textContent = ok ? 'Desconectar' : 'Conectar';
+  $('btnOff').classList.toggle('hide', !ok);
   setRecBtn(); $('btnOrient').disabled = !ok;
   if (parseHash().v === 'game' && !gm) renderGameSetup();
 }
@@ -4961,6 +4962,11 @@ $('nJumps').oninput = setRecBtn;
 $('invLR').checked = !!store.get('trs_invLR', false);
 $('invLR').onchange = () => store.set('trs_invLR', $('invLR').checked);
 $('btnOrient').onclick = () => { if (!rec && connected()) startRec('orient'); };
+$('btnOff').onclick = async () => {
+  if (!connected() || rec) return;
+  if (!confirm('¿Apagar el sensor? Para volver a prenderlo: dos toquecitos sobre el sensor.')) return;
+  await send('O'); status('Sensor apagado · para prenderlo: doble toque'); setTimeout(() => { try { if (connected()) dev.gatt.disconnect(); } catch (e) {} }, 400);
+};
 $('btnConn').onclick = () => { if (connected()) dev.gatt.disconnect(); else connect(); };
 $('btnRec').onclick = () => rec ? stopRec() : startRec();
 $('btnCsv').onclick = exportCsv;
