@@ -420,7 +420,7 @@ create policy &quot;trs_raw_del&quot; on storage.objects for delete to authentic
   </div>
 </div>
 
-<p class="note">TrakSensor v2.0.4 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v2.0.5 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -1482,22 +1482,28 @@ function analyzeScrum(S, fr, sig, calB, cues, opts) {
     let a = i, b = i; while (b < n && still(b) && fS[b] > 40) b++;
     if (b - a < 0.5 * FS || b >= n - 10) { i = b + 1; continue; }
     const on = b; let k = on + Math.round(0.15 * FS), end = -1;
-    while (k < Math.min(n, on + 6 * FS)) { if (still(k)) { const e = runStill(k, Math.round(0.3 * FS)); if (e > 0) { end = k; break; } } k++; }
+    while (k < Math.min(n, on + 15 * FS)) { if (still(k)) { const e = runStill(k, Math.round(0.3 * FS)); if (e > 0) { end = k; break; } } k++; }
     const endOK = end > 0;
-    if (!endOK) end = Math.min(n - 1, on + 6 * FS);
+    if (!endOK) end = Math.min(n - 1, on + 15 * FS);
     if (end - on >= 0.3 * FS) eps.push({ a, b, on, end, endOK });
     i = end + 1;
   }
   if (!eps.length) return { error: 'No se detectó ningún empuje. Antes de empujar, quedate quieto en posición al menos 1 s.' };
 
-  const reps = eps.map((ep) => {
+  let reps = eps.map((ep) => {
     const { on, end } = ep, L = end - on + 1;
     let v = 0, vz = 0; const V = [], VZ = [];
     for (let k = on; k <= end; k++) { V.push(v); VZ.push(vz); v += fwd[k] * DT; vz += vert[k] * DT; }
     if (ep.endOK) { const cv = V[L - 1] / (L - 1 || 1), cz = VZ[L - 1] / (L - 1 || 1); for (let k = 0; k < L; k++) { V[k] -= cv * k; VZ[k] -= cz * k; } }
     let x = 0, z = 0, xMin = 0, zMin = 0; const X = [];
-    for (let k = 0; k < L; k++) { X.push(x); x += V[k] * DT; z += VZ[k] * DT; if (x < xMin) xMin = x; if (z < zMin) zMin = z; }
+    const Z = []; for (let k = 0; k < L; k++) { X.push(x); Z.push(z); x += V[k] * DT; z += VZ[k] * DT; }
     let kPk = 0; for (let k = 0; k < L; k++) if (V[k] > V[kPk]) kPk = k;
+    let kXm = 0; for (let k = 0; k < L; k++) if (X[k] > X[kXm]) kXm = k;
+    for (let k = 0; k <= kPk; k++) { if (X[k] < xMin) xMin = X[k]; if (Z[k] < zMin) zMin = Z[k]; }   // retroceso y descenso: solo en la carga
+    let kFe = kPk; while (kFe < L - 1 && V[kFe] > 0.03) kFe++;              // fin del avance
+    let kBs = -1, vRet = 0; for (let k = kFe; k < L; k++) if (V[k] < -0.06) { kBs = k; break; }   // comienzo del regreso
+    if (kBs >= 0) for (let k = kBs; k < L; k++) vRet = Math.min(vRet, V[k]);
+    let kB0 = -1, vMin = 0; for (let k = 0; k < L; k++) { if (kB0 < 0 && V[k] < -0.06) kB0 = k; vMin = Math.min(vMin, V[k]); }   // (para regresos)
     let kD = kPk; while (kD > 0 && V[kD] > 0.03) kD--;
     let vm = 0, c = 0; for (let k = kD; k < L; k++) if (V[k] > 0) { vm += V[k]; c++; }
     let aPk = 0; for (let k = on + kD; k <= on + kPk; k++) aPk = Math.max(aPk, fwd[k]);
@@ -1506,23 +1512,39 @@ function analyzeScrum(S, fr, sig, calB, cues, opts) {
     const isoFlex = mean(Array.from(flex.slice(ep.a, ep.b))), isoLat = mean(Array.from(lat.slice(ep.a, ep.b)));
     const beep = (cues || []).filter(q => q >= ep.a - 0.2 * FS && q <= on).pop();
     return {
-      ep, V, X, kD, kPk, vPk: V[kPk], vMean: c ? vm / c : 0, disp: X[L - 1], back: -xMin, drop: -zMin,
-      tLoad: kD / FS, tDrive: (L - 1 - kD) / FS, tPk: (kPk - kD) / FS, aPk: aPk / G,
+      ep, V, X, kD, kPk, kFe, kBs, vRet: kBs >= 0 ? vRet : null, kB0, vMin, xMax: X[kXm], dispNet: X[L - 1], hold: kBs >= 0 ? (kBs - kFe) / FS : null,
+      vPk: V[kPk], vMean: c ? vm / c : 0, disp: X[kXm], back: -xMin, drop: -zMin,
+      tLoad: kD / FS, tDrive: (kFe - kD) / FS, tPk: (kPk - kD) / FS, aPk: aPk / G,
       rot: yhi - ylo, latR: rangeOf(latS, on, end), flexR: rangeOf(fS, on, end), isoFlex, isoLat,
       rt: beep != null ? (on - beep) / FS : null,
     };
   });
 
-  const res = { tiles: [], tiles2: [], warn: [], m: {}, table: { head: ['#', 'Vel. pico', 'Vel. media', 'Desplaz.', 'Retroceso', 'Desc. cadera', 'Carga', 'Empuje', 'T. al pico'], rows: [] } };
+  // Ciclo: isométrico → empuje hacia adelante → sostén haciendo fuerza → regreso a la posición inicial.
+  // Los regresos (desplazamiento hacia atrás) no son empujes: se unen al empuje anterior y dan el tiempo de sostén.
+  const isRet = (x) => x.dispNet < -0.03 && x.xMax < Math.max(0.03, -x.dispNet * 0.4);
+  const pushes = [];
+  reps.forEach((x) => {
+    if (isRet(x)) {
+      const p = pushes[pushes.length - 1];
+      if (p && !p.ret && p.hold == null) { p.ret = x; p.hold = ((x.ep.on + Math.max(0, x.kB0)) - (p.ep.on + p.kFe)) / FS; p.vRet = Math.min(p.vRet || 0, x.vMin); }
+      return;
+    }
+    if (x.vPk > 0.05) pushes.push(x);
+  });
+  if (!pushes.length) return { error: 'No se detectó ningún empuje hacia adelante. Quedate quieto en posición 1 s antes de empujar.' };
+  reps = pushes;
+  const res = { tiles: [], tiles2: [], warn: [], m: {}, table: { head: ['#', 'Vel. pico', 'Vel. media', 'Desplaz.', 'Sostén', 'Retroceso', 'Desc. cadera', 'Carga', 'Empuje', 'T. al pico'], rows: [] } };
   const T = (l, v, u, d, main, sec) => { if (fin(v)) { (sec ? res.tiles2 : res.tiles).push([l, r(v, d), u, main]); res.m[l + ' (' + u + ')'] = r(v, d); } };
   const best = reps.reduce((b, x) => x.vPk > b.vPk ? x : b, reps[0]);
-  reps.forEach((x, k) => res.table.rows.push([(k + 1) + (x === best && reps.length > 1 ? ' ★' : ''), r(x.vPk, 2) + ' m/s', r(x.vMean, 2) + ' m/s', r(x.disp * 100, 0) + ' cm', r(x.back * 100, 1) + ' cm', r(x.drop * 100, 1) + ' cm', Math.round(x.tLoad * 1000) + ' ms', Math.round(x.tDrive * 1000) + ' ms', Math.round(x.tPk * 1000) + ' ms']));
+  reps.forEach((x, k) => res.table.rows.push([(k + 1) + (x === best && reps.length > 1 ? ' ★' : ''), r(x.vPk, 2) + ' m/s', r(x.vMean, 2) + ' m/s', r(x.disp * 100, 0) + ' cm', x.hold != null ? r(x.hold, 1) + ' s' : '–', r(x.back * 100, 1) + ' cm', r(x.drop * 100, 1) + ' cm', Math.round(x.tLoad * 1000) + ' ms', Math.round(x.tDrive * 1000) + ' ms', Math.round(x.tPk * 1000) + ' ms']));
   const M = (k) => mean(reps.map(x => x[k]).filter(fin));
   T('Velocidad pico', best.vPk, 'm/s', 2, true);
   T('Velocidad media de empuje', M('vMean'), 'm/s', 2, true);
   T('Desplazamiento', reps.length > 1 ? M('disp') * 100 : best.disp * 100, 'cm', 0, true);
   if (reps.length > 1) { T('Empujes', reps.length, '', 0); T('CV velocidad pico', sdv(reps.map(x => x.vPk)) / M('vPk') * 100, '%', 1); }
   T('Tiempo al pico de velocidad', M('tPk') * 1000, 'ms', 0);
+  T('Tiempo sosteniendo el empuje', M('hold'), 's', 1);
   T('Ángulo del tronco (isométrico)', M('isoFlex'), '°', 0);
   if (fr.known) { const il = M('isoLat'); T('Inclinación lateral (isométrico)' + (Math.abs(il) >= 1 ? (il > 0 ? ' · der. más baja' : ' · izq. más baja') : ''), Math.abs(il), '°', 1); }
   T('Retroceso en la carga', M('back') * 100, 'cm', 1, false, true);
@@ -1530,6 +1552,7 @@ function analyzeScrum(S, fr, sig, calB, cues, opts) {
   T('Duración de la carga', M('tLoad') * 1000, 'ms', 0, false, true);
   T('Duración del empuje', M('tDrive') * 1000, 'ms', 0, false, true);
   T('Aceleración pico hacia adelante', M('aPk'), 'g', 2, false, true);
+  T('Velocidad de regreso', Math.abs(M('vRet')), 'm/s', 2, false, true);
   T('Rotación de pelvis en el empuje', M('rot'), '°', 1, false, true);
   if (fr.known) T('Variación lateral en el empuje', M('latR'), '°', 1, false, true);
   T('Variación del ángulo de tronco', M('flexR'), '°', 1, false, true);
@@ -1540,14 +1563,16 @@ function analyzeScrum(S, fr, sig, calB, cues, opts) {
   const Vfull = new Float64Array(n), spans = [], marks = [];
   reps.forEach((x, k) => {
     for (let j = 0; j < x.V.length; j++) Vfull[x.ep.on + j] = x.V[j];
+    if (x.ret) for (let j = 0; j < x.ret.V.length; j++) Vfull[x.ret.ep.on + j] = x.ret.V[j];
+    if (x.hold != null) spans.push(['Sostén', x.ep.on + x.kFe, x.ep.on + x.kFe + Math.round(x.hold * FS), 'unw']);
     spans.push(['Isométrico', x.ep.a, x.ep.b, 'unw'], ['Carga', x.ep.on, x.ep.on + x.kD, 'brk'], ['Empuje', x.ep.on + x.kD, x.ep.end, 'con']);
     marks.push([k + 1, x.ep.on + x.kPk, 'Vel. pico ' + (k + 1), 0]);
   });
-  const from = Math.max(calB, reps[0].ep.a - Math.round(0.5 * FS)), to = Math.min(n - 1, reps[reps.length - 1].ep.end + FS);
+  const from = Math.max(calB, reps[0].ep.a - Math.round(0.5 * FS)), lr = reps[reps.length - 1], to = Math.min(n - 1, (lr.ret ? lr.ret.ep.end : lr.ep.end) + FS);
   res.chart = { type: 'lines', from, to, lines: [{ arr: Vfull, color: '#4c9ef5', lo: -0.5, hi: Math.max(1, best.vPk * 1.2), label: 'Velocidad hacia adelante (m/s)' }, { arr: fS, color: '#18c29c', lo: 0, hi: 110, label: 'Ángulo del tronco (°)' }], spans: reps.length > 3 ? spans.filter(s => s[3] !== 'unw') : spans, marks };
   res.scrum = { n: reps.length, vPk: best.vPk, vMean: M('vMean'), disp: reps.length > 1 ? M('disp') : best.disp, back: M('back'), drop: M('drop'), tLoad: M('tLoad'), tDrive: M('tDrive'), tPk: M('tPk'), aPk: M('aPk'),
-    rot: M('rot'), latR: fr.known ? M('latR') : null, flexR: M('flexR'), isoFlex: M('isoFlex'), isoLat: fr.known ? M('isoLat') : null, known: !!fr.known, rt: null, cv: reps.length > 1 ? sdv(reps.map(x => x.vPk)) / M('vPk') * 100 : null };
-  res.scrumReps = reps.map(x => ({ vPk: x.vPk, vMean: x.vMean, disp: x.disp, rot: x.rot, drop: x.drop, isoFlex: x.isoFlex, tPk: x.tPk }));
+    rot: M('rot'), latR: fr.known ? M('latR') : null, flexR: M('flexR'), isoFlex: M('isoFlex'), isoLat: fr.known ? M('isoLat') : null, known: !!fr.known, rt: null, hold: M('hold'), vRet: fin(M('vRet')) ? Math.abs(M('vRet')) : null, cv: reps.length > 1 ? sdv(reps.map(x => x.vPk)) / M('vPk') * 100 : null };
+  res.scrumReps = reps.map(x => ({ vPk: x.vPk, vMean: x.vMean, disp: x.disp, rot: x.rot, drop: x.drop, isoFlex: x.isoFlex, tPk: x.tPk, hold: x.hold, back: !!x.ret }));
   res.main = ['Velocidad pico', r(best.vPk, 2), 'm/s'];
   return res;
 }
@@ -2205,7 +2230,7 @@ const GUIDE = {
          errors: ['Mover los brazos para equilibrarse.', 'Hablar durante la prueba.'] },
   ROM: { steps: ['Elegí el movimiento: la app indica dónde va el sensor.', 'Sujetá el sensor con una banda elástica firme en ese segmento.', 'Posición inicial, quieto 2 s.', 'Hacé el movimiento hasta el máximo, lento y controlado, y volvé. Repetí 3 veces.', 'Tocá Stop y repetí del otro lado para comparar.'],
          errors: ['Sensor flojo (sobreestima el rango).', 'Compensar con el tronco.'] },
-  SCRUM: { steps: ['Calibrá la orientación del cinturón (una vez por colocación) y ajustalo bien firme: con el cuerpo horizontal, un cinturón flojo se mueve.', 'Parado quieto 2 s (referencia de postura).', 'Enganchate en la máquina y quedate quieto en isometría al menos 1 s.', 'Cuando quieras: carga (flexioná rodillas y cadera) y empujá desplazando la máquina. Los datos de cada empuje aparecen en la pantalla.', 'Al terminar el empuje quedate quieto en posición: así la app cierra el cálculo de velocidad y metros.', 'Para hacer otro empuje, volvé a la posición inicial y quieto 1 s. Al pararte, el test termina solo.'],
+  SCRUM: { steps: ['Calibrá la orientación del cinturón (una vez por colocación) y ajustalo bien firme: con el cuerpo horizontal, un cinturón flojo se mueve.', 'Parado quieto 2 s (referencia de postura).', 'Enganchate en la máquina y quedate quieto en isometría al menos 1 s.', 'Cuando quieras: empujá la máquina hacia adelante (extensión de cadera y rodillas).', 'Sostené el empuje haciendo fuerza unos segundos (la app mide cuánto lo sostiene).', 'Volvé a la posición isométrica inicial y quedate quieto 1 s: ahí la app cierra ese empuje y muestra los datos.', 'Repetí el ciclo las veces que quieras. Al pararte, el test termina solo.'],
            errors: ['Arrancar sin estar quieto antes (no hay punto de partida para medir la velocidad).', 'Pararse enseguida al terminar el empuje (quedate quieto en posición 1 s).', 'Cinturón flojo.', 'Con máquina fija no hay desplazamiento: el sensor mide postura y estabilidad, no la fuerza.'] },
   FREE: { steps: ['Tocá Play.', 'Hacé la actividad que quieras registrar.', 'Tocá Stop y exportá los datos crudos en CSV.'], errors: [] },
 };
@@ -2338,7 +2363,7 @@ const TESTS = {
   YBAL:  { cat: 'Equilibrio', name: 'Y-Balance (tren inferior)', kind: 'ybal', calib: 'pos', stop: 'manual', side: true, ybal: true,
            help: 'Parado en una pierna en el centro. Alcanzá lo más lejos posible con la otra pierna hacia adelante, posteromedial y posterolateral, volviendo al centro cada vez. Cargá las distancias y tocá Stop.' },
   SCRUM: { cat: 'Scrum', name: 'Scrum contra máquina (empuje)', kind: 'scrum', calib: 'stand', stop: 'scrum', mode: true, orient: true, scrum: true,
-           help: 'Parado quieto 2 s. Engancharse en la máquina y quedarse quieto en isometría; cuando quiera: carga y empuje. Al terminar cada empuje, quieto en posición.' },
+           help: 'Parado quieto 2 s. Engancharse en la máquina y quedarse quieto en isometría; ciclo: empujar hacia adelante → sostener haciendo fuerza → volver a la posición inicial y quieto 1 s.' },
   FREE:  { cat: 'Otros', name: 'Registro libre (datos crudos)', kind: 'free', calib: 'stand', stop: 'manual',
            help: 'Graba todo lo que hagas entre Play y Stop y lo exporta en CSV. Ideal para mandar datos y ajustar los cálculos.' },
 };
@@ -2541,13 +2566,18 @@ function scrumLiveUpdate() {
   let res; try { res = analyzeTest({ S: rec.S.slice(), test: rec.test, calStart: rec.calStart, calEnd: rec.calEnd, cueAt: [], lost: 0 }, currentAthlete(), TESTS[rec.test]); } catch (e) { return; }
   if (!res || res.error || !res.scrumReps) return;
   rec.scLive = res.scrumReps; renderScrumLive();
+  const nP = res.scrumReps.length, c = rec.sc; c.n = nP;
+  counter(rec.target === Infinity ? `${nP} empuje${nP > 1 ? 's' : ''}` : `${nP} de ${rec.target}`);
+  const last = res.scrumReps[nP - 1];
+  status(last.back ? '✓ De vuelta en posición: empujá cuando quieras' : '✓ Empuje registrado · sostené y volvé a la posición inicial');
+  if (nP >= rec.target && last.back) finishRec();
 }
 function renderScrumLive() {
   const L = rec && rec.scLive; if (!L || !L.length) { $('scrumLive').classList.add('hide'); return; }
   const bi = L.reduce((b, x, k) => x.vPk > L[b].vPk ? k : b, 0);
   $('scrumLive').classList.remove('hide');
-  $('scrumLive').innerHTML = `<table><tr><th>#</th><th>Vel. pico</th><th>Vel. media</th><th>Desplaz.</th><th>Rot. pelvis</th><th>Desc. cadera</th></tr>` +
-    L.map((x, k) => `<tr class="${k === bi ? 'best' : ''}${k === L.length - 1 ? ' last' : ''}"><td>${k + 1}${k === bi ? ' ★' : ''}</td><td><b>${r(x.vPk, 2)}</b> m/s</td><td>${r(x.vMean, 2)} m/s</td><td>${r(x.disp * 100, 0)} cm</td><td>${r(x.rot, 1)}°</td><td>${r(x.drop * 100, 1)} cm</td></tr>`).reverse().join('') + '</table>';
+  $('scrumLive').innerHTML = `<table><tr><th>#</th><th>Vel. pico</th><th>Vel. media</th><th>Desplaz.</th><th>Sostén</th><th>Rot. pelvis</th><th>Desc. cadera</th></tr>` +
+    L.map((x, k) => `<tr class="${k === bi ? 'best' : ''}${k === L.length - 1 ? ' last' : ''}"><td>${k + 1}${k === bi ? ' ★' : ''}</td><td><b>${r(x.vPk, 2)}</b> m/s</td><td>${r(x.vMean, 2)} m/s</td><td>${r(x.disp * 100, 0)} cm</td><td>${x.hold != null ? r(x.hold, 1) + ' s' : '…'}</td><td>${r(x.rot, 1)}°</td><td>${r(x.drop * 100, 1)} cm</td></tr>`).reverse().join('') + '</table>';
 }
 function scrumSetup(i) {
   rec.sc = { ex: rec.cal.u.slice(), state: 'wait', still: 0, mov: 0, n: 0, upN: 0, last: i }; rec.scLive = null; $('scrumLive').classList.add('hide');
@@ -2563,15 +2593,14 @@ function scrumTick(i, s, m, gm) {
   c.still = motion ? 0 : c.still + 1; c.mov = motion ? c.mov + 1 : 0;
   if (c.state === 'wait' && ang > 40 && c.still > FS) {
     c.state = 'ready'; c.last = i;
-    status('En posición: empujá cuando quieras');
+    if (!c.n) status('En posición: empujá cuando quieras');
+    else setTimeout(scrumLiveUpdate, 0);        // quieto 1 s: puede ser el sostén o la vuelta a la posición (cierra el ciclo)
   } else if (c.state === 'ready' && c.mov > 0.08 * FS) { c.state = 'push'; status('Empujando…'); }
   else if (c.state === 'push' && c.still > 0.7 * FS) {
-    c.n++; c.state = 'wait'; c.last = i;
-    counter(rec.target === Infinity ? `${c.n} empuje${c.n > 1 ? 's' : ''}` : `${c.n} de ${rec.target}`);
-    if (c.n >= rec.target) { finishRec(); return true; }
-    setTimeout(scrumLiveUpdate, 0);
-    status('✓ Quieto en posición para el siguiente empuje…');
+    c.state = 'wait'; c.last = i;               // quieto: puede ser el sostén del empuje o la vuelta a la posición inicial
+    setTimeout(scrumLiveUpdate, 0);             // la app cuenta solo los empujes hacia adelante
   }
+  if (c.state === 'ready' && c.n && rec.scLive && !rec.scLive[rec.scLive.length - 1].back && i - (c.upd || 0) > FS) { c.upd = i; setTimeout(scrumLiveUpdate, 0); }   // esperando el regreso
   if (c.n > 0 && ang < 25) { if (++c.upN > FS) { finishRec(); return true; } } else c.upN = 0;
   if (i - c.last > 40 * FS) { if (c.n) finishRec('40 s sin empujes: registro terminado'); else { send('P'); rec = null; setRecBtn(); status('No se detectó ningún empuje. Probá de nuevo.'); counter(''); } return true; }
   return false;
