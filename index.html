@@ -401,6 +401,11 @@ create policy &quot;trs_raw_del&quot; on storage.objects for delete to authentic
   <div id="romBox" class="hide"><h3 class="ph" style="margin-top:14px">Ángulo alcanzado</h3><canvas id="romDial"></canvas>
     <div id="romMini" class="romMini"></div><div class="row" style="justify-content:center;margin-top:8px"><button class="sm" id="btnRomCurve">📈 Ver curva en el tiempo</button></div></div>
   <div id="stabBox" class="hide"><h3 class="ph" style="margin-top:14px">Control del centro</h3><canvas id="stabPlot"></canvas><div id="stabLeg" class="stabLeg"></div></div>
+  <div id="tugBox" class="hide"><h3 class="ph" style="margin-top:14px">Animación del test</h3>
+    <canvas id="tugCv" style="width:100%;border-radius:12px;background:#f3f5f8"></canvas>
+    <div class="row" style="margin-top:8px;align-items:center;flex-wrap:nowrap"><button class="sm" id="tugPlay">▶ Reproducir</button>
+      <input type="range" id="tugSeek" min="0" max="1000" value="0" style="flex:1;min-width:0"><button class="sm" id="tugSpd">1×</button></div>
+    <p class="note" style="margin-top:6px">Figura: reconstrucción a partir del sensor lumbar (fases, pasos, giros e inclinación del tronco medidos). El recorrido es aproximado: un sensor en la espalda no mide la posición exacta en el piso.</p></div>
   <canvas id="resPlot" style="margin-top:10px;height:240px"></canvas>
   <div class="note" id="phaseLegend" style="margin-top:8px"></div>
   <div class="row" style="margin-top:10px">
@@ -420,7 +425,7 @@ create policy &quot;trs_raw_del&quot; on storage.objects for delete to authentic
   </div>
 </div>
 
-<p class="note">TrakSensor v2.0.5 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v2.0.7 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -937,11 +942,93 @@ function analyzeTUG(S, fr, sig, calEnd, opts) {
     if (walkSteps > 2) T('Cadencia al caminar', walkSteps / wt * 60, 'pasos/min', 0, false, true);
     T('Pasos totales', ics.length, '', 0, false, true);
     if (fr.f) { let pk = 0; for (let i = t0; i < firstIC; i++) pk = Math.max(pk, Math.abs(sig.wML[i])); T('Vel. pico de flexión de tronco al pararse', pk, '°/s', 0, false, true); }
+    try { res.replay = tugReplay(S, fr, sig, t0, t1, firstIC, tA, tB, ics); } catch (e) { console.warn('animación TUG', e); }
   } else res.warn.push('No se pudieron separar las fases (giros o pasos poco claros): se informa solo el tiempo total.');
   const yaw = cumint(sig.wV, t0, Math.min(S.length, t1 + FS));
   res.chart = { type: 'lines', from: Math.max(0, t0 - FS / 2), to: Math.min(S.length - 1, t1 + FS / 2), lines: [{ arr: yaw, color: '#4c9ef5', label: 'Giro acumulado (°)' }, { arr: sig.F, color: '#e8ecf1', lo: 0, hi: 3, label: 'Aceleración vertical (g)' }], spans, marks: [] };
   res.main = ['Tiempo total', r(total, 2), 's'];
   return res;
+}
+
+var tEase = (u) => u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
+// Datos para la animación del TUG: fases, pasos y giro real medidos por el sensor
+function tugReplay(S, fr, sig, t0, t1, ic0, tA, tB, ics) {
+  const n = S.length, a = Math.max(0, t0 - FS), b = Math.min(n - 1, t1 + FS);
+  const head = new Float64Array(n); let h = 0;
+  for (let i = t0; i < n; i++) { h += sig.wV[i] * DT; head[i] = h; }          // orientación (°) desde que se para
+  const lp = [0, 1, 2].map(j => gaussSmooth(Float64Array.from(S, x => x[j]), 0.25));
+  const lean = new Float64Array(n);
+  for (let i = a; i <= b; i++) { const v = nrm([lp[0][i], lp[1][i], lp[2][i]]); lean[i] = Math.min(70, Math.acos(Math.max(-1, Math.min(1, dot(v, fr.u)))) * 180 / Math.PI); }
+  const sitS = Math.min(t1 - Math.round(0.3 * FS), Math.max(Math.round((tB.s + tB.e) / 2), t1 - Math.round(1.2 * FS)));
+  return {
+    kind: 'tug', title: 'Timed Up and Go', a, b, t0, t1, ic0, sitS, tA: { s: tA.s, e: tA.e, ang: tA.angle, pk: tA.peak }, tB: { s: tB.s, e: tB.e, ang: tB.angle, pk: tB.peak },
+    side1: tA.angle >= 0 ? 1 : -1, side2: tB.angle >= 0 ? 1 : -1, ics: ics.filter(i => i >= ic0 && i <= sitS),
+    yaw: gaussSmooth(sig.wV, 0.05), av: gaussSmooth(sig.F, 0.02), head, lean
+  };
+}
+
+// Animación genérica de los tests clínicos: trayectoria por pasos (PDR) con el giro real del sensor,
+// inclinación del tronco, sentarse/pararse y escalones. cfg: { mode: 'walk'|'sts', stepLen, inPlace, stairs, title, minStep, turnMin, ics, t0, t1, lines }
+function genReplay(S, fr, sig, cfg) {
+  const n = S.length;
+  let t0 = cfg.t0, t1 = cfg.t1;
+  if (t0 == null) { const sp = activeSpan(activity(sig), cfg.calEnd || 0, n); if (!sp) return null; [t0, t1] = sp; }
+  const a = Math.max(0, t0 - FS), b = Math.min(n - 1, t1 + FS);
+  const head = new Float64Array(n); let h = 0;
+  for (let i = t0; i < n; i++) { h += sig.wV[i] * DT; head[i] = h; }
+  const lp = [0, 1, 2].map(j => gaussSmooth(Float64Array.from(S, x => x[j]), 0.25));
+  const lean = new Float64Array(n);
+  for (let i = a; i <= b; i++) { const v = nrm([lp[0][i], lp[1][i], lp[2][i]]); lean[i] = Math.min(70, Math.acos(Math.max(-1, Math.min(1, dot(v, fr.u)))) * 180 / Math.PI); }
+  const R = { kind: 'gen', mode: cfg.mode || 'walk', title: cfg.title || '', a, b, t0, t1, head, lean, yaw: gaussSmooth(sig.wV, 0.05), av: gaussSmooth(sig.F, 0.02), ics: [], turns: [], phases: [], props: {} };
+  if (R.mode === 'sts') {
+    const ph = verticalPhases(sig, cfg.calEnd || 0, n, 0.2), reps = [];
+    for (const u of ph.up) { const d = ph.down.find(x => x.p > u.p && x.p - u.p < 4 * FS); if (!d) continue; if (reps.length && u.p < reps[reps.length - 1].down.e) continue; reps.push({ up: u, down: d }); }
+    if (!reps.length) return null;
+    const sit = new Float32Array(n).fill(1);
+    reps.forEach((rp, k) => {
+      for (let i = rp.up.s; i <= rp.up.e; i++) sit[i] = 1 - tEase((i - rp.up.s) / Math.max(1, rp.up.e - rp.up.s));
+      for (let i = rp.up.e; i < rp.down.s; i++) sit[i] = 0;
+      for (let i = rp.down.s; i <= rp.down.e; i++) sit[i] = tEase((i - rp.down.s) / Math.max(1, rp.down.e - rp.down.s));
+      R.phases.push({ s: rp.up.s, e: rp.up.e, lab: `Pararse ${k + 1}`, det: `el sensor detecta: subida · ${r((rp.up.e - rp.up.s) / FS, 2)} s`, sp: 1 },
+        { s: rp.up.e, e: rp.down.s, lab: `Parado ${k + 1}`, det: '' },
+        { s: rp.down.s, e: rp.down.e, lab: `Sentarse ${k + 1}`, det: `el sensor detecta: bajada · ${r((rp.down.e - rp.down.s) / FS, 2)} s`, sp: 2 });
+    });
+    R.sit = sit; R.props.chair = true; R.reps = reps.length;
+    return R;
+  }
+  // pasos
+  let ics = cfg.ics;
+  if (!ics) {
+    const sm = gaussSmooth(sig.AV, 0.04); let m = 0, sd = 0;
+    for (let i = t0; i < t1; i++) m += sm[i]; m /= Math.max(1, t1 - t0);
+    for (let i = t0; i < t1; i++) sd += (sm[i] - m) ** 2; sd = Math.sqrt(sd / Math.max(1, t1 - t0));
+    ics = localMax(sm, t0, t1, Math.round((cfg.minStep || 0.25) * FS), m + 0.4 * sd);
+  }
+  ics = ics.filter(i => i >= t0 && i <= t1); R.ics = ics;
+  R.turns = detectTurns(sig.wV, t0, t1, cfg.turnMin || 90).map(t => ({ s: t.s, e: t.e, ang: t.angle, pk: t.peak }));
+  // trayectoria: cada paso avanza stepLen en la dirección que marca el giróscopo
+  const L = cfg.inPlace ? 0 : (cfg.stepLen || 0.65);
+  const big = cfg.stairs ? R.turns.find(t => Math.abs(t.ang) >= 120) : null, mid = big ? (big.s + big.e) / 2 : Infinity;
+  const px = new Float32Array(n), py = new Float32Array(n), pz = new Float32Array(n);
+  let x = 0, y = 0, z = 0, k = 0;
+  for (let i = a; i <= b; i++) {
+    while (k < ics.length - 1 && ics[k + 1] <= i) k++;
+    let v = 0, vz = 0;
+    if (ics.length && i >= ics[0] && i <= t1) {
+      const g = k < ics.length - 1 ? ics[k + 1] - ics[k] : Math.round(0.5 * FS);
+      if (i < ics[k] + g && g < 1.5 * FS) { v = L / g; if (cfg.stairs) vz = (i > mid ? -0.17 : 0.17) / g; }
+    }
+    const hr = head[i] * Math.PI / 180; x += v * Math.cos(hr); y += v * Math.sin(hr); z += vz;
+    px[i] = x; py[i] = y; pz[i] = z;
+  }
+  for (let i = b + 1; i < n; i++) { px[i] = x; py[i] = y; pz[i] = z; }
+  R.px = px; R.py = py; R.pz = pz;
+  R.turns.forEach((t, j) => R.phases.push({ s: t.s, e: t.e, lab: `Giro ${j + 1}`, det: `el sensor detecta: giro ${r(Math.abs(t.ang), 0)}° ${t.ang > 0 ? 'izq' : 'der'} · pico ${r(t.pk, 0)} °/s`, sp: 1 }));
+  if (cfg.stairs) { R.props.stairs = true; R.mid = mid; }
+  if (cfg.lines && ics.length > 1) R.props.lines = [ics[0], ics[ics.length - 1]];
+  if (cfg.cones) R.props.cones = cfg.cones;
+  R.inPlace = !!cfg.inPlace;
+  return R;
 }
 
 // ---------- Test de giro ----------
@@ -2871,12 +2958,22 @@ function analyzeTest(r0, a, t) {
       res.chart = { type: 'bars', labels: lbs, values: mins, title: 'Pasos por minuto' };
       if (!(real > 0)) res.warn.push('Distancia estimada con el modelo del péndulo invertido. Para un informe clínico, cargá la distancia medida (vueltas × largo del recorrido).');
     }
+    try {
+      const n10 = res.g && res.g.pk ? res.g.pk.filter(i => i >= sp[0] && i <= sp[1]).length : 0;
+      let L = 0.65;
+      if (t.kind === 'w10') L = (parseFloat($('dist').value) || 10) / Math.max(1, n10 - 1);
+      if (t.kind === 'w6') { const real = parseFloat($('dist').value); L = real > 0 && n10 ? real / n10 : res.len || 0.65; }
+      if (t.cat === 'Clínicos') res.replay = genReplay(S, fr, sig, { title: t.name, t0: sp[0], t1: sp[1], ics: res.g && res.g.pk, stepLen: L, turnMin: 90, lines: t.kind === 'w10' });
+    } catch (e) { console.warn('animación', e); }
     return withTitle(res, t);
   }
   if ((t.kind === 'bess' || t.kind === 'ybal') && !fr.f) { pcaForward(S, fr, calB, S.length); Object.assign(sig, signals(S, fr)); }
   if (t.kind === 'bess') return withTitle(analyzeBESS(S, fr, sig, calB, Math.min(S.length, calB + 20 * FS)), t);
-  if (t.kind === 'timed') { const res = analyzeTimed(S, fr, sig, calB, S.length, t.timed || {}); if (!res.error && t.dual) dualCost(res, a, t.dual, res.main[1], true); return withTitle(res, t); }
-  if (t.kind === 'fukuda') return withTitle(analyzeFukuda(S, fr, sig, calB, S.length), t);
+  if (t.kind === 'timed') {
+    const res = analyzeTimed(S, fr, sig, calB, S.length, t.timed || {}); if (!res.error && t.dual) dualCost(res, a, t.dual, res.main[1], true);
+    if (!res.error && t.cat === 'Clínicos') try { const tm = t.timed || {}; res.replay = genReplay(S, fr, sig, { title: t.name, calEnd: calB, stepLen: tm.stairs ? 0.28 : 0.6, stairs: !!tm.stairs, turnMin: tm.turnMin || 90, minStep: tm.minStep }); } catch (e) { console.warn('animación', e); }
+    return withTitle(res, t);
+  }
   if (t.kind === 'jpe') return withTitle(analyzeJPE(S, fr, calB, S.length, t.jpe), t);
   if (t.kind === 'sidehop') return withTitle(analyzeHops(S, calB, S.length, 'side'), t);
   if (t.kind === 'hop6') return withTitle(analyzeHops(S, calB, S.length, 'six'), t);
@@ -2884,8 +2981,9 @@ function analyzeTest(r0, a, t) {
   if (t.kind === 'ybal') return withTitle(analyzeYBal(S, fr, sig, calB, S.length, ['ybA', 'ybPM', 'ybPL', 'ybLL'].map(k => parseFloat(String($(k).value).replace(',', '.')))), t);
   if (t.kind === 'scrum') return withTitle(analyzeScrum(S, fr, sig, calB, r0.cueAt || [], {}), t);
   if (t.kind === 'tug') return withTitle(analyzeTUG(S, fr, sig, calB, opts), t);
-  if (t.kind === 'turn') return withTitle(analyzeTurnTest(S, fr, sig, calB), t);
-  if (t.kind === 'sts') return withTitle(analyzeSTS(S, fr, sig, calB, { mode: t.stsMode || r0.test, mass: a.mass }), t);
+  if (t.kind === 'turn') { const res = analyzeTurnTest(S, fr, sig, calB); if (!res.error) try { res.replay = genReplay(S, fr, sig, { title: t.name, calEnd: calB, inPlace: true, turnMin: 120 }); } catch (e) { console.warn('animación', e); } return withTitle(res, t); }
+  if (t.kind === 'fukuda') { const res = analyzeFukuda(S, fr, sig, calB, S.length); if (!res.error) try { res.replay = genReplay(S, fr, sig, { title: t.name, calEnd: calB, inPlace: true, minStep: 0.3, turnMin: 400 }); } catch (e) { console.warn('animación', e); } return withTitle(res, t); }
+  if (t.kind === 'sts') { const res = analyzeSTS(S, fr, sig, calB, { mode: t.stsMode || r0.test, mass: a.mass }); if (!res.error) try { res.replay = genReplay(S, fr, sig, { title: t.name, calEnd: calB, mode: 'sts' }); } catch (e) { console.warn('animación', e); } return withTitle(res, t); }
   if (t.kind === 'squat') return withTitle(analyzeSquat(S, fr, sig, calB, { unipodal: !!t.side }), t);
   if (t.kind === 'bal') {
     const end = Math.min(S.length, calB + testSecs() * FS);
@@ -3007,6 +3105,7 @@ function showGeneric(res, entry, t) {
   $('resPlot').classList.toggle('hide', !res.chart);
   drawChart(res.chart);
   $('stabBox').classList.toggle('hide', !res.stab); if (res.stab) requestAnimationFrame(() => drawStab(res.stab));
+  tugSet(res.replay);
   try {
     if (res.scrum) { const at = athletes.find(a => a.id === entry.ath) || currentAthlete() || { name: '' }; showInfo(scrumInfoSVG(res.scrum, { name: at.name, sub: [new Date(entry.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' }), at.mass ? at.mass + ' kg' : '', entry.cond || ''].filter(Boolean).join(' · ') })); }
     else if (t.kind !== 'free') showInfo(infoSVG(infoFromGeneric(res, entry, t), infoMeta(entry)));
@@ -3016,6 +3115,207 @@ function showGeneric(res, entry, t) {
   if (res.romDial) { romCurve = false; $('resPlot').classList.add('hide'); $('phaseLegend').classList.add('hide'); $('btnRomCurve').textContent = '📈 Ver curva en el tiempo'; requestAnimationFrame(() => drawRomDial(res.romDial)); }
   else $('phaseLegend').classList.remove('hide');
 }
+// ===================== Animación de los tests clínicos =====================
+const tug = { R: null, i: 0, play: false, spd: 1, last: 0, raf: 0, cam: null };
+const SPEEDS_S = [1, 0.5, 0.25], SPEEDS_L = [1, 2, 4, 8, 16, 0.5];
+function tugSet(R) {
+  cancelAnimationFrame(tug.raf); tug.play = false; tug.R = R || null; tug.cam = null;
+  $('tugBox').classList.toggle('hide', !R); $('tugPlay').textContent = '▶ Reproducir';
+  if (!R) return;
+  R._long = (R.t1 - R.t0) / FS > 40; tug.spd = R._long ? 4 : 1; $('tugSpd').textContent = tug.spd + '×';
+  tug.i = R.a; $('tugSeek').value = 0; requestAnimationFrame(() => tugDraw());
+}
+function tugLoop(ts) {
+  if (!tug.play || !tug.R) return;
+  const dt = Math.min(0.1, (ts - (tug.last || ts)) / 1000); tug.last = ts;
+  tug.i += dt * FS * tug.spd;
+  if (tug.i >= tug.R.b) { tug.i = tug.R.b; tug.play = false; $('tugPlay').textContent = '↺ Repetir'; }
+  $('tugSeek').value = Math.round((tug.i - tug.R.a) / (tug.R.b - tug.R.a) * 1000);
+  tugDraw(); if (tug.play) tug.raf = requestAnimationFrame(tugLoop);
+}
+$('tugPlay').onclick = () => {
+  if (!tug.R) return;
+  if (tug.play) { tug.play = false; $('tugPlay').textContent = '▶ Reproducir'; return; }
+  if (tug.i >= tug.R.b) tug.i = tug.R.a;
+  tug.play = true; tug.last = 0; $('tugPlay').textContent = '❚❚ Pausa'; tug.raf = requestAnimationFrame(tugLoop);
+};
+$('tugSeek').oninput = (e) => { if (!tug.R) return; tug.i = tug.R.a + (+e.target.value / 1000) * (tug.R.b - tug.R.a); tugDraw(); };
+$('tugSpd').onclick = () => {
+  const L = tug.R && tug.R._long ? SPEEDS_L : SPEEDS_S, k = L.indexOf(tug.spd); tug.spd = L[(k + 1) % L.length];
+  $('tugSpd').textContent = (tug.spd === 0.5 ? '½' : tug.spd === 0.25 ? '¼' : tug.spd) + '×';
+};
+// fase de la zancada (para mover las piernas) a partir de los pasos detectados
+function stridePhase(ic, i) {
+  let ph = 0, amp = 0;
+  if (ic.length > 1 && i >= ic[0] && i < ic[ic.length - 1]) {
+    let lo = 0, hi = ic.length - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (ic[m] <= i) lo = m; else hi = m; }
+    const g = ic[lo + 1] - ic[lo]; ph = lo + (i - ic[lo]) / g; amp = g < 1.3 * FS ? 1 : 0;
+  } else if (ic.length && i >= ic[ic.length - 1] && i < ic[ic.length - 1] + 0.5 * FS) { const u = (i - ic[ic.length - 1]) / (0.5 * FS); ph = ic.length - 1 + u; amp = 1 - u; }
+  return [ph, amp];
+}
+function tugPose(R, i) {
+  const rr = 0.16, fr_ = (a, b) => Math.min(1, Math.max(0, (i - a) / Math.max(1, b - a)));
+  const XS = 0.3, XT = 2.7, XB = 0.45, Y1 = R.side1 * 2 * rr;
+  let x = 0, y = 0, s = 1, lab = 'Sentado', det = '';
+  if (i < R.t0) { }
+  else if (i < R.ic0) { const u = tEase(fr_(R.t0, R.ic0)); s = 1 - u; x = XS * u; lab = 'Levantarse'; det = 'el sensor detecta: inclinación del tronco'; }
+  else if (i < R.tA.s) { const u = fr_(R.ic0, R.tA.s); s = 0; x = XS + (XT - XS) * (u < 0.15 ? u * u / 0.3 : u - 0.075) / 0.925; lab = u < 0.2 ? 'Inicio de marcha' : 'Ida'; det = 'el sensor detecta: pasos'; }
+  else if (i < R.tA.e) { const al = tEase(fr_(R.tA.s, R.tA.e)) * Math.PI; s = 0; x = XT + rr * Math.sin(al); y = R.side1 * rr * (1 - Math.cos(al)); lab = 'Giro 1'; det = `el sensor detecta: giro ${r(Math.abs(R.tA.ang), 0)}° · pico ${r(R.tA.pk, 0)} °/s`; }
+  else if (i < R.tB.s) { const u = fr_(R.tA.e, R.tB.s); s = 0; x = XT + (XB - XT) * u; y = Y1; lab = 'Vuelta'; det = 'el sensor detecta: pasos'; }
+  else if (i < R.t1) {
+    const al = tEase(fr_(R.tB.s, R.tB.e)) * Math.PI; s = 0;
+    x = XB - rr * Math.sin(al); y = Y1 - R.side2 * rr * (1 - Math.cos(al));
+    lab = 'Giro 2'; det = `el sensor detecta: giro ${r(Math.abs(R.tB.ang), 0)}° · pico ${r(R.tB.pk, 0)} °/s`;
+    if (i >= R.sitS) { const v = tEase(fr_(R.sitS, R.t1)); s = v; x += (0 - x) * v; y += (0 - y) * v; lab = 'Sentarse'; }
+  } else { lab = 'Sentado'; det = 'fin del test'; }
+  let [ph, amp] = stridePhase(R.ics, i); amp *= 1 - s;
+  const hd = (i >= R.t0 ? R.head[Math.min(Math.round(i), R.head.length - 1)] : 0) * Math.PI / 180;
+  return { x, y, z: 0, s, hd, ph, amp, lean: R.lean[Math.round(i)] || 0, lab, det };
+}
+function genPose(R, i) {
+  const k = Math.max(R.a, Math.min(R.b, Math.round(i)));
+  const s = R.sit ? R.sit[k] : 0;
+  let [ph, amp] = R.sit ? [0, 0] : stridePhase(R.ics, i); amp *= 1 - s;
+  const hd = (k >= R.t0 ? R.head[k] : 0) * Math.PI / 180;
+  let lab, det = '';
+  const p = R.phases.find(q => k >= q.s && k < q.e);
+  if (p) { lab = p.lab; det = p.det; }
+  else if (k < R.t0) lab = R.sit ? 'Sentado' : 'Quieto';
+  else if (k > R.t1) { lab = 'Fin'; det = 'fin del test'; }
+  else if (R.sit) lab = s > 0.5 ? 'Sentado' : 'Parado';
+  else if (amp > 0.3) {
+    const nStep = R.ics.filter(q => q <= k).length;
+    lab = R.props.stairs ? (k > R.mid ? 'Bajando' : 'Subiendo') : R.inPlace ? 'Pasos en el lugar' : 'Caminando';
+    det = `el sensor detecta: ${R.props.stairs ? 'escalón' : 'paso'} ${nStep} de ${R.ics.length}`;
+  } else lab = 'Quieto';
+  return { x: R.sit ? 0 : R.px[k], y: R.sit ? 0 : R.py[k], z: R.sit ? 0 : R.pz[k], s, hd, ph, amp, lean: R.lean[k] || 0, lab, det };
+}
+function tugDraw() {
+  const R = tug.R; if (!R) return;
+  const pose = R.kind === 'tug' ? tugPose : genPose;
+  const cv = $('tugCv'), W = cv.clientWidth || 360, HS = Math.round(W * 0.6), HC = 190, H = HS + HC;
+  cv.style.height = H + 'px'; const { x: c } = setupCanvas(cv);
+  c.clearRect(0, 0, W, H);
+  const ps = pose(R, tug.i);
+  // ---- cámara: fija para recorridos cortos, sigue a la persona en los largos ----
+  if (!R._bb) {
+    let x0 = 0, x1 = 0, y0 = 0, y1 = 0, z1 = 0;
+    for (let k = R.t0; k <= R.t1; k += 5) { const q = pose(R, k); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); z1 = Math.max(z1, q.z); }
+    if (R.kind === 'tug') { x1 = Math.max(x1, 3.1); x0 = Math.min(x0, -0.5); }
+    if (R.props && R.props.chair) x0 = Math.min(x0, -0.5);
+    R._bb = { x0, x1, y0, y1, z1, ext: Math.max(x1 - x0, y1 - y0, 2.4) };
+  }
+  const bb = R._bb, follow = bb.ext > 16;
+  let T;
+  if (follow) T = [ps.x, ps.y, ps.z + 0.8];
+  else T = [(bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2, 0.75 + bb.z1 / 2];
+  const dist = follow ? 6 : bb.ext * 0.85 + 3.4, dv = nrm([-0.33, -1, 0.6]);
+  const C = [T[0] + dv[0] * dist, T[1] + dv[1] * dist, T[2] + dv[2] * dist], fw = nrm([T[0] - C[0], T[1] - C[1], T[2] - C[2]]);
+  const rt = nrm(cross(fw, [0, 0, 1])), up = cross(rt, fw), f = W * 1.0;
+  const pj = (p) => { const d = [p[0] - C[0], p[1] - C[1], p[2] - C[2]], z = Math.max(0.2, dot(d, fw)); return [W / 2 + f * dot(d, rt) / z, HS * 0.6 - f * dot(d, up) / z, z]; };
+  const line = (pts, col, lw) => { c.strokeStyle = col; c.lineWidth = lw; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); pts.forEach((p, k) => { const q = pj(p); k ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]); }); c.stroke(); };
+  // título y fase
+  c.fillStyle = '#1d2433'; c.font = 'bold 15px sans-serif'; c.textAlign = 'left'; c.fillText(R.title || 'Test', 12, 22);
+  c.fillStyle = '#6b7383'; c.font = '11px monospace'; c.fillText((Math.max(0, (tug.i - R.t0) / FS)).toFixed(2) + ' s', 12, 37);
+  c.textAlign = 'right'; c.fillStyle = '#2b6cd4'; c.font = 'bold 14px sans-serif'; c.fillText(ps.lab, W - 12, 22);
+  c.fillStyle = '#6b7383'; c.font = '11px sans-serif'; if (ps.det) c.fillText(ps.det, W - 12, 37);
+  // piso
+  const gs = follow ? 1 : 0.5, gx0 = Math.floor((follow ? T[0] - 6 : bb.x0 - 1) / gs) * gs, gx1 = Math.ceil((follow ? T[0] + 6 : bb.x1 + 1) / gs) * gs;
+  const gy0 = Math.floor((follow ? T[1] - 6 : bb.y0 - 1) / gs) * gs, gy1 = Math.ceil((follow ? T[1] + 6 : bb.y1 + 1) / gs) * gs;
+  for (let gx = gx0; gx <= gx1 + 1e-6; gx += gs) line([[gx, gy0, 0], [gx, gy1, 0]], '#dde2ea', 1);
+  for (let gy = gy0; gy <= gy1 + 1e-6; gy += gs) line([[gx0, gy, 0], [gx1, gy, 0]], '#dde2ea', 1);
+  // escalones (test de escaleras)
+  if (R.props && R.props.stairs) R.ics.forEach((k) => { const q = pose(R, k), d = [Math.cos(q.hd), Math.sin(q.hd)], l = [-d[1], d[0]], zz = q.z;
+    const A = [q.x - l[0] * 0.45, q.y - l[1] * 0.45], B = [q.x + l[0] * 0.45, q.y + l[1] * 0.45];
+    c.fillStyle = 'rgba(160,170,185,.25)'; const p1 = pj([A[0], A[1], zz]), p2 = pj([B[0], B[1], zz]), p3 = pj([B[0] + d[0] * 0.28, B[1] + d[1] * 0.28, zz]), p4 = pj([A[0] + d[0] * 0.28, A[1] + d[1] * 0.28, zz]);
+    c.beginPath(); c.moveTo(p1[0], p1[1]); c.lineTo(p2[0], p2[1]); c.lineTo(p3[0], p3[1]); c.lineTo(p4[0], p4[1]); c.closePath(); c.fill();
+    line([[A[0], A[1], zz], [B[0], B[1], zz]], '#a0a8b5', 1.5); line([[A[0], A[1], Math.max(0, zz - 0.17)], [A[0], A[1], zz]], '#a0a8b5', 1); line([[B[0], B[1], Math.max(0, zz - 0.17)], [B[0], B[1], zz]], '#a0a8b5', 1); });
+  // recorrido completo (tenue) y hecho (naranja)
+  if (!R._path) { R._path = []; const st = Math.max(2, Math.round((R.t1 - R.t0) / 2500)); for (let k = R.t0; k <= R.t1; k += st) { const q = pose(R, k); R._path.push([q.x, q.y, q.z + 0.005, k]); } }
+  if (!(R.sit)) { line(R._path, '#f2c9a8', 2); const dn = R._path.filter(p => p[3] <= tug.i); if (dn.length > 1) line(dn, '#d9621f', 2.5); }
+  // utilería
+  const chair = (cx, cy) => { const ch = (pts) => line(pts, '#8a93a3', 2), sx0 = cx - 0.42, sx1 = cx + 0.02, sy0 = cy - 0.22, sy1 = cy + 0.22, sz = 0.46;
+    ch([[sx0, sy0, sz], [sx1, sy0, sz], [sx1, sy1, sz], [sx0, sy1, sz], [sx0, sy0, sz]]);
+    [[sx0, sy0], [sx1, sy0], [sx1, sy1], [sx0, sy1]].forEach(([a, b]) => ch([[a, b, 0], [a, b, sz]]));
+    ch([[sx0, sy0, sz], [sx0 - 0.04, sy0, 0.95], [sx0 - 0.04, sy1, 0.95], [sx0, sy1, sz]]); };
+  const cone = (x, y) => { const cb = pj([x, y, 0]), ct = pj([x, y, 0.32]), cw = 0.1 * f / cb[2]; c.fillStyle = '#e8701c'; c.beginPath(); c.moveTo(ct[0], ct[1]); c.lineTo(cb[0] - cw, cb[1]); c.lineTo(cb[0] + cw, cb[1]); c.closePath(); c.fill(); };
+  if (R.kind === 'tug') {
+    chair(0, 0); cone(2.95, R.side1 * 0.16);
+    const tag = pj([3.0, -0.75, 0]); c.fillStyle = '#8a93a3'; c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('3 m', tag[0], tag[1]);
+  } else {
+    if (R.props.chair) chair(0, 0);
+    if (R.props.lines) R.props.lines.forEach((k, j) => { const q = pose(R, k), d = [Math.cos(q.hd), Math.sin(q.hd)], l = [-d[1], d[0]];
+      line([[q.x - l[0] * 0.8, q.y - l[1] * 0.8, 0.005], [q.x + l[0] * 0.8, q.y + l[1] * 0.8, 0.005]], '#2a5db0', 3);
+      const tg = pj([q.x + l[0] * 1.0, q.y + l[1] * 1.0, 0]); c.fillStyle = '#2a5db0'; c.font = 'bold 11px sans-serif'; c.textAlign = 'center'; c.fillText(j ? 'llegada' : 'salida', tg[0], tg[1]); });
+  }
+  // ---- figura ----
+  const { x: px, y: py, z: pz, s, hd, ph, amp } = ps, lean = ps.lean * Math.PI / 180;
+  const d = [Math.cos(hd), Math.sin(hd), 0], l = [-Math.sin(hd), Math.cos(hd), 0];
+  const add = (a, ...v) => v.reduce((o, [k, w]) => [o[0] + k[0] * w, o[1] + k[1] * w, o[2] + k[2] * w], a);
+  const hipZ = pz + 0.95 - (0.95 - 0.5) * s, pel = [px - 0.2 * s, py, hipZ];
+  const sh = add(pel, [d, 0.52 * Math.sin(lean)], [[0, 0, 1], 0.52 * Math.cos(lean)]);
+  const hdp = add(pel, [d, 0.72 * Math.sin(lean)], [[0, 0, 1], 0.72 * Math.cos(lean)]);
+  const sw = Math.sin(Math.PI * ph) * (R.inPlace ? 0.25 : 0.42) * amp;
+  const leg = (side, th, kf) => {
+    const hip = add(pel, [l, 0.1 * side]);
+    const kSt = add(hip, [d, 0.46 * Math.sin(th)], [[0, 0, -1], 0.46 * Math.cos(th)]);
+    const aSt = add(kSt, [d, 0.46 * Math.sin(th - kf)], [[0, 0, -1], 0.46 * Math.cos(th - kf)]);
+    const kSi = add(hip, [d, 0.44], [[0, 0, -1], 0.02]), aSi = [kSi[0], kSi[1], pz + 0.06];
+    const mix = (A, B) => A.map((v, j) => v * (1 - s) + B[j] * s);
+    return [hip, mix(kSt, kSi), mix(aSt, aSi)];
+  };
+  const kfL = amp * 0.7 * Math.max(0, Math.cos(Math.PI * ph)), kfR = amp * 0.7 * Math.max(0, -Math.cos(Math.PI * ph));
+  const LL = leg(1, R.inPlace ? Math.abs(sw) : sw, R.inPlace ? 2 * Math.abs(sw) : kfL), RL = leg(-1, R.inPlace ? 0 : -sw, kfR);
+  const arm = (side, th) => {
+    const so = add(sh, [l, 0.19 * side]);
+    const hSt = add(so, [d, 0.55 * Math.sin(th) + 0.05], [[0, 0, -1], 0.55 * Math.cos(th)]);
+    const hSi = add(pel, [d, 0.3], [l, 0.14 * side], [[0, 0, 1], 0.05]);
+    return [so, hSt.map((v, j) => v * (1 - s) + hSi[j] * s)];
+  };
+  const AL = arm(1, -sw * 0.6), AR = arm(-1, sw * 0.6);
+  const sp = pj([px, py, pz]); c.fillStyle = 'rgba(30,40,60,.12)'; c.beginPath(); c.ellipse(sp[0], sp[1], 0.28 * f / sp[2], 0.09 * f / sp[2], 0, 0, 7); c.fill();
+  const farL = dot(l, [C[0] - px, C[1] - py, 0]) < 0;
+  const sideDraw = (legP, armP, col) => { line(legP, col, 5); line(armP, col, 4); };
+  const LC = '#8fb3e6', RC = '#2a5db0';
+  if (farL) sideDraw(LL, AL, LC); else sideDraw(RL, AR, RC);
+  line([add(pel, [l, 0.1]), add(pel, [l, -0.1])], '#1d2433', 4);
+  line([pel, sh], '#1d2433', 5); line([add(sh, [l, 0.19]), add(sh, [l, -0.19])], '#1d2433', 4);
+  if (farL) sideDraw(RL, AR, RC); else sideDraw(LL, AL, LC);
+  const hp = pj(hdp); c.fillStyle = '#1d2433'; c.beginPath(); c.arc(hp[0], hp[1] - 0.06 * f / hp[2], 0.1 * f / hp[2], 0, 7); c.fill();
+  const sn = pj(add(pel, [d, -0.12], [[0, 0, 1], 0.06])); c.fillStyle = '#18c29c'; c.fillRect(sn[0] - 4, sn[1] - 4, 8, 8);
+  // ---- gráficos sincronizados ----
+  const lft = 44, rgt = W - 10, X = (k) => lft + (k - R.a) / (R.b - R.a) * (rgt - lft);
+  const panel = (top, hgt, arr, lo, hi, title, spans, dots) => {
+    c.fillStyle = '#fff'; c.fillRect(lft, top, rgt - lft, hgt);
+    spans.forEach(([a, b2]) => { c.fillStyle = 'rgba(43,108,212,.10)'; c.fillRect(X(a), top, Math.max(1, X(b2) - X(a)), hgt); });
+    const Y = (v) => top + hgt - (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo) * hgt;
+    if (lo < 0) { c.strokeStyle = '#cfd5de'; c.lineWidth = 1; c.beginPath(); c.moveTo(lft, Y(0)); c.lineTo(rgt, Y(0)); c.stroke(); }
+    c.strokeStyle = '#2a5db0'; c.lineWidth = 1.4; c.beginPath();
+    const stp = Math.max(1, Math.floor((R.b - R.a) / (rgt - lft) / 2));
+    for (let k = R.a; k <= R.b; k += stp) { const xx = X(k), yy = Y(arr[k]); k === R.a ? c.moveTo(xx, yy) : c.lineTo(xx, yy); } c.stroke();
+    if (dots && dots.length < 120) dots.forEach(k => { c.fillStyle = k <= tug.i ? '#2a5db0' : '#c3cfe2'; c.beginPath(); c.arc(X(k), top + 7, 3, 0, 7); c.fill(); });
+    c.fillStyle = '#1d2433'; c.font = '11px sans-serif'; c.textAlign = 'left'; c.fillText(title, lft, top - 4);
+    const fm = (v) => Math.abs(hi - lo) < 10 ? r(v, 1) : r(v, 0);
+    c.fillStyle = '#8a93a3'; c.textAlign = 'right'; c.fillText(fm(hi) + '', lft - 4, top + 9); c.fillText(fm(lo) + '', lft - 4, top + hgt);
+  };
+  let ymax = 60; for (let k = R.a; k <= R.b; k++) ymax = Math.max(ymax, Math.abs(R.yaw[k])); ymax = Math.ceil(ymax / 50) * 50;
+  if (R.kind === 'tug') {
+    panel(HS + 16, 62, R.yaw, -ymax, ymax, 'Pelvis · velocidad de giro (°/s) — giros detectados', [[R.tA.s, R.tA.e], [R.tB.s, R.tB.e]]);
+    panel(HS + 104, 62, R.av, 0.4, 1.8, 'Pelvis · aceleración vertical (g) — pasos detectados ●', [[R.t0, R.ic0], [R.sitS, R.t1]], R.ics);
+  } else if (R.sit) {
+    panel(HS + 16, 62, R.lean, 0, 70, 'Tronco · inclinación (°)', R.phases.filter(q => q.sp === 1).map(q => [q.s, q.e]));
+    panel(HS + 104, 62, R.av, 0.4, 1.8, 'Pelvis · aceleración vertical (g) — pararse / sentarse', R.phases.filter(q => q.sp).map(q => [q.s, q.e]));
+  } else {
+    panel(HS + 16, 62, R.yaw, -ymax, ymax, 'Pelvis · velocidad de giro (°/s) — giros detectados', R.turns.map(q => [q.s, q.e]));
+    panel(HS + 104, 62, R.av, 0.4, 1.8, `Pelvis · aceleración vertical (g) — ${R.props.stairs ? 'escalones' : 'pasos'} detectados ●`, [], R.ics);
+  }
+  c.fillStyle = '#8a93a3'; c.textAlign = 'center'; c.font = '10px sans-serif';
+  const tot = (R.b - R.t0) / FS, tick = tot > 200 ? 60 : tot > 60 ? 20 : tot > 20 ? 5 : 2;
+  for (let sec = 0; R.t0 + sec * FS <= R.b; sec += tick) c.fillText(sec + ' s', X(R.t0 + sec * FS), H - 6);
+  c.strokeStyle = '#1d2433'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(X(tug.i), HS + 8); c.lineTo(X(tug.i), HS + 170); c.stroke();
+}
+window.addEventListener('resize', () => { if (tug.R && !$('tugBox').classList.contains('hide')) tugDraw(); });
+
 let romCurve = false;
 $('btnRomCurve').onclick = () => {
   romCurve = !romCurve; $('resPlot').classList.toggle('hide', !romCurve); $('phaseLegend').classList.toggle('hide', !romCurve);
