@@ -425,7 +425,7 @@ create policy &quot;trs_raw_del&quot; on storage.objects for delete to authentic
   </div>
 </div>
 
-<p class="note">TrakSensor v2.0.8 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v2.0.9 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -1030,6 +1030,22 @@ function genReplay(S, fr, sig, cfg) {
   }
   ics = ics.filter(i => i >= t0 && i <= t1); R.ics = ics;
   R.turns = detectTurns(sig.wV, t0, t1, cfg.turnMin || 90).map(t => ({ s: t.s, e: t.e, ang: t.angle, pk: t.peak }));
+  // Ida y vuelta (pasillo): los tramos rectos se alinean a la ida o a la vuelta exactas y cada giro grande
+  // se reparte entre los dos tramos. Así el error del giróscopo (giros de 170° o 195°) no "desparrama" el recorrido.
+  const bigT = R.turns.filter(t => Math.abs(t.ang) >= 120);
+  let corr = null;
+  if (cfg.corridor && bigT.length && !cfg.inPlace) {
+    const hd2 = new Float64Array(n), seg = [];
+    let st = t0; bigT.forEach(t => { seg.push([st, t.s]); st = t.e; }); seg.push([st, t1]);
+    const h0 = (() => { const [p, q] = seg[0]; let m = 0, c = 0; for (let i = p; i < q; i++) { m += head[i]; c++; } return c ? m / c : 0; })();
+    const tgt = seg.map(([p, q]) => { let m = 0, c = 0; for (let i = p; i < q; i++) { m += head[i]; c++; } m = c ? m / c : head[p]; return h0 + 180 * Math.round((m - h0) / 180); });
+    for (let i = 0; i < n; i++) hd2[i] = head[i];
+    seg.forEach(([p, q], k) => { for (let i = (k ? p : 0); i < (k === seg.length - 1 ? n : q); i++) hd2[i] = tgt[k]; });
+    bigT.forEach((t, k) => { const A = head[t.s], B = head[t.e], span = B - A || 1; for (let i = t.s; i < t.e; i++) hd2[i] = tgt[k] + (tgt[k + 1] - tgt[k]) * Math.min(1, Math.max(0, (head[i] - A) / span)); });
+    corr = { seg, h0, side: Math.sign(bigT[0].ang) || 1 };
+    R.head = hd2;
+  }
+  const HD = R.head;
   // trayectoria: cada paso avanza stepLen en la dirección que marca el giróscopo
   const L = cfg.inPlace ? 0 : (cfg.stepLen || 0.65);
   const big = cfg.stairs ? R.turns.find(t => Math.abs(t.ang) >= 120) : null, mid = big ? (big.s + big.e) / 2 : Infinity;
@@ -1042,10 +1058,16 @@ function genReplay(S, fr, sig, cfg) {
       const g = k < ics.length - 1 ? ics[k + 1] - ics[k] : Math.round(0.5 * FS);
       if (i < ics[k] + g && g < 1.5 * FS) { v = L / g; if (cfg.stairs) vz = (i > mid ? -0.17 : 0.17) / g; }
     }
-    const hr = head[i] * Math.PI / 180; x += v * Math.cos(hr); y += v * Math.sin(hr); z += vz;
+    const hr = HD[i] * Math.PI / 180; x += v * Math.cos(hr); y += v * Math.sin(hr); z += vz;
     px[i] = x; py[i] = y; pz[i] = z;
   }
   for (let i = b + 1; i < n; i++) { px[i] = x; py[i] = y; pz[i] = z; }
+  if (corr) {   // carriles: ida sobre la línea, vuelta a 0,5 m al costado (del lado del giro)
+    const hr0 = corr.h0 * Math.PI / 180, nx = -Math.sin(hr0), ny = Math.cos(hr0);
+    const sh = corr.seg.map(([p, q], k) => { let m = 0, c = 0; for (let i = p; i < q; i++) { m += px[i] * nx + py[i] * ny; c++; } return (k % 2 ? 0.5 * corr.side : 0) - (c ? m / c : 0); });
+    const shAt = (i) => { for (let k = 0; k < corr.seg.length; k++) { const [p, q] = corr.seg[k]; if (i < q || k === corr.seg.length - 1) { if (k && i < p) { const pq = corr.seg[k - 1][1]; return sh[k - 1] + (sh[k] - sh[k - 1]) * (i - pq) / Math.max(1, p - pq); } return sh[k]; } } return 0; };
+    for (let i = a; i < n; i++) { const d = shAt(i); px[i] += d * nx; py[i] += d * ny; }
+  }
   R.px = px; R.py = py; R.pz = pz;
   R.turns.forEach((t, j) => R.phases.push({ s: t.s, e: t.e, lab: `Giro ${j + 1}`, det: `el sensor detecta: giro ${r(Math.abs(t.ang), 0)}° ${t.ang > 0 ? 'izq' : 'der'} · pico ${r(t.pk, 0)} °/s`, sp: 1 }));
   if (cfg.stairs) { R.props.stairs = true; R.mid = mid; }
@@ -2989,7 +3011,7 @@ function analyzeTest(r0, a, t) {
       if (t.kind === 'w10') L = (parseFloat($('dist').value) || 10) / Math.max(1, n10 - 1);
       if (t.kind === 'w6') { const real = parseFloat($('dist').value); L = real > 0 && n10 ? real / n10 : res.len || 0.65; }
       if (t.kind === 'gait') L = res.len || (t.run ? 1.0 : 0.7);
-      res.replay = genReplay(S, fr, sig, { title: t.name, t0: sp[0], t1: sp[1], ics: res.g && res.g.pk, stepLen: L, turnMin: 90, lines: t.kind === 'w10', run: !!t.run });
+      res.replay = genReplay(S, fr, sig, { title: t.name, t0: sp[0], t1: sp[1], ics: res.g && res.g.pk, stepLen: L, turnMin: 90, lines: t.kind === 'w10', run: !!t.run, corridor: true });
     } catch (e) { console.warn('animación', e); }
     return withTitle(res, t);
   }
@@ -2997,7 +3019,7 @@ function analyzeTest(r0, a, t) {
   if (t.kind === 'bess') return withTitle(analyzeBESS(S, fr, sig, calB, Math.min(S.length, calB + 20 * FS)), t);
   if (t.kind === 'timed') {
     const res = analyzeTimed(S, fr, sig, calB, S.length, t.timed || {}); if (!res.error && t.dual) dualCost(res, a, t.dual, res.main[1], true);
-    if (!res.error) try { const tm = t.timed || {}, fsst = r0.test === 'FSST', tand = /^TANDG/.test(r0.test); res.replay = genReplay(S, fr, sig, { title: t.name, calEnd: calB, stepLen: tm.stairs ? 0.28 : tand ? 0.27 : 0.6, inPlace: fsst, stairs: !!tm.stairs, turnMin: tm.turnMin || 90, minStep: tm.minStep }); } catch (e) { console.warn('animación', e); }
+    if (!res.error) try { const tm = t.timed || {}, fsst = r0.test === 'FSST', tand = /^TANDG/.test(r0.test); res.replay = genReplay(S, fr, sig, { title: t.name, calEnd: calB, stepLen: tm.stairs ? 0.28 : tand ? 0.27 : 0.6, inPlace: fsst, corridor: tand || !!tm.turn, stairs: !!tm.stairs, turnMin: tm.turnMin || 90, minStep: tm.minStep }); } catch (e) { console.warn('animación', e); }
     return withTitle(res, t);
   }
   if (t.kind === 'jpe') return withTitle(analyzeJPE(S, fr, calB, S.length, t.jpe), t);
