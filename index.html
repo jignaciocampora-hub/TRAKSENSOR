@@ -425,7 +425,7 @@ create policy &quot;trs_raw_del&quot; on storage.objects for delete to authentic
   </div>
 </div>
 
-<p class="note">TrakSensor v2.0.9 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v2.0.10 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -2893,7 +2893,7 @@ function finishRec(msg) {
   if (r0.tB - r0.tA > 4000) r0.rate = (r0.nB - r0.nA - 10) / ((r0.tB - r0.tA) / 1000);
   fixRate(r0);
   const a = currentAthlete(), t = TESTS[r0.test];
-  lastRaw = { S: r0.S, test: r0.test, athlete: a.name };
+  lastRaw = { S: r0.S, test: r0.test, athlete: a.name, rate: r0.rate || null, fixed: !!r0.fixed };
   $('btnRaw').disabled = false;
   if (t.kind === 'jump') return finishJumps(r0, a, t, msg);
   let res;
@@ -3660,7 +3660,7 @@ function scrumInfoPNG() {
   const svg = $('scrumInfo').innerHTML, img = new Image();
   img.onload = () => {
     const c = document.createElement('canvas'); c.width = 1080; c.height = 1350; c.getContext('2d').drawImage(img, 0, 0);
-    c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); const at = currentAthlete(); a.download = `scrum_${(at ? at.name : 'atleta').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }, 'image/png');
+    c.toBlob(b => { const at = currentAthlete(); saveBlob(`scrum_${(at ? at.name : 'atleta').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.png`, b); }, 'image/png');
   };
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
@@ -3830,7 +3830,7 @@ function infoPNG() {
   const svg = $('scrumInfo').innerHTML, img = new Image();
   img.onload = () => {
     const c = document.createElement('canvas'); c.width = 1080; c.height = 1350; c.getContext('2d').drawImage(img, 0, 0);
-    c.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); const at = currentAthlete(); const ttl = ($('resTitle').textContent || 'informe').split(' · ')[0]; a.download = `${ttl}_${(at ? at.name : 'atleta')}_${new Date().toISOString().slice(0, 10)}.png`.replace(/[^\wáéíóúñÁÉÍÓÚÑ.-]+/g, '_'); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }, 'image/png');
+    c.toBlob(b => { const at = currentAthlete(); const ttl = ($('resTitle').textContent || 'informe').split(' · ')[0]; saveBlob(`${ttl}_${(at ? at.name : 'atleta')}_${new Date().toISOString().slice(0, 10)}.png`.replace(/[^\wáéíóúñÁÉÍÓÚÑ.-]+/g, '_'), b); }, 'image/png');
   };
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
@@ -5086,7 +5086,7 @@ async function openHist(id) {
         serie = null; current = { res, entry: e, t, r0, snap: raw.snap };
         showGeneric(res, e, t);
       }
-      lastRaw = { S, test: e.test, athlete: currentAthlete().name }; $('btnRaw').disabled = false;
+      lastRaw = { S, test: e.test, athlete: currentAthlete().name, rate: raw.rate || null, fixed: !!raw.fixed }; $('btnRaw').disabled = false;
     } catch (err) { console.error(err); showSaved(e, t); }
     finally { uiApply(keep); }
   } else showSaved(e, t);
@@ -5107,10 +5107,36 @@ function showSaved(e, t) {
   $('resWarn').textContent = 'Este registro es de una versión anterior y no tiene guardados los datos crudos: se muestran solo las métricas (sin gráfico). Los tests nuevos se guardan completos.';
   $('resPlot').classList.add('hide'); $('phaseLegend').innerHTML = '';
 }
-function download(name, text) {
-  const b = new Blob([text], { type: 'text/csv;charset=utf-8' }), u = URL.createObjectURL(b), a = document.createElement('a');
-  a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000);
+const APPV = 'v2.0.10';
+function isIOS() { return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+// Guarda un archivo: en iPhone/iPad (Bluefy no descarga) usa el menú Compartir; si no hay, muestra la ventana para copiar/guardar
+async function saveBlob(name, blob, text) {
+  try {
+    const f = new File([blob], name, { type: blob.type });
+    if (navigator.canShare && navigator.share && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f], title: name }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; console.warn(e); }
+  if (!isIOS()) { const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); return; }
+  saveModal(name, blob, text);
 }
+function saveModal(name, blob, text) {
+  const old = document.getElementById('saveMod'); if (old) old.remove();
+  const d = document.createElement('div'); d.id = 'saveMod';
+  d.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:16px';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#1b2230;color:#e8edf5;border-radius:14px;padding:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto;font:15px system-ui';
+  const isImg = blob.type.startsWith('image/');
+  box.innerHTML = `<b>${name}</b><p style="margin:8px 0;color:#aab">Este navegador no permite descargar archivos. ${isImg ? 'Mantené apretada la imagen y elegí <b>Guardar en Fotos</b> o <b>Compartir</b>.' : 'Tocá <b>Copiar</b> y pegalo en un mail, WhatsApp o Notas.'}</p>`;
+  if (isImg) { const im = document.createElement('img'); im.style.cssText = 'width:100%;border-radius:8px'; const r = new FileReader(); r.onload = () => im.src = r.result; r.readAsDataURL(blob); box.appendChild(im); }
+  else {
+    const ta = document.createElement('textarea'); ta.readOnly = true; ta.value = text; ta.style.cssText = 'width:100%;height:160px;font:11px monospace;background:#0f141c;color:#cfd;border-radius:8px;border:0;padding:6px';
+    const bc = document.createElement('button'); bc.className = 'pri'; bc.textContent = 'Copiar'; bc.style.marginTop = '8px';
+    bc.onclick = async () => { try { await navigator.clipboard.writeText(text); } catch (e) { ta.focus(); ta.select(); ta.setSelectionRange(0, text.length); document.execCommand('copy'); } bc.textContent = 'Copiado ✓'; };
+    box.appendChild(ta); box.appendChild(bc);
+  }
+  const bx = document.createElement('button'); bx.textContent = 'Cerrar'; bx.style.cssText = 'margin:8px 0 0 8px'; bx.onclick = () => d.remove();
+  box.appendChild(bx); d.appendChild(box); d.onclick = e => { if (e.target === d) d.remove(); }; document.body.appendChild(d);
+}
+function download(name, text) { saveBlob(name, new Blob([text], { type: 'text/csv;charset=utf-8' }), text); }
 function exportCsv() {
   const a = currentAthlete(); if (!a) return;
   const rows = results.filter(x => x.ath === a.id);
@@ -5121,7 +5147,7 @@ function exportCsv() {
 }
 function exportRaw() {
   if (!lastRaw) return;
-  const csv = ['t_s;ax_g;ay_g;az_g;gx_dps;gy_dps;gz_dps'].concat(lastRaw.S.map((s, i) => [(i / FS).toFixed(3), ...s.map(v => v.toFixed(4))].join(';')));
+  const csv = [`# TrakSensor ${APPV} · ${lastRaw.test} · sensor ${lastRaw.rate ? Math.round(lastRaw.rate) + ' datos/s' : '?'}${lastRaw.fixed ? ' (corregido a 200)' : ''}`, 't_s;ax_g;ay_g;az_g;gx_dps;gy_dps;gz_dps'].concat(lastRaw.S.map((s, i) => [(i / FS).toFixed(3), ...s.map(v => v.toFixed(4))].join(';')));
   download(`TrakSensor_crudo_${lastRaw.athlete}_${lastRaw.test}.csv`, csv.join('\n'));
 }
 
