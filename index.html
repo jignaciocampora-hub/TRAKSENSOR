@@ -425,7 +425,7 @@ create policy &quot;trs_raw_del&quot; on storage.objects for delete to authentic
   </div>
 </div>
 
-<p class="note">TrakSensor v2.0.7 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
+<p class="note">TrakSensor v2.0.8 · Sensor lumbar (L5) en cinturón firme · Windows: Chrome/Edge · iPhone/iPad: Bluefy · Herramienta de evaluación y seguimiento, no es un dispositivo médico certificado.</p>
 
 <script>
 // ===================== ANALYSIS-START =====================
@@ -969,6 +969,30 @@ function tugReplay(S, fr, sig, t0, t1, ic0, tA, tB, ics) {
 
 // Animación genérica de los tests clínicos: trayectoria por pasos (PDR) con el giro real del sensor,
 // inclinación del tronco, sentarse/pararse y escalones. cfg: { mode: 'walk'|'sts', stepLen, inPlace, stairs, title, minStep, turnMin, ics, t0, t1, lines }
+function leanOf(S, fr, a, b) {
+  const n = S.length, lp = [0, 1, 2].map(j => gaussSmooth(Float64Array.from(S, x => x[j]), 0.25)), lean = new Float64Array(n);
+  for (let i = a; i <= b; i++) { const v = nrm([lp[0][i], lp[1][i], lp[2][i]]); lean[i] = Math.min(70, Math.acos(Math.max(-1, Math.min(1, dot(v, fr.u)))) * 180 / Math.PI); }
+  return lean;
+}
+// Animación de sentadillas: desplazamiento vertical real de cada repetición (velocidad 0 al inicio y al final)
+function squatReplay(S, fr, sig, reps, vs, title) {
+  const n = S.length, a = Math.max(0, reps[0].down.s - FS), b = Math.min(n - 1, reps[reps.length - 1].up.e + FS);
+  const z = new Float32Array(n), phases = [];
+  reps.forEach((rp, k) => {
+    const s0 = rp.down.s, e0 = rp.up.e; let v = 0; const vv = [];
+    for (let i = s0; i <= e0; i++) { vv.push(v); v += sig.AV[i] * DT; }
+    const vend = vv[vv.length - 1], m = vv.length - 1 || 1; let d = 0;
+    for (let j = 0; j < vv.length; j++) { d += (vv[j] - vend * j / m) * DT; z[s0 + j] = d; }
+    const dEnd = z[e0]; for (let j = 0; j <= e0 - s0; j++) z[s0 + j] = Math.max(-0.7, Math.min(0.05, z[s0 + j] - dEnd * j / m));
+    phases.push({ s: rp.down.s, e: rp.down.e, lab: `Bajada ${k + 1}`, det: `el sensor detecta: profundidad ${r(rp.depth, 1)} cm`, sp: 1 },
+      { s: rp.down.e, e: rp.up.s, lab: `Abajo ${k + 1}`, det: `profundidad ${r(rp.depth, 1)} cm` },
+      { s: rp.up.s, e: rp.up.e, lab: `Subida ${k + 1}`, det: `el sensor detecta: vel. media ${r(rp.mpv, 2)} m/s`, sp: 2 });
+  });
+  const zc = new Float64Array(n); for (let i = 0; i < n; i++) zc[i] = z[i] * 100;
+  let lo = -10; for (let i = a; i <= b; i++) lo = Math.min(lo, zc[i]);
+  return { kind: 'vert', title, a, b, t0: reps[0].down.s, t1: reps[reps.length - 1].up.e, z, phases, lean: fr.f ? null : null, arms: 'front',
+    panels: [{ arr: vs, lo: -1.2, hi: 1.2, title: 'Pelvis · velocidad vertical (m/s)', spans: 1 }, { arr: zc, lo: Math.floor(lo / 10) * 10, hi: 5, title: 'Pelvis · desplazamiento vertical (cm)', spans: 2 }] };
+}
 function genReplay(S, fr, sig, cfg) {
   const n = S.length;
   let t0 = cfg.t0, t1 = cfg.t1;
@@ -979,7 +1003,7 @@ function genReplay(S, fr, sig, cfg) {
   const lp = [0, 1, 2].map(j => gaussSmooth(Float64Array.from(S, x => x[j]), 0.25));
   const lean = new Float64Array(n);
   for (let i = a; i <= b; i++) { const v = nrm([lp[0][i], lp[1][i], lp[2][i]]); lean[i] = Math.min(70, Math.acos(Math.max(-1, Math.min(1, dot(v, fr.u)))) * 180 / Math.PI); }
-  const R = { kind: 'gen', mode: cfg.mode || 'walk', title: cfg.title || '', a, b, t0, t1, head, lean, yaw: gaussSmooth(sig.wV, 0.05), av: gaussSmooth(sig.F, 0.02), ics: [], turns: [], phases: [], props: {} };
+  const R = { kind: 'gen', mode: cfg.mode || 'walk', run: !!cfg.run, title: cfg.title || '', a, b, t0, t1, head, lean, yaw: gaussSmooth(sig.wV, 0.05), av: gaussSmooth(sig.F, 0.02), ics: [], turns: [], phases: [], props: {} };
   if (R.mode === 'sts') {
     const ph = verticalPhases(sig, cfg.calEnd || 0, n, 0.2), reps = [];
     for (const u of ph.up) { const d = ph.down.find(x => x.p > u.p && x.p - u.p < 4 * FS); if (!d) continue; if (reps.length && u.p < reps[reps.length - 1].down.e) continue; reps.push({ up: u, down: d }); }
@@ -1151,6 +1175,7 @@ function analyzeSquat(S, fr, sig, calEnd, opts) {
   if (opts.unipodal && fin(M('obl')) && M('obl') > 8) res.warn.push('Oblicuidad pélvica alta en la sentadilla unipodal: revisar control de cadera (glúteo medio).');
   res.chart = { type: 'lines', from: Math.max(0, reps[0].down.s - FS / 2), to: Math.min(S.length - 1, reps[reps.length - 1].up.e + FS / 2), lines: [{ arr: ph.vs, color: '#4c9ef5', lo: -1.2, hi: 1.2, label: 'Velocidad vertical (m/s)' }].concat(obl ? [{ arr: obl, color: '#f0a63a', lo: -15, hi: 15, label: 'Oblicuidad pélvica (°)' }] : []), spans: reps.flatMap(rp => [['', rp.down.s, rp.down.e, 'brk'], ['', rp.up.s, rp.up.e, 'con']]), marks: reps.map((rp, k) => [k + 1, rp.down.e, 'Rep ' + (k + 1), 0]) };
   res.main = ['Profundidad media', r(M('depth'), 1), 'cm'];
+  try { res.replay = squatReplay(S, fr, sig, reps, ph.vs, opts.title || 'Sentadilla'); } catch (e) { console.warn('animación', e); }
   return res;
 }
 
@@ -2963,7 +2988,8 @@ function analyzeTest(r0, a, t) {
       let L = 0.65;
       if (t.kind === 'w10') L = (parseFloat($('dist').value) || 10) / Math.max(1, n10 - 1);
       if (t.kind === 'w6') { const real = parseFloat($('dist').value); L = real > 0 && n10 ? real / n10 : res.len || 0.65; }
-      if (t.cat === 'Clínicos') res.replay = genReplay(S, fr, sig, { title: t.name, t0: sp[0], t1: sp[1], ics: res.g && res.g.pk, stepLen: L, turnMin: 90, lines: t.kind === 'w10' });
+      if (t.kind === 'gait') L = res.len || (t.run ? 1.0 : 0.7);
+      res.replay = genReplay(S, fr, sig, { title: t.name, t0: sp[0], t1: sp[1], ics: res.g && res.g.pk, stepLen: L, turnMin: 90, lines: t.kind === 'w10', run: !!t.run });
     } catch (e) { console.warn('animación', e); }
     return withTitle(res, t);
   }
@@ -2971,7 +2997,7 @@ function analyzeTest(r0, a, t) {
   if (t.kind === 'bess') return withTitle(analyzeBESS(S, fr, sig, calB, Math.min(S.length, calB + 20 * FS)), t);
   if (t.kind === 'timed') {
     const res = analyzeTimed(S, fr, sig, calB, S.length, t.timed || {}); if (!res.error && t.dual) dualCost(res, a, t.dual, res.main[1], true);
-    if (!res.error && t.cat === 'Clínicos') try { const tm = t.timed || {}; res.replay = genReplay(S, fr, sig, { title: t.name, calEnd: calB, stepLen: tm.stairs ? 0.28 : 0.6, stairs: !!tm.stairs, turnMin: tm.turnMin || 90, minStep: tm.minStep }); } catch (e) { console.warn('animación', e); }
+    if (!res.error) try { const tm = t.timed || {}, fsst = r0.test === 'FSST', tand = /^TANDG/.test(r0.test); res.replay = genReplay(S, fr, sig, { title: t.name, calEnd: calB, stepLen: tm.stairs ? 0.28 : tand ? 0.27 : 0.6, inPlace: fsst, stairs: !!tm.stairs, turnMin: tm.turnMin || 90, minStep: tm.minStep }); } catch (e) { console.warn('animación', e); }
     return withTitle(res, t);
   }
   if (t.kind === 'jpe') return withTitle(analyzeJPE(S, fr, calB, S.length, t.jpe), t);
@@ -2984,7 +3010,7 @@ function analyzeTest(r0, a, t) {
   if (t.kind === 'turn') { const res = analyzeTurnTest(S, fr, sig, calB); if (!res.error) try { res.replay = genReplay(S, fr, sig, { title: t.name, calEnd: calB, inPlace: true, turnMin: 120 }); } catch (e) { console.warn('animación', e); } return withTitle(res, t); }
   if (t.kind === 'fukuda') { const res = analyzeFukuda(S, fr, sig, calB, S.length); if (!res.error) try { res.replay = genReplay(S, fr, sig, { title: t.name, calEnd: calB, inPlace: true, minStep: 0.3, turnMin: 400 }); } catch (e) { console.warn('animación', e); } return withTitle(res, t); }
   if (t.kind === 'sts') { const res = analyzeSTS(S, fr, sig, calB, { mode: t.stsMode || r0.test, mass: a.mass }); if (!res.error) try { res.replay = genReplay(S, fr, sig, { title: t.name, calEnd: calB, mode: 'sts' }); } catch (e) { console.warn('animación', e); } return withTitle(res, t); }
-  if (t.kind === 'squat') return withTitle(analyzeSquat(S, fr, sig, calB, { unipodal: !!t.side }), t);
+  if (t.kind === 'squat') return withTitle(analyzeSquat(S, fr, sig, calB, { unipodal: !!t.side, title: t.name }), t);
   if (t.kind === 'bal') {
     const end = Math.min(S.length, calB + testSecs() * FS);
     if (!fr.f) { pcaForward(S, fr, calB, end); Object.assign(sig, signals(S, fr)); }
@@ -3074,6 +3100,7 @@ function showSerie() {
   $('resWarn').textContent = j.warn.join(' ');
   $('resPlot').classList.remove('hide');
   drawResult(j.plot);
+  try { tugSet(jumpReplay(j, serie.jt, serie.test, t.name)); } catch (err) { console.warn('animación', err); tugSet(null); }
 }
 
 // ---------- Resultados genéricos ----------
@@ -3144,6 +3171,51 @@ $('tugSpd').onclick = () => {
   const L = tug.R && tug.R._long ? SPEEDS_L : SPEEDS_S, k = L.indexOf(tug.spd); tug.spd = L[(k + 1) % L.length];
   $('tugSpd').textContent = (tug.spd === 0.5 ? '½' : tug.spd === 0.25 ? '¼' : tug.spd) + '×';
 };
+// Animación de un salto a partir de sus fases (vuelo → parábola con la altura medida; contramovimiento → desplazamiento real)
+function jumpReplay(j, jt, test, title) {
+  const P = j.plot; if (!P || !P.phases) return null;
+  const a = Math.max(0, Math.floor(P.from)), b = Math.ceil(P.to), n = b + 1;
+  const z = new Float32Array(n), base = new Float32Array(n), fly = new Uint8Array(n), xs = new Float32Array(n), phases = [];
+  if (P.v) { let s = 0; for (let i = a; i <= b; i++) { z[i] = s; s += (P.v[i] || 0) * DT; } }
+  const boxM = jt === 'DJ' ? (j.entry && j.entry.box ? j.entry.box / 100 : 0.3) : 0;
+  let hMax = 0, iTo = null, fallEnd = null;
+  const ph = P.phases.map(([lab, s0, e0, ty]) => ({ lab, s: Math.max(a, Math.round(s0)), e: Math.min(b, Math.round(e0)), ty }));
+  const fS = ph.find(q => q.ty === 'fall');
+  for (let i = a; i <= b; i++) { base[i] = fS && i < fS.s ? boxM : 0; xs[i] = fS ? (i < fS.s ? -0.5 : i < fS.e ? -0.5 + 0.5 * tEase((i - fS.s) / Math.max(1, fS.e - fS.s)) : 0) : 0; }
+  let after = null;
+  ph.forEach((q) => {
+    const T = (q.e - q.s) / FS, L = Math.max(1, q.e - q.s);
+    if (q.ty === 'fly') {
+      const h = G * T * T / 8, z0 = z[q.s]; hMax = Math.max(hMax, h); if (iTo == null) iTo = q.s;
+      for (let i = q.s; i <= q.e; i++) { const u = (i - q.s) / L; z[i] = z0 * (1 - u) + 4 * h * u * (1 - u); fly[i] = 1; }
+      phases.push({ s: q.s, e: q.e, lab: 'Vuelo', det: `altura ${r(h * 100, 1)} cm · vuelo ${Math.round(T * 1000)} ms`, sp: 1 });
+    } else if (q.ty === 'fall') {
+      for (let i = q.s; i <= q.e; i++) { const u = (i - q.s) / L; z[i] = boxM * (1 - u * u); fly[i] = 1; }
+      fallEnd = q.e; phases.push({ s: q.s, e: q.e, lab: 'Caída del cajón', det: `cajón ${Math.round(boxM * 100)} cm` });
+    } else if (q.ty === 'land' || /Contacto/.test(q.lab)) {
+      const dip = q.ty === 'land' ? 0.2 : 0.08 + 0.22 * Math.min(1, T / 0.45);
+      for (let i = q.s; i <= q.e; i++) { const u = (i - q.s) / L; z[i] = q.ty === 'land' ? -dip * (u < 0.3 ? tEase(u / 0.3) : 1 - tEase((u - 0.3) / 0.7)) : -dip * Math.sin(Math.PI * u); }
+      if (q.ty === 'land') after = q.e;
+      phases.push({ s: q.s, e: q.e, lab: q.ty === 'land' ? 'Aterrizaje' : 'Contacto', det: q.ty === 'land' ? 'el sensor detecta: impacto y estabilización' : `contacto ${Math.round(T * 1000)} ms`, sp: 2 });
+    } else phases.push({ s: q.s, e: q.e, lab: q.lab, det: q.ty === 'brk' ? 'frenando la bajada' : q.ty === 'unw' ? 'empieza a bajar' : 'empuje hacia arriba', sp: 3 });
+  });
+  if (after != null) for (let i = after + 1; i <= b; i++) z[i] = 0;
+  if (!P.v) { const t0 = iTo != null ? iTo : a; for (let i = Math.max(a, t0 - Math.round(0.45 * FS)); i < t0; i++) { if (fly[i] || base[i]) continue; const u = (i - (t0 - 0.45 * FS)) / (0.45 * FS); z[i] = Math.min(z[i], -0.22 * Math.sin(Math.PI * u)); } }
+  for (let i = a; i <= b; i++) z[i] = Math.max(-0.6, Math.min(0.9, z[i]));
+  // brazos: Abalakov con braceo, el resto manos en la cintura
+  const arms = test === 'ABK' ? 'swing' : 'hips', armA = new Float32Array(n);
+  if (arms === 'swing') { let A = 0; for (let i = a; i <= b; i++) { const dz = z[Math.min(b, i + 4)] - z[Math.max(a, i - 4)], tg = fly[i] ? 2.7 : dz < -0.003 ? -0.9 : dz > 0.003 ? 2.4 : 0; A += (tg - A) * 0.12; armA[i] = A; } }
+  let fmax = 3; for (let i = a; i <= b; i++) fmax = Math.max(fmax, P.F[i] || 0);
+  const panels = [{ arr: P.F, lo: 0, hi: Math.ceil(fmax), title: P.v ? 'Fuerza (× peso corporal)' : 'Aceleración (g)', spans: 0 }];
+  if (P.v) panels.push({ arr: P.v, lo: -2, hi: 3.5, title: 'Velocidad vertical (m/s)', spans: 0 });
+  return { kind: 'vert', title, a, b, t0: a, t1: b, z, base, fly, xs, phases, arms, armA, box: boxM, ruler: hMax > 0 ? { h: hMax, i: iTo } : null, panels };
+}
+function vertPose(R, i) {
+  const k = Math.max(R.a, Math.min(R.b, Math.round(i)));
+  const p = R.phases.find(q => k >= q.s && k < q.e), hz = R.z[k];
+  return { x: R.xs ? R.xs[k] : 0, y: 0, z: R.base ? R.base[k] : 0, hz, fly: R.fly ? R.fly[k] : 0, armA: R.armA ? R.armA[k] : 0,
+    lean: R.lean ? R.lean[k] : Math.min(40, Math.max(0, -hz * 100 * 0.9)), s: 0, hd: 0, ph: 0, amp: 0, lab: p ? p.lab : (k < R.t0 + FS * 0.3 ? 'Quieto' : 'Quieto'), det: p ? p.det : '' };
+}
 // fase de la zancada (para mover las piernas) a partir de los pasos detectados
 function stridePhase(ic, i) {
   let ph = 0, amp = 0;
@@ -3185,15 +3257,15 @@ function genPose(R, i) {
   else if (R.sit) lab = s > 0.5 ? 'Sentado' : 'Parado';
   else if (amp > 0.3) {
     const nStep = R.ics.filter(q => q <= k).length;
-    lab = R.props.stairs ? (k > R.mid ? 'Bajando' : 'Subiendo') : R.inPlace ? 'Pasos en el lugar' : 'Caminando';
+    lab = R.props.stairs ? (k > R.mid ? 'Bajando' : 'Subiendo') : R.inPlace ? 'Pasos en el lugar' : R.run ? 'Corriendo' : 'Caminando';
     det = `el sensor detecta: ${R.props.stairs ? 'escalón' : 'paso'} ${nStep} de ${R.ics.length}`;
   } else lab = 'Quieto';
   return { x: R.sit ? 0 : R.px[k], y: R.sit ? 0 : R.py[k], z: R.sit ? 0 : R.pz[k], s, hd, ph, amp, lean: R.lean[k] || 0, lab, det };
 }
 function tugDraw() {
   const R = tug.R; if (!R) return;
-  const pose = R.kind === 'tug' ? tugPose : genPose;
-  const cv = $('tugCv'), W = cv.clientWidth || 360, HS = Math.round(W * 0.6), HC = 190, H = HS + HC;
+  const pose = R.kind === 'tug' ? tugPose : R.kind === 'vert' ? vertPose : genPose;
+  const cv = $('tugCv'), W = cv.clientWidth || 360, HS = Math.round(W * (R.kind === 'vert' ? 0.75 : 0.6)), HC = 190, H = HS + HC;
   cv.style.height = H + 'px'; const { x: c } = setupCanvas(cv);
   c.clearRect(0, 0, W, H);
   const ps = pose(R, tug.i);
@@ -3202,14 +3274,16 @@ function tugDraw() {
     let x0 = 0, x1 = 0, y0 = 0, y1 = 0, z1 = 0;
     for (let k = R.t0; k <= R.t1; k += 5) { const q = pose(R, k); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); z1 = Math.max(z1, q.z); }
     if (R.kind === 'tug') { x1 = Math.max(x1, 3.1); x0 = Math.min(x0, -0.5); }
+    if (R.kind === 'vert') { x0 = -1; x1 = 1; y0 = -0.8; y1 = 0.8; }
     if (R.props && R.props.chair) x0 = Math.min(x0, -0.5);
     R._bb = { x0, x1, y0, y1, z1, ext: Math.max(x1 - x0, y1 - y0, 2.4) };
   }
-  const bb = R._bb, follow = bb.ext > 16;
+  const bb = R._bb, follow = bb.ext > 16, VT = R.kind === 'vert';
   let T;
-  if (follow) T = [ps.x, ps.y, ps.z + 0.8];
+  if (VT) T = [-0.1, 0, 1.1 + (R.box || 0) / 2];
+  else if (follow) T = [ps.x, ps.y, ps.z + 0.8];
   else T = [(bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2, 0.75 + bb.z1 / 2];
-  const dist = follow ? 6 : bb.ext * 0.85 + 3.4, dv = nrm([-0.33, -1, 0.6]);
+  const dist = VT ? 4.6 : follow ? 6 : bb.ext * 0.85 + 3.4, dv = VT ? nrm([0.3, -1, 0.25]) : nrm([-0.33, -1, 0.6]);
   const C = [T[0] + dv[0] * dist, T[1] + dv[1] * dist, T[2] + dv[2] * dist], fw = nrm([T[0] - C[0], T[1] - C[1], T[2] - C[2]]);
   const rt = nrm(cross(fw, [0, 0, 1])), up = cross(rt, fw), f = W * 1.0;
   const pj = (p) => { const d = [p[0] - C[0], p[1] - C[1], p[2] - C[2]], z = Math.max(0.2, dot(d, fw)); return [W / 2 + f * dot(d, rt) / z, HS * 0.6 - f * dot(d, up) / z, z]; };
@@ -3232,14 +3306,19 @@ function tugDraw() {
     line([[A[0], A[1], zz], [B[0], B[1], zz]], '#a0a8b5', 1.5); line([[A[0], A[1], Math.max(0, zz - 0.17)], [A[0], A[1], zz]], '#a0a8b5', 1); line([[B[0], B[1], Math.max(0, zz - 0.17)], [B[0], B[1], zz]], '#a0a8b5', 1); });
   // recorrido completo (tenue) y hecho (naranja)
   if (!R._path) { R._path = []; const st = Math.max(2, Math.round((R.t1 - R.t0) / 2500)); for (let k = R.t0; k <= R.t1; k += st) { const q = pose(R, k); R._path.push([q.x, q.y, q.z + 0.005, k]); } }
-  if (!(R.sit)) { line(R._path, '#f2c9a8', 2); const dn = R._path.filter(p => p[3] <= tug.i); if (dn.length > 1) line(dn, '#d9621f', 2.5); }
+  if (!(R.sit) && R.kind !== 'vert') { line(R._path, '#f2c9a8', 2); const dn = R._path.filter(p => p[3] <= tug.i); if (dn.length > 1) line(dn, '#d9621f', 2.5); }
   // utilería
   const chair = (cx, cy) => { const ch = (pts) => line(pts, '#8a93a3', 2), sx0 = cx - 0.42, sx1 = cx + 0.02, sy0 = cy - 0.22, sy1 = cy + 0.22, sz = 0.46;
     ch([[sx0, sy0, sz], [sx1, sy0, sz], [sx1, sy1, sz], [sx0, sy1, sz], [sx0, sy0, sz]]);
     [[sx0, sy0], [sx1, sy0], [sx1, sy1], [sx0, sy1]].forEach(([a, b]) => ch([[a, b, 0], [a, b, sz]]));
     ch([[sx0, sy0, sz], [sx0 - 0.04, sy0, 0.95], [sx0 - 0.04, sy1, 0.95], [sx0, sy1, sz]]); };
   const cone = (x, y) => { const cb = pj([x, y, 0]), ct = pj([x, y, 0.32]), cw = 0.1 * f / cb[2]; c.fillStyle = '#e8701c'; c.beginPath(); c.moveTo(ct[0], ct[1]); c.lineTo(cb[0] - cw, cb[1]); c.lineTo(cb[0] + cw, cb[1]); c.closePath(); c.fill(); };
-  if (R.kind === 'tug') {
+  if (R.kind === 'vert') {
+    if (R.box) { const bx0 = -0.78, bx1 = -0.22, by0 = -0.3, by1 = 0.3, bz = R.box, bl = (pts) => line(pts, '#8a93a3', 2);
+      bl([[bx0, by0, bz], [bx1, by0, bz], [bx1, by1, bz], [bx0, by1, bz], [bx0, by0, bz]]); [[bx0, by0], [bx1, by0], [bx1, by1], [bx0, by1]].forEach(([a, b]) => bl([[a, b, 0], [a, b, bz]])); }
+    if (R.ruler && tug.i >= R.ruler.i) { const rx = 0.55, z0 = 0.95, z1 = 0.95 + R.ruler.h; line([[rx, 0, z0], [rx, 0, z1]], '#18c29c', 3); line([[rx - 0.08, 0, z0], [rx + 0.08, 0, z0]], '#18c29c', 2); line([[rx - 0.08, 0, z1], [rx + 0.08, 0, z1]], '#18c29c', 2);
+      const tq = pj([rx + 0.12, 0, (z0 + z1) / 2]); c.fillStyle = '#0d8c6f'; c.font = 'bold 14px sans-serif'; c.textAlign = 'left'; c.fillText(r(R.ruler.h * 100, 1) + ' cm', tq[0], tq[1] + 5); }
+  } else if (R.kind === 'tug') {
     chair(0, 0); cone(2.95, R.side1 * 0.16);
     const tag = pj([3.0, -0.75, 0]); c.fillStyle = '#8a93a3'; c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('3 m', tag[0], tag[1]);
   } else {
@@ -3252,10 +3331,20 @@ function tugDraw() {
   const { x: px, y: py, z: pz, s, hd, ph, amp } = ps, lean = ps.lean * Math.PI / 180;
   const d = [Math.cos(hd), Math.sin(hd), 0], l = [-Math.sin(hd), Math.cos(hd), 0];
   const add = (a, ...v) => v.reduce((o, [k, w]) => [o[0] + k[0] * w, o[1] + k[1] * w, o[2] + k[2] * w], a);
-  const hipZ = pz + 0.95 - (0.95 - 0.5) * s, pel = [px - 0.2 * s, py, hipZ];
-  const sh = add(pel, [d, 0.52 * Math.sin(lean)], [[0, 0, 1], 0.52 * Math.cos(lean)]);
-  const hdp = add(pel, [d, 0.72 * Math.sin(lean)], [[0, 0, 1], 0.72 * Math.cos(lean)]);
-  const sw = Math.sin(Math.PI * ph) * (R.inPlace ? 0.25 : 0.42) * amp;
+  const Zu = [0, 0, 1], RUN = !!R.run;
+  const bob = RUN ? -0.045 * Math.cos(2 * Math.PI * ph) * amp : 0;
+  const hipZ = VT ? pz + 0.95 + ps.hz : pz + 0.95 - (0.95 - 0.5) * s + bob, pel = VT ? [px - 0.32 * Math.max(0, -ps.hz), py, hipZ] : [px - 0.2 * s, py, hipZ];
+  const sh = add(pel, [d, 0.52 * Math.sin(lean)], [Zu, 0.52 * Math.cos(lean)]);
+  const hdp = add(pel, [d, 0.72 * Math.sin(lean)], [Zu, 0.72 * Math.cos(lean)]);
+  const sw = Math.sin(Math.PI * ph) * (R.inPlace ? 0.25 : RUN ? 0.6 : 0.42) * amp;
+  const legV = (side) => {      // salto / sentadilla: pies en el piso (cinemática inversa de rodilla) o piernas extendidas en el vuelo
+    const hip = add(pel, [l, 0.1 * side]);
+    if (ps.fly) { const kn = add(hip, [d, 0.07], [Zu, -0.455]); return [hip, kn, add(kn, [d, -0.05], [Zu, -0.457])]; }
+    const an = [px + d[0] * 0.04 + l[0] * 0.11 * side, py + d[1] * 0.04 + l[1] * 0.11 * side, pz + 0.06];
+    const dx = dot([hip[0] - an[0], hip[1] - an[1], 0], d), dzz = hip[2] - an[2], D = Math.min(0.915, Math.max(0.2, Math.hypot(dx, dzz)));
+    const th = Math.atan2(dzz, dx), al = Math.acos(Math.min(1, D / 0.92)), kA = th - al;
+    return [hip, add(an, [d, 0.46 * Math.cos(kA)], [Zu, 0.46 * Math.sin(kA)]), an];
+  };
   const leg = (side, th, kf) => {
     const hip = add(pel, [l, 0.1 * side]);
     const kSt = add(hip, [d, 0.46 * Math.sin(th)], [[0, 0, -1], 0.46 * Math.cos(th)]);
@@ -3264,15 +3353,20 @@ function tugDraw() {
     const mix = (A, B) => A.map((v, j) => v * (1 - s) + B[j] * s);
     return [hip, mix(kSt, kSi), mix(aSt, aSi)];
   };
-  const kfL = amp * 0.7 * Math.max(0, Math.cos(Math.PI * ph)), kfR = amp * 0.7 * Math.max(0, -Math.cos(Math.PI * ph));
-  const LL = leg(1, R.inPlace ? Math.abs(sw) : sw, R.inPlace ? 2 * Math.abs(sw) : kfL), RL = leg(-1, R.inPlace ? 0 : -sw, kfR);
+  const kfk = RUN ? 1.4 : 0.7;
+  const kfL = amp * kfk * Math.max(0, Math.cos(Math.PI * ph)), kfR = amp * kfk * Math.max(0, -Math.cos(Math.PI * ph));
+  const LL = VT ? legV(1) : leg(1, R.inPlace ? Math.abs(sw) : sw, R.inPlace ? 2 * Math.abs(sw) : kfL), RL = VT ? legV(-1) : leg(-1, R.inPlace ? 0 : -sw, kfR);
   const arm = (side, th) => {
     const so = add(sh, [l, 0.19 * side]);
-    const hSt = add(so, [d, 0.55 * Math.sin(th) + 0.05], [[0, 0, -1], 0.55 * Math.cos(th)]);
-    const hSi = add(pel, [d, 0.3], [l, 0.14 * side], [[0, 0, 1], 0.05]);
+    if (VT && R.arms === 'hips') return [so, add(so, [l, 0.13 * side], [d, -0.06], [Zu, -0.25]), add(pel, [l, 0.15 * side], [Zu, 0.06])];
+    if (VT && R.arms === 'front') { const A = 1.2 * Math.min(1, Math.max(0, -ps.hz * 4)); return [so, add(so, [d, 0.55 * Math.sin(A)], [Zu, -0.55 * Math.cos(A)])]; }
+    if (VT) { const A = ps.armA; return [so, add(so, [d, 0.58 * Math.sin(A)], [Zu, -0.58 * Math.cos(A)])]; }
+    if (RUN) { const el = add(so, [d, 0.28 * Math.sin(th)], [Zu, -0.28 * Math.cos(th)]), fa = th + 1.5; return [so, el, add(el, [d, 0.26 * Math.sin(fa)], [Zu, -0.26 * Math.cos(fa)])]; }
+    const hSt = add(so, [d, 0.55 * Math.sin(th) + 0.05], [Zu, -0.55 * Math.cos(th)]);
+    const hSi = add(pel, [d, 0.3], [l, 0.14 * side], [Zu, 0.05]);
     return [so, hSt.map((v, j) => v * (1 - s) + hSi[j] * s)];
   };
-  const AL = arm(1, -sw * 0.6), AR = arm(-1, sw * 0.6);
+  const AL = arm(1, -sw * (RUN ? 0.9 : 0.6)), AR = arm(-1, sw * (RUN ? 0.9 : 0.6));
   const sp = pj([px, py, pz]); c.fillStyle = 'rgba(30,40,60,.12)'; c.beginPath(); c.ellipse(sp[0], sp[1], 0.28 * f / sp[2], 0.09 * f / sp[2], 0, 0, 7); c.fill();
   const farL = dot(l, [C[0] - px, C[1] - py, 0]) < 0;
   const sideDraw = (legP, armP, col) => { line(legP, col, 5); line(armP, col, 4); };
@@ -3298,8 +3392,12 @@ function tugDraw() {
     const fm = (v) => Math.abs(hi - lo) < 10 ? r(v, 1) : r(v, 0);
     c.fillStyle = '#8a93a3'; c.textAlign = 'right'; c.fillText(fm(hi) + '', lft - 4, top + 9); c.fillText(fm(lo) + '', lft - 4, top + hgt);
   };
-  let ymax = 60; for (let k = R.a; k <= R.b; k++) ymax = Math.max(ymax, Math.abs(R.yaw[k])); ymax = Math.ceil(ymax / 50) * 50;
-  if (R.kind === 'tug') {
+  let ymax = 60; if (R.yaw) for (let k = R.a; k <= R.b; k++) ymax = Math.max(ymax, Math.abs(R.yaw[k])); ymax = Math.ceil(ymax / 50) * 50;
+  if (R.kind === 'vert') {
+    const spOf = (m) => R.phases.filter(q => m === 0 ? q.sp : q.sp === m).map(q => [q.s, q.e]);
+    if (R.panels.length === 1) panel(HS + 16, 150, R.panels[0].arr, R.panels[0].lo, R.panels[0].hi, R.panels[0].title, spOf(R.panels[0].spans));
+    else R.panels.slice(0, 2).forEach((q, k) => panel(HS + 16 + k * 88, 62, q.arr, q.lo, q.hi, q.title, spOf(q.spans)));
+  } else if (R.kind === 'tug') {
     panel(HS + 16, 62, R.yaw, -ymax, ymax, 'Pelvis · velocidad de giro (°/s) — giros detectados', [[R.tA.s, R.tA.e], [R.tB.s, R.tB.e]]);
     panel(HS + 104, 62, R.av, 0.4, 1.8, 'Pelvis · aceleración vertical (g) — pasos detectados ●', [[R.t0, R.ic0], [R.sitS, R.t1]], R.ics);
   } else if (R.sit) {
@@ -3311,7 +3409,8 @@ function tugDraw() {
   }
   c.fillStyle = '#8a93a3'; c.textAlign = 'center'; c.font = '10px sans-serif';
   const tot = (R.b - R.t0) / FS, tick = tot > 200 ? 60 : tot > 60 ? 20 : tot > 20 ? 5 : 2;
-  for (let sec = 0; R.t0 + sec * FS <= R.b; sec += tick) c.fillText(sec + ' s', X(R.t0 + sec * FS), H - 6);
+  if (R.kind === 'vert') { const tt = (R.b - R.a) / FS, st2 = tt > 8 ? 2 : tt > 3 ? 1 : 0.5; for (let sec = 0; R.a + sec * FS <= R.b; sec += st2) c.fillText(r(sec, 1) + ' s', X(R.a + sec * FS), H - 6); }
+  else for (let sec = 0; R.t0 + sec * FS <= R.b; sec += tick) c.fillText(sec + ' s', X(R.t0 + sec * FS), H - 6);
   c.strokeStyle = '#1d2433'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(X(tug.i), HS + 8); c.lineTo(X(tug.i), HS + 170); c.stroke();
 }
 window.addEventListener('resize', () => { if (tug.R && !$('tugBox').classList.contains('hide')) tugDraw(); });
